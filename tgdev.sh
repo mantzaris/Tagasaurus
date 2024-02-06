@@ -49,6 +49,7 @@ elif [ "$1" == "pack" ]; then
             unzip "$zip_file" -d dist/tempDir || { echo "Failed to unzip $zip_file."; exit 1; }
             # Copy the directory within the extracted contents
             cp -r dist/tempDir/resources/app.asar.unpacked/LinuxRunOnExternalMedia dist/tempDir/LinuxRunOnExternalMedia
+            cp -r dist/tempDir/resources/app.asar.unpacked/Assets/scripts/* dist/tempDir/
             # Recreate the ZIP file with the modified contents
             (
                 cd dist/tempDir || exit

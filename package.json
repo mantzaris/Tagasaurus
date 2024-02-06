@@ -85,7 +85,8 @@
     "linux": {
       "icon": "Assets/taga-icon/TagaIcon512x512.png",
       "asarUnpack": [
-        "LinuxRunOnExternalMedia/**"
+        "LinuxRunOnExternalMedia/**",
+        "Assets/scripts/**"
       ],
       "maintainer": "mantzaris",
       "category": "utility"
