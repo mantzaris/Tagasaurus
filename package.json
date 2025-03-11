@@ -1,0 +1,64 @@
+{
+  "name": "tagasaurus",
+  "version": "0.0.1",
+  "description": "Tagasaurus to help you tag your planet",
+  "main": "dist/electron/app.js",
+  "scripts": {
+    "dev": "concurrently --kill-others \"npm run dev:renderer\" \"npm run dev:electron\" \"cd electron && tsc -w\"",
+    "package": "npm run build:renderer && npm run build:electron && electron-builder",
+    "build:electron": "cd electron && tsc",
+    "build:renderer": "cd renderer && npm run build",
+    "dev:renderer": "cd renderer && npm run dev",
+    "dev:electron": "npm run build:electron && electron .",
+    "format": "prettier --write ."
+  },
+  "build": {
+    "appId": "2025",
+    "productName": "Tagasaurus",
+    "directories": {
+      "output": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icons/Taga.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icons/Taga.png"
+    },
+    "linux": {
+      "icon": "icons/Taga.png",
+      "maintainer": "mantzaris",
+      "category": "utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mantzaris/Tagasaurus.git"
+  },
+  "keywords": ["tagging","photos","machine learning","tagasaurus","album","memory","memories"],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mantzaris/Tagasaurus/issues"
+  },
+  "homepage": "https://github.com/mantzaris/Tagasaurus",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.2.3",
+    "electron-builder": "^24.9.1",
+    "prettier": "^3.2.5",
+    "prettier-plugin-svelte": "^3.2.1"
+  },
+  "dependencies": {
+    "electron-reload": "^2.0.0-alpha.1"
+  }
+}
