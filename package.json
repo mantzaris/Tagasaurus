@@ -44,7 +44,15 @@
     "type": "git",
     "url": "https://github.com/mantzaris/Tagasaurus.git"
   },
-  "keywords": ["tagging","photos","machine learning","tagasaurus","album","memory","memories"],
+  "keywords": [
+    "tagging",
+    "photos",
+    "machine learning",
+    "tagasaurus",
+    "album",
+    "memory",
+    "memories"
+  ],
   "author": "",
   "license": "MIT",
   "bugs": {
