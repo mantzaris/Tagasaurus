@@ -1,21 +1,8 @@
 <script lang="ts">
-  import Test from "./routes/Test.svelte";
-  import MainMenu from "./routes/main-menu/MainMenu.svelte";
+  import { Router, createRouter } from '@roxi/routify'
+  import routes from '../.routify/routes.default.js'
 
-  const routes = {
-    "/test": Test,
-    "/main-menu": MainMenu,
-
-    "*": MainMenu
-  };
-
+  export const router = createRouter({ routes })
 </script>
 
-<main>
-
-
-
-  FOOBAR BAZ
-  <i class="fa-solid fa-house"></i>
-
-</main>
+<Router {router} />
