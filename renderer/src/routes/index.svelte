@@ -21,30 +21,21 @@
 <Container class="mt-4 p-4">
   
   <Row>
-    <Col md="4">
+    <Col md="6" >
       <Card>
         <CardBody>
-          <CardTitle >Import Files</CardTitle>
-          <CardText>Upload images for annotation.</CardText>
-          <Button color="primary" >Open</Button>
+          <CardTitle>Gallery</CardTitle>
+          <CardText>See your files, tag them, describe, and search as well.</CardText>
+          <Button color="primary" size="lg">Open</Button>
         </CardBody>
       </Card>
     </Col>
-    <Col md="4">
+    <Col md="6" xs="12">
       <Card>
         <CardBody>
-          <CardTitle >Describe Images</CardTitle>
-          <CardText>Tag and describe your images.</CardText>
-          <Button color="primary" >Open</Button>
-        </CardBody>
-      </Card>
-    </Col>
-    <Col md="4">
-      <Card>
-        <CardBody>
-          <CardTitle >Export / Search</CardTitle>
-          <CardText>Find and export your annotations.</CardText>
-          <Button color="primary" >Open</Button>
+          <CardTitle >Stream Search</CardTitle>
+          <CardText>Use your webcam, or screen to search for people you know in real time.</CardText>
+          <Button color="primary" size="lg">Open</Button>
         </CardBody>
       </Card>
     </Col>
@@ -54,18 +45,19 @@
     <Col md="6">
       <Card>
         <CardBody>
-          <CardTitle >Webcam Analysis</CardTitle>
-          <CardText>Analyze live images from your webcam.</CardText>
-          <Button color="primary" >Open</Button>
+          <CardTitle >Export / Import</CardTitle>
+          <CardText>Export your data to be used elsewhere or uploaded, or import new data.</CardText>
+          <Button color="primary" size="lg">Open</Button>
         </CardBody>
       </Card>
     </Col>
+
     <Col md="6">
       <Card>
         <CardBody>
           <CardTitle >Settings</CardTitle>
-          <CardText>Configure application preferences.</CardText>
-          <Button color="primary" >Open</Button>
+          <CardText>Configure Tagasaurus preferences.</CardText>
+          <Button color="primary"  size="lg">Open</Button>
         </CardBody>
       </Card>
     </Col>
