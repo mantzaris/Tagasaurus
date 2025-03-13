@@ -11,7 +11,7 @@ async function main() {
     width: 700,
     height: 600,
     resizable: true,
-    show: false,
+    show: true,
     webPreferences: {
       devTools: !app.isPackaged,
       preload: join(__dirname, "preload.js"),
