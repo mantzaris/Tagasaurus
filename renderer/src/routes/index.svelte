@@ -18,56 +18,62 @@
   <NavbarBrand href="#">Tagasaurus</NavbarBrand>
 </Navbar>
 
-
-    <Container class="mt-4">
-      <Row>
-        <Col md="4">
-          <Card>
-            <CardBody>
-              <CardTitle >Import Files</CardTitle>
-              <CardText>Upload images for annotation.</CardText>
-              <Button color="primary" >Open</Button>
-            </CardBody>
-          </Card>
-        </Col>
-        <Col md="4">
-          <Card>
-            <CardBody>
-              <CardTitle >Describe Images</CardTitle>
-              <CardText>Tag and describe your images.</CardText>
-              <Button color="primary" >Open</Button>
-            </CardBody>
-          </Card>
-        </Col>
-        <Col md="4">
-          <Card>
-            <CardBody>
-              <CardTitle >Export / Search</CardTitle>
-              <CardText>Find and export your annotations.</CardText>
-              <Button color="primary" >Open</Button>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
-      <Row class="mt-4">
-        <Col md="6">
-          <Card>
-            <CardBody>
-              <CardTitle >Webcam Analysis</CardTitle>
-              <CardText>Analyze live images from your webcam.</CardText>
-              <Button color="primary" >Open</Button>
-            </CardBody>
-          </Card>
-        </Col>
-        <Col md="6">
-          <Card>
-            <CardBody>
-              <CardTitle >Settings</CardTitle>
-              <CardText>Configure application preferences.</CardText>
-              <Button color="primary" >Open</Button>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+<Container class="mt-4 p-4">
   
+  <Row>
+    <Col md="4">
+      <Card>
+        <CardBody>
+          <CardTitle >Import Files</CardTitle>
+          <CardText>Upload images for annotation.</CardText>
+          <Button color="primary" >Open</Button>
+        </CardBody>
+      </Card>
+    </Col>
+    <Col md="4">
+      <Card>
+        <CardBody>
+          <CardTitle >Describe Images</CardTitle>
+          <CardText>Tag and describe your images.</CardText>
+          <Button color="primary" >Open</Button>
+        </CardBody>
+      </Card>
+    </Col>
+    <Col md="4">
+      <Card>
+        <CardBody>
+          <CardTitle >Export / Search</CardTitle>
+          <CardText>Find and export your annotations.</CardText>
+          <Button color="primary" >Open</Button>
+        </CardBody>
+      </Card>
+    </Col>
+  </Row>
+
+  <Row class="mt-4">
+    <Col md="6">
+      <Card>
+        <CardBody>
+          <CardTitle >Webcam Analysis</CardTitle>
+          <CardText>Analyze live images from your webcam.</CardText>
+          <Button color="primary" >Open</Button>
+        </CardBody>
+      </Card>
+    </Col>
+    <Col md="6">
+      <Card>
+        <CardBody>
+          <CardTitle >Settings</CardTitle>
+          <CardText>Configure application preferences.</CardText>
+          <Button color="primary" >Open</Button>
+        </CardBody>
+      </Card>
+    </Col>
+  </Row>
+
+</Container>
+
+
+<style>
+
+</style>
