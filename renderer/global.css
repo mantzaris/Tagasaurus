@@ -1,0 +1,14 @@
+:root {
+    --background-color: rgb(230, 230, 230); 
+    --background-dark: rgb(200, 200, 200); 
+
+}
+  
+
+html, body, main {
+    background-color: var(--background-color) !important;
+    height: 100vh;
+    width: 100vw;
+    padding: 0;
+    margin: 0;
+}
