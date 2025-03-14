@@ -44,7 +44,7 @@
             <CardImg top src={card.img} alt={card.title} class="p-2"/>
             <CardBody >
               <CardTitle>
-                <Button  outline color="primary" size="md">Select</Button>
+                <Button  outline color="primary" size="md" href="/tagging/Taga.png">Select</Button>
               </CardTitle>
               <CardText>{card.text}</CardText>
             </CardBody>
