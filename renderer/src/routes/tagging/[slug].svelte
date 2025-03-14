@@ -6,10 +6,10 @@
     let { slug } = $params;
     console.log(slug)
 
-    let imageUrl = "../../../assets/images/WebTransportDatagramDuplexStream.png";
+    let imageUrl = "../../../assets/images/Taga.png";
 
     let description = "hi";
-
+    let mode = "edit"
 </script>
 
 
@@ -68,31 +68,33 @@
 
 
   <!-- Image display area using Sveltestrap styling for images -->
-  <Row class="mb-3">
-    <Col>
-      <!-- Using the img-fluid class ensures the image scales nicely -->
-      <img src={imageUrl} alt="Descriptive image" class="img-fluid" />
-    </Col>
-  </Row>
-
-  <!-- Text area for the image description -->
-  <Row class="mb-2">
-    <Col>
-      <Input
-        type="textarea"
-        placeholder="Enter image description..."
-        bind:value={description}
-        
-      />
-    </Col>
-  </Row>
-
-  <!-- Save button below the text area -->
-  <Row>
-    <Col class="text-end">
-      <Button color="success" size="md">Save</Button>
-    </Col>
-  </Row>
+  <div id="viewing" class="flex-grow-1">
+    {#if mode === "edit"}
+      <!-- Edit Mode: Two columns -->
+      <Row class="h-100">
+        <!-- Left column: description and save button -->
+        <Col sm="6" class="d-flex flex-column justify-content-center p-3">
+          <textarea 
+            class="form-control mb-3" 
+            placeholder="Enter description..." 
+            style="min-height: 150px;"
+          ></textarea>
+          <Button color="success" size="md">Save</Button>
+        </Col>
+        <!-- Right column: image view -->
+        <Col sm="6" class="d-flex justify-content-center align-items-center p-3">
+          <img src={imageUrl} alt="Image view" class="img-fluid" />
+        </Col>
+      </Row>
+    {:else if mode === "gallery"}
+      <!-- Gallery Mode: Centered image only -->
+      <Row class="h-100">
+        <Col class="d-flex justify-content-center align-items-center">
+          <img src={imageUrl} alt="Image view" class="img-fluid" />
+        </Col>
+      </Row>
+    {/if}
+  </div>
 </Container>
 
 
