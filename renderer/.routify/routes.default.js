@@ -62,6 +62,54 @@ export const routes = {
       ]
     },
     {
+      "meta": {},
+      "id": "_default_tagging",
+      "name": "tagging",
+      "module": false,
+      "file": {
+        "path": "src/routes/tagging",
+        "dir": "src/routes",
+        "base": "tagging",
+        "ext": "",
+        "name": "tagging"
+      },
+      "children": [
+        {
+          "meta": {
+            "dynamic": true,
+            "order": false
+          },
+          "id": "_default_tagging__slug__svelte",
+          "name": "[slug]",
+          "file": {
+            "path": "src/routes/tagging/[slug].svelte",
+            "dir": "src/routes/tagging",
+            "base": "[slug].svelte",
+            "ext": ".svelte",
+            "name": "[slug]"
+          },
+          "asyncModule": () => import('../src/routes/tagging/[slug].svelte'),
+          "children": []
+        },
+        {
+          "meta": {
+            "isDefault": true
+          },
+          "id": "_default_tagging_index_svelte",
+          "name": "index",
+          "file": {
+            "path": "src/routes/tagging/index.svelte",
+            "dir": "src/routes/tagging",
+            "base": "index.svelte",
+            "ext": ".svelte",
+            "name": "index"
+          },
+          "asyncModule": () => import('../src/routes/tagging/index.svelte'),
+          "children": []
+        }
+      ]
+    },
+    {
       "meta": {
         "dynamic": true,
         "dynamicSpread": true,
