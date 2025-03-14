@@ -1,7 +1,7 @@
 
 <script lang="ts"> 
     // import { Container } from '@sveltestrap/sveltestrap';
-    import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand, Modal, ModalHeader, ModalBody, ModalFooter } from '@sveltestrap/sveltestrap';
+    import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand } from '@sveltestrap/sveltestrap';
 
   </script>
   
@@ -25,8 +25,8 @@
       <Card>
         <CardBody>
           <CardTitle>Gallery</CardTitle>
-          <CardText>See your files, tag them, describe, and search as well.</CardText>
-          <Button color="primary" size="lg">Open</Button>
+          <CardText>See your files, tag them, describe, and search as well. You can also import files one at a time by drag and drop.</CardText>
+          <Button color="primary" size="lg" href="/tagging">Open</Button>
         </CardBody>
       </Card>
     </Col>
