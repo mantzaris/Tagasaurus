@@ -1,5 +1,5 @@
   <script>
-    import { Button, Container, Row, Col, Card, CardImg, CardBody, CardTitle, CardText, Popover, Tooltip } from '@sveltestrap/sveltestrap';
+    import { Button, Container, Row, Col, Card, CardImg, CardBody, CardTitle, CardText, Popover, Tooltip , Icon} from '@sveltestrap/sveltestrap';
   
     const image_asset_dir = "../../../assets/images/"
 
@@ -29,7 +29,7 @@
             <Button color="primary" size="lg">Back</Button>
           </Col>
           <Col md="2" class="text-center">
-            <Button color="primary" size="lg" style="white-space: nowrap;">New Random</Button>
+            <Button color="primary" size="lg" style="white-space: nowrap;"><Icon name="dice-5-fill" /></Button>
           </Col>
         </Row>
       </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Container, Row, Col, Button, Input } from '@sveltestrap/sveltestrap';
+  import { Container, Row, Col, Button, Input, Icon } from '@sveltestrap/sveltestrap';
   import { params, goto } from '@roxi/routify';
   
     // Retrieve the slug from Routify's $params store
@@ -20,18 +20,24 @@
     <!-- Top row: Back and Delete -->
     <Row class="mb-2 align-items-center">
       <Col xs="6" class="d-flex justify-content-start">
-        <Button color="primary" size="sm">Back</Button>
+        <Button color="primary" size="sm"><Icon name="house-fill" class="fs-4"/></Button>
+
+        <Input type="select" class="w-auto ms-2">
+          {#each ["edit", "gallery"] as option}
+            <option>{option}</option>
+          {/each}
+        </Input>
       </Col>
       <Col xs="6" class="d-flex justify-content-end">
-        <Button color="danger" size="sm">Delete</Button>
+        <Button color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
       </Col>
     </Row>
     <!-- Bottom row: Center group -->
     <Row class="mb-2">
       <Col class="d-flex justify-content-center gap-2">
-        <Button color="primary" size="sm">Backward</Button>
-        <Button color="primary" size="sm">Search</Button>
-        <Button color="primary" size="sm">Forward</Button>
+        <Button color="primary" size="sm"><Icon name="caret-left-fill" class="fs-4"/></Button>
+        <Button color="primary" size="sm"><Icon name="search" class="fs-4"/></Button>
+        <Button color="primary" size="sm"><Icon name="caret-right-fill" class="fs-4"/></Button>
       </Col>
     </Row>
   </div>
@@ -40,21 +46,26 @@
   <div class="d-none d-sm-block">
     <Row class="mb-2 align-items-center">
       <Col xs="4" class="d-flex justify-content-start">
-        <Button color="primary" size="md">Back</Button>
+        <Button color="primary" size="md"><Icon name="house-fill" class="fs-3"/></Button>
+        
+        <Input type="select" class="w-auto ms-4">
+          {#each ["edit", "gallery"] as option}
+            <option>{option}</option>
+          {/each}
+        </Input>
+
       </Col>
-      <Col xs="4" class="d-flex justify-content-center gap-2">
-        <Button color="primary" size="md">Backward</Button>
-        <Button color="primary" size="md">Search</Button>
-        <Button color="primary" size="md">Forward</Button>
+      <Col xs="4" class="d-flex justify-content-center gap-3">
+        <Button color="primary" size="md"><Icon name="caret-left-fill" class="fs-3"/></Button>
+        <Button color="primary" size="md"><Icon name="search" class="fs-3"/></Button>
+        <Button color="primary" size="md"><Icon name="caret-right-fill" class="fs-3"/></Button>
       </Col>
       <Col xs="4" class="d-flex justify-content-end">
-        <Button color="danger" size="md">Delete</Button>
+        <Button color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
       </Col>
     </Row>
   </div>
 
-  
-  
 
   <!-- Image display area using Sveltestrap styling for images -->
   <Row class="mb-3">
