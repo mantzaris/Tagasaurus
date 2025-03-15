@@ -13,7 +13,7 @@
 </script>
 
 
-<Container class="py-2">
+<Container fluid class="d-flex flex-column vh-100 p-0 m-0">
 
   <!-- Layout for extra-small screens -->
   <div class="d-block d-sm-none">
@@ -68,7 +68,8 @@
 
 
   <!-- Image display area using Sveltestrap styling for images -->
-  <div id="viewing" class="flex-grow-1">
+   <!-- #TODO: gallery view as component -->
+  <div id="viewing" >
     {#if mode === "edit"}
       <!-- Edit Mode: Two columns -->
       <Row class="h-100">
@@ -88,32 +89,56 @@
       </Row>
     {:else if mode === "gallery"}
       <!-- Gallery Mode: Centered image only -->
-      <Row class="vh-100 border border-primary border-3">
+      <!-- <Row class="vh-100 border border-primary border-3">
         <Col class="d-flex justify-content-center align-items-center">
           <Image fluid class="img-gallery" src={imageUrl} alt="Image view"   style="background-color:red;"/>
         </Col>
-      </Row>
+      </Row> -->
+      <!-- <div id="screenshot" class="component-content"> -->
+        <!-- Child container for the image -->
+        <div id="center-gallery-area-div-id">
+          <!-- svelte-ignore a11y_img_redundant_alt -->
+          <img id="center-gallery-image-id" src={imageUrl} alt="Gallery Image" />
+        </div>
+        
+      <!-- </div> -->
+      
     {/if}
   </div>
 </Container>
 
 <style>
-  .img-gallery {
-    /* Ensure the image never exceeds the parent’s width */
-    max-width: 100% !important;
-    
-    /* Ensure the image never exceeds the parent’s height */
-    max-height: 100% !important;
-    
-    /* Make the browser preserve aspect ratio while fitting */
-    object-fit: contain !important;
-    
-    /* Center the image within its box */
-    object-position: center !important;
-    
-    /* Remove any default padding around the image element */
-    display: block !important;
-  }
+#viewing {
+  background-color: yellow;
+  height: 85vh;
+  width: 100vw;
+}
+
+#center-gallery-area-div-id {
+  background-color: red;
+  overflow: hidden;
+  position: relative;
+  
+  /* For example, fill the remaining viewport (adjust the subtraction to your header's height) */
+  height: 85vh;
+  width: 100vw; /* or any desired width */
+  margin: 0 auto;
+  
+  /* Use flexbox to center the image */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Image: force it to fill the container, scaling up if needed */
+#center-gallery-image-id {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;  /* or 'cover' if you prefer cropping */
+  display: block;
+  background-color: greenyellow;
+}
+
 </style>
 
 
