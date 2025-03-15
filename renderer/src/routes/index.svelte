@@ -33,8 +33,8 @@
     <Col md="6" xs="12">
       <Card>
         <CardBody>
-          <CardTitle >Stream Search</CardTitle>
-          <CardText>Use your webcam, or screen to search for people you know in real time.</CardText>
+          <CardTitle >Stream</CardTitle>
+          <CardText>Use your webcam, or screen to search for people you know in real time or captures images/video.</CardText>
           <Button color="primary" size="lg">Open</Button>
         </CardBody>
       </Card>
@@ -42,7 +42,16 @@
   </Row>
 
   <Row class="mt-4">
-    <Col md="6">
+    <Col md="4">
+      <Card>
+        <CardBody>
+          <CardTitle >Face Map</CardTitle>
+          <CardText>Explore and search through faces in the media stored.</CardText>
+          <Button color="primary" size="lg">Open</Button>
+        </CardBody>
+      </Card>
+    </Col>
+    <Col md="4">
       <Card>
         <CardBody>
           <CardTitle >Export / Import</CardTitle>
@@ -52,7 +61,7 @@
       </Card>
     </Col>
 
-    <Col md="6">
+    <Col md="4">
       <Card>
         <CardBody>
           <CardTitle >Settings</CardTitle>

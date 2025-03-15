@@ -17,11 +17,12 @@
     <!-- Small screens: vertical layout -->
     <div class="pt-3">
       <div class="d-block d-md-none mb-4">
-        <div class="d-flex flex-column">
-          <Button color="primary" class="mb-2 w-100">Button 1</Button>
-          <Button color="secondary" class="w-100">Button 2</Button>
+        <div class="d-flex flex-row justify-content-evenly">
+          <Button color="primary" class="w-25" href="/"><Icon name="house-fill" class="fs-4"/></Button>
+          <Button color="primary" class="w-25"><Icon name="dice-5-fill"/></Button>
         </div>
       </div>
+      
       <!-- Medium screens and up: horizontal layout -->
       <div class="d-none d-md-block mb-4">
         <Row class="align-items-center">
@@ -34,9 +35,9 @@
         </Row>
       </div>
     </div>
-       
+
     <Row>
-   
+
       {#each cardData as card}
         <Col sm="12" md="6" lg="4" xl="3" class="mb-4">
           
