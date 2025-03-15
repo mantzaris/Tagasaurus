@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Container, Row, Col, Button, Input, Icon } from '@sveltestrap/sveltestrap';
+  import { Container, Row, Col, Button, Input, Icon, Image } from '@sveltestrap/sveltestrap';
   import { params, goto } from '@roxi/routify';
   
     // Retrieve the slug from Routify's $params store
@@ -9,7 +9,7 @@
     let imageUrl = "../../../assets/images/Taga.png";
 
     let description = "hi";
-    let mode = "edit"
+    let mode: "edit" | "gallery" = "gallery";
 </script>
 
 
@@ -22,9 +22,9 @@
       <Col xs="6" class="d-flex justify-content-start">
         <Button color="primary" size="sm"><Icon name="house-fill" class="fs-4"/></Button>
 
-        <Input type="select" class="w-auto ms-2">
+        <Input type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
-            <option>{option}</option>
+            <option value={option}>{option}</option>
           {/each}
         </Input>
       </Col>
@@ -48,9 +48,9 @@
       <Col xs="4" class="d-flex justify-content-start">
         <Button color="primary" size="md"><Icon name="house-fill" class="fs-3"/></Button>
         
-        <Input type="select" class="w-auto ms-4">
+        <Input type="select" class="w-auto ms-2 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
-            <option>{option}</option>
+            <option value={option}>{option}</option>
           {/each}
         </Input>
 
@@ -77,26 +77,44 @@
           <textarea 
             class="form-control mb-3" 
             placeholder="Enter description..." 
-            style="min-height: 150px;"
+            style="min-height: 150px; background-color:aqua;"
           ></textarea>
           <Button color="success" size="md">Save</Button>
         </Col>
         <!-- Right column: image view -->
         <Col sm="6" class="d-flex justify-content-center align-items-center p-3">
-          <img src={imageUrl} alt="Image view" class="img-fluid" />
+          <Image fluid src={imageUrl} alt="Image view" style="background-color:red;" />
         </Col>
       </Row>
     {:else if mode === "gallery"}
       <!-- Gallery Mode: Centered image only -->
-      <Row class="h-100">
+      <Row class="vh-100 border border-primary border-3">
         <Col class="d-flex justify-content-center align-items-center">
-          <img src={imageUrl} alt="Image view" class="img-fluid" />
+          <Image fluid class="img-gallery" src={imageUrl} alt="Image view"   style="background-color:red;"/>
         </Col>
       </Row>
     {/if}
   </div>
 </Container>
 
+<style>
+  .img-gallery {
+    /* Ensure the image never exceeds the parent’s width */
+    max-width: 100% !important;
+    
+    /* Ensure the image never exceeds the parent’s height */
+    max-height: 100% !important;
+    
+    /* Make the browser preserve aspect ratio while fitting */
+    object-fit: contain !important;
+    
+    /* Center the image within its box */
+    object-position: center !important;
+    
+    /* Remove any default padding around the image element */
+    display: block !important;
+  }
+</style>
 
 
   
