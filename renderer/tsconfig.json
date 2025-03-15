@@ -12,7 +12,14 @@
      */
     "allowJs": true,
     "checkJs": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    /**
+    * now something for the $lib folder
+    */
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": ["src/lib/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "global.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
