@@ -66,10 +66,10 @@
     </Row>
   </div>
 
-
+  
   <!-- Image display area using Sveltestrap styling for images -->
-   <!-- #TODO: gallery view as component -->
-  <div id="viewing" >
+  <!-- #TODO: gallery view as component -->
+  
     {#if mode === "edit"}
       <!-- Edit Mode: Two columns -->
       <Row class="h-100">
@@ -88,76 +88,60 @@
         </Col>
       </Row>
     {:else if mode === "gallery"}
-      <!-- Gallery Mode: Centered image only -->
-      <!-- <Row class="vh-100 border border-primary border-3">
-        <Col class="d-flex justify-content-center align-items-center">
-          <Image fluid class="img-gallery" src={imageUrl} alt="Image view"   style="background-color:red;"/>
-        </Col>
-      </Row> -->
-      <!-- <div id="screenshot" class="component-content"> -->
+      <div id="viewing" >
         <!-- Child container for the image -->
-        <div id="center-gallery-area-div-id">
+        <div id="viewing-container">
           <!-- svelte-ignore a11y_img_redundant_alt -->
-          <img id="center-gallery-image-id" src={imageUrl} alt="Gallery Image" />
-        </div>
-        
-      <!-- </div> -->
-      
+          <img id="viewing-image-id" src={imageUrl} alt="Gallery Image" />
+        </div>     
+      </div>
     {/if}
-  </div>
+  
+
 </Container>
 
 <style>
-#viewing {
-  background-color: yellow;
-  height: 90%;
-  width: 100vw;
-}
+  #viewing {
+  box-sizing: border-box; /*optional*/
+  padding: 2px; /*optional*/
+  /* Make #viewing take all leftover space below the header area */
+  flex: 1 1 auto;  /* This is critical to fill leftover vertical space in a flex column */
 
-#center-gallery-area-div-id {
+  /* Use flex to easily center or position its contents if needed */
+  display: flex;
+  flex-direction: column; 
+  overflow: hidden; /* so we don't get scrollbars if there's small mismatch */
+  width: 100%;
+}
+#viewing-container {
   background-color: red;
-  overflow: hidden;
   position: relative;
-  
-  /* For example, fill the remaining viewport (adjust the subtraction to your header's height) */
-  height: 100%;
-  width: 100%; /* or any desired width */
-  margin: 0 auto;
-  
-  /* Use flexbox to center the image */
+
+  /* Let it expand to fill #viewing’s space */
+  flex: 1 1 auto;
   display: flex;
   justify-content: center;
   align-items: center;
+  
+  width: 100%;
+  /* We let the flex layout handle the height. If you prefer an explicit height: 100%; 
+     it should work as long as #viewing has a definite height. */
+  overflow: hidden;
 }
-
-/* Image: force it to fill the container, scaling up if needed */
-#center-gallery-image-id {
+#viewing-image-id {
+  /* Force the rendered box of the image to be the full size of the parent div. */
   width: 100%;
   height: 100%;
-  object-fit: contain;  /* or 'cover' if you prefer cropping */
-  display: block;
+  
+  /* Maintain the aspect ratio without cropping. 
+     This ensures no overflow, but you may see letterboxing/pillarboxing. */
+  object-fit: contain;
+
+  display: block; 
   background-color: blue;
 }
 
-@media (max-height: 400px) {
-  
-  
-}
-
-/* Medium viewport heights */
-@media (min-height: 401px) and (max-height: 800px) {
-  
-  
-}
-
-/* Tall viewport heights */
-@media (min-height: 801px) {
-  
-  
-}
 
 </style>
 
 
-  
-  
