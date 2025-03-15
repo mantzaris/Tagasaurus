@@ -2,7 +2,6 @@
   import { Container, Row, Col, Button, Input, Icon, Image } from '@sveltestrap/sveltestrap';
   import { params, goto } from '@roxi/routify';
 
-  // import MyComponent from '$lib/MyComponent.svelte';
   import MediaView from '$lib/MediaView.svelte';
   
     // Retrieve the slug from Routify's $params store
@@ -12,18 +11,18 @@
     let imageUrl = "../../../assets/images/Taga.png";
 
     let description = "hi";
-    let mode: "edit" | "gallery" = "gallery";
+    let mode: "edit" | "gallery" = "edit";
 </script>
 
 
-<Container fluid class="d-flex flex-column vh-100 p-0 m-0">
+<Container  fluid class="d-flex flex-column vh-100 p-0 m-0 .min-vh-0" style="min-height: 0;" >
   <!-- <MyComponent name="Tester" /> -->
   <!-- Layout for extra-small screens -->
   <div class="d-block d-sm-none">
     <!-- Top row: Back and Delete -->
     <Row class="mb-2 align-items-center">
       <Col xs="6" class="d-flex justify-content-start">
-        <Button color="primary" size="sm"><Icon name="house-fill" class="fs-4"/></Button>
+        <Button color="primary" size="sm" href="/"><Icon name="house-fill" class="fs-4"/></Button>
 
         <Input type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
@@ -49,7 +48,7 @@
   <div class="d-none d-sm-block">
     <Row class="mb-2 align-items-center">
       <Col xs="4" class="d-flex justify-content-start">
-        <Button color="primary" size="md"><Icon name="house-fill" class="fs-3"/></Button>
+        <Button color="primary" size="md" href="/"><Icon name="house-fill" class="fs-3"/></Button>
         
         <Input type="select" class="w-auto ms-2 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
@@ -70,34 +69,26 @@
   </div>
 
 
-<!-- Image display area using Sveltestrap styling for images -->
-<!-- #TODO: gallery view as component -->
 
-  {#if mode === "edit"}
-    <!-- Edit Mode: Two columns -->
-    <Row class="h-100">
+  {#if mode === "edit"}  <!-- Edit Mode: Two columns -->
+    <Row style="flex: 1;">
       <!-- Left column: description and save button -->
-      <Col sm="6" class="d-flex flex-column justify-content-center p-3">
-        <textarea 
-          class="form-control mb-3" 
-          placeholder="Enter description..." 
-          style="min-height: 150px; background-color:aqua;"
-        ></textarea>
-        <Button color="success" size="md">Save</Button>
+      <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
+        <textarea class="h-75 form-control mb-2" placeholder="description..." ></textarea>
+        <Button class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
       </Col>
-      <!-- Right column: image view -->
-      <Col sm="6" class="d-flex justify-content-center align-items-center p-3">
+
+      <Col sm="7" lg="8" class="d-flex flex-column p-3 image-col" >
         <MediaView imageUrl={imageUrl} />
       </Col>
     </Row>
   {:else if mode === "gallery"}
-    <MediaView imageUrl={imageUrl} />
+    <div style="flex: 1;">
+      <MediaView  imageUrl={imageUrl} />
+    </div>
   {/if}
 
 
 </Container>
-
-<style>
-</style>
 
 
