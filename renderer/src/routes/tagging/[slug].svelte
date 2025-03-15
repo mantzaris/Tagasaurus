@@ -110,7 +110,7 @@
 <style>
 #viewing {
   background-color: yellow;
-  height: 85vh;
+  height: 90%;
   width: 100vw;
 }
 
@@ -120,8 +120,8 @@
   position: relative;
   
   /* For example, fill the remaining viewport (adjust the subtraction to your header's height) */
-  height: 85vh;
-  width: 100vw; /* or any desired width */
+  height: 100%;
+  width: 100%; /* or any desired width */
   margin: 0 auto;
   
   /* Use flexbox to center the image */
@@ -132,11 +132,28 @@
 
 /* Image: force it to fill the container, scaling up if needed */
 #center-gallery-image-id {
-  width: 90%;
-  height: 90%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;  /* or 'cover' if you prefer cropping */
   display: block;
-  background-color: greenyellow;
+  background-color: blue;
+}
+
+@media (max-height: 400px) {
+  
+  
+}
+
+/* Medium viewport heights */
+@media (min-height: 401px) and (max-height: 800px) {
+  
+  
+}
+
+/* Tall viewport heights */
+@media (min-height: 801px) {
+  
+  
 }
 
 </style>
