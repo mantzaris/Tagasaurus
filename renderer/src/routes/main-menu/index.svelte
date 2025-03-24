@@ -1,6 +1,5 @@
 <script lang="ts">
-    import ipc from "../../ipc";
-
+    import ipc from "$lib/ipc";
 
     let electronVersion: string = $state("");
     let nodeVersion: string = $state("");
