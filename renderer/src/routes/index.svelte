@@ -34,7 +34,7 @@
       <Card>
         <CardBody>
           <CardTitle >Stream</CardTitle>
-          <CardText>Use your webcam, or screen to search for people you know in real time or captures images/video.</CardText>
+          <CardText>Use your webcam, or screen to search for people you know in real time or capture and save images/video.</CardText>
           <Button color="primary" size="lg">Open</Button>
         </CardBody>
       </Card>
@@ -75,6 +75,3 @@
 </Container>
 
 
-<style>
-
-</style>

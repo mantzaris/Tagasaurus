@@ -14,3 +14,8 @@ html, body, main {
     overflow-x: hidden !important;
     
 }   
+
+@font-face {
+    font-family: 'Nunito';
+    src: url("./assets/nunito/Nunito-VariableFont_wght.ttf");
+  }
