@@ -63,6 +63,20 @@ export const routes = {
     },
     {
       "meta": {},
+      "id": "_default_streaming",
+      "name": "streaming",
+      "module": false,
+      "file": {
+        "path": "src/routes/streaming",
+        "dir": "src/routes",
+        "base": "streaming",
+        "ext": "",
+        "name": "streaming"
+      },
+      "children": []
+    },
+    {
+      "meta": {},
       "id": "_default_tagging",
       "name": "tagging",
       "module": false,
