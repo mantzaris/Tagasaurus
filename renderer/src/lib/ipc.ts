@@ -1,4 +1,4 @@
-import type { CONTEXT_BRIDGE } from "../../electron/preload";
+import type { CONTEXT_BRIDGE } from "../../../electron/preload";
 
 declare global {
   interface Window {

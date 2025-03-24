@@ -14,8 +14,8 @@
     </main> -->
 
 
-<Navbar color="dark" dark expand="md">
-  <NavbarBrand href="#">Tagasaurus</NavbarBrand>
+<Navbar   expand="md" style="background-color:var(--taga-color900);">
+  <NavbarBrand href="#" >Tagasaurus</NavbarBrand>
 </Navbar>
 
 <Container class="mt-4 p-4">
@@ -71,7 +71,7 @@
       </Card>
     </Col>
   </Row>
-
+  <Button color="primary" size="lg" href="/main-menu">Open</Button>
 </Container>
 
 
