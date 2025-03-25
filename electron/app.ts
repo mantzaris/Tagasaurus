@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
 import electronReload from "electron-reload";
 import { join } from "path";
 
@@ -7,8 +7,27 @@ let mainWindow: BrowserWindow;
 app.once("ready", main);
 
 async function main() {
+
+  const minimalMenuTemplate: MenuItemConstructorOptions[] = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    }
+  ];
+  
+  if (process.platform === 'darwin') {
+    const minimalMenu = Menu.buildFromTemplate(minimalMenuTemplate);
+    Menu.setApplicationMenu(minimalMenu);
+  } else {
+    Menu.setApplicationMenu(null);
+  }
+  
   mainWindow = new BrowserWindow({
-    width: 700,
+    width: 800,
     height: 600,
     resizable: true,
     show: true,
@@ -17,6 +36,7 @@ async function main() {
       preload: join(__dirname, "preload.js"),
     },
   });
+
   
   if (app.isPackaged) {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
@@ -32,6 +52,12 @@ async function main() {
 
   mainWindow.once("ready-to-show", mainWindow.show);
 }
+
+
+
+
+
+
 
 ipcMain.handle("get-version", (_, key: "electron" | "node") => {
   return String(process.versions[key]);
