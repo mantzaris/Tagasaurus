@@ -1,7 +1,7 @@
 {
   "name": "tagasaurus",
   "version": "0.0.1",
-  "description": "Tagasaurus to help you tag your planet",
+  "description": "Tagasaurus, Tag Your Planet",
   "main": "dist/electron/app.js",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run dev:renderer\" \"npm run dev:electron\" \"cd electron && tsc -w\"",
@@ -11,38 +11,50 @@
     "dev:renderer": "cd renderer && npm run dev",
     "dev:electron": "npm run build:electron && electron .",
     "format": "prettier --write ."
-  },
-  "build": {
-    "appId": "2025",
-    "productName": "Tagasaurus",
-    "directories": {
-      "output": "build"
     },
-    "files": [
-      "dist/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "icons/Taga.png"
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "icons/Taga.png"
-    },
-    "linux": {
-      "icon": "icons/Taga.png",
-      "maintainer": "mantzaris",
-      "category": "utility"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+    "build": {
+      "appId": "com.tagasaurus.app",
+      "productName": "Tagasaurus",
+      "directories": {
+        "output": "build"
+      },
+      "files": [
+        "dist/**/*",
+        "package.json"
+      ],
+      "win": {
+        "target": [
+          {
+            "target": "zip",
+            "arch": [ "x64" ]
+          }
+        ],
+        "icon": "assets/icons/Taga.png"
+      },
+      "mac": {
+        "target": [
+          {
+            "target": "zip",
+            "arch": [ "universal" ]
+          }
+        ],
+        "icon": "assets/icons/Taga.png"
+      },
+      "linux": {
+        "icon": "assets/icons/Taga.png",
+        "maintainer": "mantzaris",
+        "category": "utility",
+        "target": [
+          {
+            "target": "zip",
+            "arch": [ "x64", "arm64" ]
+          }
+        ]
+      }
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mantzaris/Tagasaurus.git"
+    "url": "https://github.com/mantzaris/Tagasaurus"
   },
   "keywords": [
     "tagging",
