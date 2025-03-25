@@ -2,13 +2,15 @@ import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "e
 import electronReload from "electron-reload";
 import { join } from "path";
 
-import { startTagaInit } from "./main-functions/initialization/init";
+import Database from "libsql";
+
+import { initTagaFolders } from "./main-functions/initialization/init";
 
 let mainWindow: BrowserWindow;
 
 
 //INIT
-startTagaInit()
+initTagaFolders()
 
 
 
