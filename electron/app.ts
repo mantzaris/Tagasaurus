@@ -2,20 +2,21 @@ import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "e
 import electronReload from "electron-reload";
 import { join } from "path";
 
-import { checkTagasaurusFiles } from "./main-functions/initialization/init";
+import { startTagaInit } from "./main-functions/initialization/init";
 
 let mainWindow: BrowserWindow;
+
+
+//INIT
+startTagaInit()
+
+
 
 app.once("ready", main);
 
 async function main() {
 
-  // Initialization before window
-  const { tagaDir, mediaDir, dataDir } = checkTagasaurusFiles();
-  console.log("TagasaurusFiles Directory:", tagaDir);
-  console.log("MediaFiles Subdirectory:", mediaDir);
-  console.log("Data Subdirectory:", dataDir);
-
+  
   const minimalMenuTemplate: MenuItemConstructorOptions[] = [
     {
       label: app.name,

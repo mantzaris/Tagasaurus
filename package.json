@@ -11,46 +11,53 @@
     "dev:renderer": "cd renderer && npm run dev",
     "dev:electron": "npm run build:electron && electron .",
     "format": "prettier --write ."
+  },
+  "build": {
+    "appId": "com.tagasaurus.app",
+    "productName": "Tagasaurus",
+    "directories": {
+      "output": "build"
     },
-    "build": {
-      "appId": "com.tagasaurus.app",
-      "productName": "Tagasaurus",
-      "directories": {
-        "output": "build"
-      },
-      "files": [
-        "dist/**/*",
-        "package.json"
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "win": {
-        "target": [
-          {
-            "target": "zip",
-            "arch": [ "x64" ]
-          }
-        ],
-        "icon": "assets/icons/Taga.png"
-      },
-      "mac": {
-        "target": [
-          {
-            "target": "zip",
-            "arch": [ "universal" ]
-          }
-        ],
-        "icon": "assets/icons/Taga.png"
-      },
-      "linux": {
-        "icon": "assets/icons/Taga.png",
-        "maintainer": "mantzaris",
-        "category": "utility",
-        "target": [
-          {
-            "target": "zip",
-            "arch": [ "x64", "arm64" ]
-          }
-        ]
-      }
+      "icon": "assets/icons/Taga.png"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "assets/icons/Taga.png"
+    },
+    "linux": {
+      "icon": "assets/icons/Taga.png",
+      "maintainer": "mantzaris",
+      "category": "utility",
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    }
   },
   "repository": {
     "type": "git",
@@ -79,6 +86,7 @@
     "prettier-plugin-svelte": "^3.2.1"
   },
   "dependencies": {
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "fs-extra": "^11.3.0"
   }
 }
