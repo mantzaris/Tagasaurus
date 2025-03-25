@@ -4,7 +4,9 @@ import { join } from "path";
 
 import Database from "libsql";
 
-import { initTagaFolders } from "./main-functions/initialization/init";
+import { defaultDBConfig, initTagaFolders } from "./main-functions/initialization/init";
+
+import { DBConfig } from "./types/dbConfig";
 
 let mainWindow: BrowserWindow;
 

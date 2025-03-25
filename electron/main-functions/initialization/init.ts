@@ -6,6 +6,59 @@ import fsExtra from "fs-extra";
 
 import Database from "libsql";
 
+import { DBConfig } from "../../types/dbConfig";
+
+
+
+export const defaultDBConfig: DBConfig = {
+  dbName: "tagasaurus.db",
+  tables: {
+    metadata: "metadata",
+    mediaFiles: "media_files",
+    faceEmbeddings: "face_embeddings"
+  },
+  columns: {
+    metadata: {
+      id: "id",
+      version: "version",
+      hashType: "hash_type",
+      textEmbeddingAlgorithm: "text_embedding_algorithm",
+      textEmbeddingSize: "text_embedding_size",
+      faceRecognitionAlgorithm: "face_recognition_algorithm",
+      faceEmbeddingSize: "face_embedding_size"
+    },
+    mediaFiles: {
+      id: "id",
+      fileHash: "file_hash",
+      filename: "filename",
+      fileType: "file_type",
+      description: "description",
+      descriptionEmbedding: "description_embedding"
+    },
+    faceEmbeddings: {
+      id: "id",
+      mediaFileId: "media_file_id",
+      faceEmbedding: "face_embedding"
+    }
+  },
+  indexes: {
+    mediaFilesHash: "media_files_file_hash_idx",
+    mediaFilesDescriptionEmbedding: "media_files_description_embedding_idx",
+    faceEmbeddingsVector: "face_embeddings_face_embedding_idx",
+    faceEmbeddingsMediaFileId: "face_embeddings_media_file_id_idx"
+  },
+  metadata: {
+    version: "1",
+    hashAlgorithm: "SHA-256",
+    textEmbeddingAlgorithm: "sentence-transformers/all-MiniLM-L6-v2",
+    textEmbeddingSize: 384,
+    faceEmbeddingAlgorithm: "FaceNet",
+    faceEmbeddingSize: 128
+  }
+};
+
+
+
 
 export function initTagaFolders() {
     const { tagaDir, mediaDir, tempDir, dataDir, created } = checkTagasaurusFiles();
@@ -19,7 +72,7 @@ export function initTagaFolders() {
 
     if (created) {
       try {
-        setupDB(dataDir);
+        setupDB(dataDir, defaultDBConfig);
       } catch (error) {
         console.error("Error creating DB:", error);
       }
@@ -127,93 +180,90 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
 
 
 // DB INIT
-function setupDB(dbDest: string): void {
-  const hashAlg = "SHA-256";
-  const textEmbeddingAlg = "sentence-transformers/all-MiniLM-L6-v2";
-  const textEmbeddingSize = 384;
-  const faceEmbeddingAlg = "FaceNet";
-  const faceEmbeddingSize = 128;
-
-  const dbPath = join(dbDest, "tagasaurus.db")
+function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
+  const dbPath = join(dbDir, config.dbName);
   const db = new Database(dbPath);
 
+  const { tables, columns, indexes, metadata: meta } = config;
+
   try {
-    // Begin transaction
     db.exec(`BEGIN TRANSACTION;`);
 
-    // Create metadata table
     db.exec(`
-      CREATE TABLE IF NOT EXISTS metadata (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        hash_type TEXT NOT NULL,
-        text_embedding_algorithm TEXT NOT NULL,
-        text_embedding_size INTEGER NOT NULL,
-        face_recognition_algorithm TEXT NOT NULL,
-        face_embedding_size INTEGER NOT NULL
+      CREATE TABLE IF NOT EXISTS ${tables.metadata} (
+        ${columns.metadata.id} INTEGER PRIMARY KEY CHECK (${columns.metadata.id} = 1),
+        ${columns.metadata.version} TEXT NOT NULL,
+        ${columns.metadata.hashType} TEXT NOT NULL,
+        ${columns.metadata.textEmbeddingAlgorithm} TEXT NOT NULL,
+        ${columns.metadata.textEmbeddingSize} INTEGER NOT NULL,
+        ${columns.metadata.faceRecognitionAlgorithm} TEXT NOT NULL,
+        ${columns.metadata.faceEmbeddingSize} INTEGER NOT NULL
       );
     `);
-
-    // Insert metadata (idempotent insert)
+    
     db.exec(`
-      INSERT OR IGNORE INTO metadata (id, hash_type, text_embedding_algorithm, text_embedding_size, face_recognition_algorithm, face_embedding_size)
-      VALUES (
+      INSERT OR IGNORE INTO ${tables.metadata} (
+        ${columns.metadata.id}, ${columns.metadata.version}, ${columns.metadata.hashType},
+        ${columns.metadata.textEmbeddingAlgorithm}, ${columns.metadata.textEmbeddingSize},
+        ${columns.metadata.faceRecognitionAlgorithm}, ${columns.metadata.faceEmbeddingSize}
+      ) VALUES (
         1,
-        '${hashAlg}',
-        '${textEmbeddingAlg}',
-        ${textEmbeddingSize},
-        '${faceEmbeddingAlg}',
-        ${faceEmbeddingSize}
+        '${meta.version}',
+        '${meta.hashAlgorithm}',
+        '${meta.textEmbeddingAlgorithm}',
+        ${meta.textEmbeddingSize},
+        '${meta.faceEmbeddingAlgorithm}',
+        ${meta.faceEmbeddingSize}
+      );
+    `);
+    
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ${tables.mediaFiles} (
+        ${columns.mediaFiles.id} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${columns.mediaFiles.fileHash} TEXT NOT NULL UNIQUE,
+        ${columns.mediaFiles.filename} TEXT NOT NULL,
+        ${columns.mediaFiles.fileType} TEXT NOT NULL,
+        ${columns.mediaFiles.description} TEXT,
+        ${columns.mediaFiles.descriptionEmbedding} F32_BLOB(${meta.textEmbeddingSize})
       );
     `);
 
-    // Create media_files table
     db.exec(`
-      CREATE TABLE IF NOT EXISTS media_files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_hash TEXT NOT NULL UNIQUE,
-        filename TEXT NOT NULL,
-        file_type TEXT NOT NULL,
-        description TEXT,
-        description_embedding F32_BLOB(${textEmbeddingSize})
+      CREATE TABLE IF NOT EXISTS ${tables.faceEmbeddings} (
+        ${columns.faceEmbeddings.id} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${columns.faceEmbeddings.mediaFileId} INTEGER NOT NULL,
+        ${columns.faceEmbeddings.faceEmbedding} F32_BLOB(${meta.faceEmbeddingSize}),
+        FOREIGN KEY (${columns.faceEmbeddings.mediaFileId}) REFERENCES ${tables.mediaFiles}(${columns.mediaFiles.id}) ON DELETE CASCADE
       );
     `);
 
-    // Create face_embeddings table
     db.exec(`
-      CREATE TABLE IF NOT EXISTS face_embeddings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        media_file_id INTEGER NOT NULL,
-        face_embedding F32_BLOB(${faceEmbeddingSize}),
-        FOREIGN KEY (media_file_id) REFERENCES media_files(id) ON DELETE CASCADE
-      );
-    `);
-
-    // Indexes
-    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS media_files_file_hash_idx ON media_files(file_hash);`);
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS media_files_description_embedding_idx
-      ON media_files(libsql_vector_idx(description_embedding));
+      CREATE UNIQUE INDEX IF NOT EXISTS ${indexes.mediaFilesHash}
+      ON ${tables.mediaFiles}(${columns.mediaFiles.fileHash});
     `);
 
     db.exec(`
-      CREATE INDEX IF NOT EXISTS face_embeddings_face_embedding_idx
-      ON face_embeddings(libsql_vector_idx(face_embedding));
+      CREATE INDEX IF NOT EXISTS ${indexes.mediaFilesDescriptionEmbedding}
+      ON ${tables.mediaFiles}(libsql_vector_idx(${columns.mediaFiles.descriptionEmbedding}));
     `);
 
     db.exec(`
-      CREATE INDEX IF NOT EXISTS face_embeddings_media_file_id_idx
-      ON face_embeddings(media_file_id);
+      CREATE INDEX IF NOT EXISTS ${indexes.faceEmbeddingsVector}
+      ON ${tables.faceEmbeddings}(libsql_vector_idx(${columns.faceEmbeddings.faceEmbedding}));
     `);
 
-    //commit transaction
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS ${indexes.faceEmbeddingsMediaFileId}
+      ON ${tables.faceEmbeddings}(${columns.faceEmbeddings.mediaFileId});
+    `);
+
     db.exec(`COMMIT;`);
   } catch (error) {
     console.error("Error setting up database:", error);
-    // Rollback transaction on error to prevent partial updates!
     db.exec(`ROLLBACK;`);
+    throw error;
   } finally {
-    //database connection is closed exactly once
     db.close();
   }
 }
