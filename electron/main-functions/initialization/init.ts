@@ -4,16 +4,27 @@ import { join, dirname } from "path";
 import { app } from "electron";
 import fsExtra from "fs-extra";
 
+import Database from "libsql";
 
-export function startTagaInit() {
+
+export function initTagaFolders() {
     const { tagaDir, mediaDir, tempDir, dataDir, created } = checkTagasaurusFiles();
     console.log("TagasaurusFiles Directory:", tagaDir);
     
     if(created) {
-        copyInitMediaToTemp(tempDir).catch((error) => {
-            console.error("Error copying init media to TempFiles:", error);
-        });
+      copyInitMediaToTemp(tempDir).catch((error) => {
+          console.error("Error copying init media to TempFiles:", error);
+      });
     }
+
+    if (created) {
+      try {
+        setupDB(dataDir);
+      } catch (error) {
+        console.error("Error creating DB:", error);
+      }
+    }
+    
 
 }
 /**
@@ -112,4 +123,97 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
     } catch (error) {
         console.error("Failed to copy init-media:", error);
     }
+}
+
+
+// DB INIT
+function setupDB(dbDest: string): void {
+  const hashAlg = "SHA-256";
+  const textEmbeddingAlg = "sentence-transformers/all-MiniLM-L6-v2";
+  const textEmbeddingSize = 384;
+  const faceEmbeddingAlg = "FaceNet";
+  const faceEmbeddingSize = 128;
+
+  const dbPath = join(dbDest, "tagasaurus.db")
+  const db = new Database(dbPath);
+
+  try {
+    // Begin transaction
+    db.exec(`BEGIN TRANSACTION;`);
+
+    // Create metadata table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS metadata (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        hash_type TEXT NOT NULL,
+        text_embedding_algorithm TEXT NOT NULL,
+        text_embedding_size INTEGER NOT NULL,
+        face_recognition_algorithm TEXT NOT NULL,
+        face_embedding_size INTEGER NOT NULL
+      );
+    `);
+
+    // Insert metadata (idempotent insert)
+    db.exec(`
+      INSERT OR IGNORE INTO metadata (id, hash_type, text_embedding_algorithm, text_embedding_size, face_recognition_algorithm, face_embedding_size)
+      VALUES (
+        1,
+        '${hashAlg}',
+        '${textEmbeddingAlg}',
+        ${textEmbeddingSize},
+        '${faceEmbeddingAlg}',
+        ${faceEmbeddingSize}
+      );
+    `);
+
+    // Create media_files table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS media_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_hash TEXT NOT NULL UNIQUE,
+        filename TEXT NOT NULL,
+        file_type TEXT NOT NULL,
+        description TEXT,
+        description_embedding F32_BLOB(${textEmbeddingSize})
+      );
+    `);
+
+    // Create face_embeddings table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS face_embeddings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_file_id INTEGER NOT NULL,
+        face_embedding F32_BLOB(${faceEmbeddingSize}),
+        FOREIGN KEY (media_file_id) REFERENCES media_files(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Indexes
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS media_files_file_hash_idx ON media_files(file_hash);`);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS media_files_description_embedding_idx
+      ON media_files(libsql_vector_idx(description_embedding));
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS face_embeddings_face_embedding_idx
+      ON face_embeddings(libsql_vector_idx(face_embedding));
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS face_embeddings_media_file_id_idx
+      ON face_embeddings(media_file_id);
+    `);
+
+    //commit transaction
+    db.exec(`COMMIT;`);
+  } catch (error) {
+    console.error("Error setting up database:", error);
+    // Rollback transaction on error to prevent partial updates!
+    db.exec(`ROLLBACK;`);
+  } finally {
+    //database connection is closed exactly once
+    db.close();
+  }
 }
