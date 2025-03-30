@@ -4,7 +4,7 @@ import { join } from "path";
 
 import Database from "libsql";
 
-import { defaultDBConfig, initTagaFolders } from "./main-functions/initialization/init";
+import { defaultDBConfig, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
 
 import { DBConfig } from "./types/dbConfig";
 
@@ -13,7 +13,9 @@ let mainWindow: BrowserWindow;
 
 //INIT
 initTagaFolders()
-
+const { tagaDir, mediaDir, tempDir, dataDir } = checkTagasaurusDirectories();
+const dbPath = join(dataDir,defaultDBConfig.dbName);
+const db = new Database(dbPath);
 
 
 app.once("ready", main);
@@ -50,6 +52,9 @@ async function main() {
     },
   });
 
+  if(!app.isPackaged) {
+    mainWindow.webContents.openDevTools();
+  }
   
   if (app.isPackaged) {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
@@ -71,3 +76,7 @@ async function main() {
 ipcMain.handle("get-version", (_, key: "electron" | "node") => {
   return String(process.versions[key]);
 });
+
+
+setTimeout(()=>mainWindow.webContents.send("testMain1", "BAR"), 3000)
+setTimeout(()=>mainWindow.webContents.send("testMain2", "BAZ"), 5000)

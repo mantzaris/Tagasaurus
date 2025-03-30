@@ -61,7 +61,7 @@ export const defaultDBConfig: DBConfig = {
 
 
 export function initTagaFolders() {
-    const { tagaDir, mediaDir, tempDir, dataDir, created } = checkTagasaurusFiles();
+    const { tagaDir, mediaDir, tempDir, dataDir, created } = checkTagasaurusDirectories();
     console.log("TagasaurusFiles Directory:", tagaDir);
     
     if(created) {
@@ -99,7 +99,7 @@ export function initTagaFolders() {
  *  - `tempDir`:     The Temporary data folder
  *  - `created`:     Boolean for if the directory needed to be created or not
  */
-function checkTagasaurusFiles(): {
+export function checkTagasaurusDirectories(): {
     tagaDir: string;
     mediaDir: string;
     tempDir: string;
@@ -233,7 +233,7 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
       CREATE TABLE IF NOT EXISTS ${tables.faceEmbeddings} (
         ${columns.faceEmbeddings.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.faceEmbeddings.mediaFileId} INTEGER NOT NULL,
-        ${columns.faceEmbeddings.faceEmbedding} F32_BLOB(${meta.faceEmbeddingSize}),
+        ${columns.faceEmbeddings.faceEmbedding} F32_BLOB(${meta.faceEmbeddingSize}), 
         FOREIGN KEY (${columns.faceEmbeddings.mediaFileId}) REFERENCES ${tables.mediaFiles}(${columns.mediaFiles.id}) ON DELETE CASCADE
       );
     `);
