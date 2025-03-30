@@ -80,6 +80,29 @@ export function initTagaFolders() {
     
 
 }
+
+
+
+/**
+ * Recursively creates a directory tree using single hex digits.
+ * @param root - The root directory under which to create subdirectories.
+ * @param levels - How many levels deep to create (each level creates 16 subdirectories).
+ */
+function createHexSubdirectories(root: string, levels: number): void {
+  const hexDigits = "0123456789abcdef".split("");
+  if (levels === 0) return;
+  
+  for (const digit of hexDigits) {
+    const subDir = join(root, digit);
+    if (!existsSync(subDir)) {
+      mkdirSync(subDir);
+      // console.log(`Created subdirectory: ${subDir}`);
+    }
+    // Recursively create the next level of subdirectories.
+    createHexSubdirectories(subDir, levels - 1);
+  }
+}
+
 /**
  * Ensures a sibling directory `TagasaurusFiles` is created beside your main
  * `Tagasaurus` folder, then creates two subdirectories: `MediaFiles` and `Data`.
@@ -136,6 +159,10 @@ export function checkTagasaurusDirectories(): {
       mkdirSync(mediaDir);
       console.log(`Created: ${mediaDir}`);
     }
+
+    // Create a 4-level deep hex subdirectory tree under MediaFiles.
+    const hexLevels = 4;
+    createHexSubdirectories(mediaDir, hexLevels);
 
     const tempDir = join(tagaDir, "TempFiles");
     if (!existsSync(tempDir)) {

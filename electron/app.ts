@@ -12,8 +12,8 @@ let mainWindow: BrowserWindow;
 
 
 //INIT
-initTagaFolders()
-const { tagaDir, mediaDir, tempDir, dataDir } = checkTagasaurusDirectories();
+initTagaFolders(); //create them
+const { tagaDir, mediaDir, tempDir, dataDir } = checkTagasaurusDirectories(); //get the dir names
 const dbPath = join(dataDir,defaultDBConfig.dbName);
 const db = new Database(dbPath);
 
