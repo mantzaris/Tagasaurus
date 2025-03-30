@@ -5,10 +5,15 @@
 
   import { Styles } from '@sveltestrap/sveltestrap';
 
+  import Layout from './Layout.svelte';
+
+
+
 </script>
 
 <!-- need? -->
 <Styles/> 
 
-<Router {router} />
-
+<Layout>
+  <Router {router} />
+</Layout>
