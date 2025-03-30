@@ -46,6 +46,7 @@ export interface DBConfig {
   };
   indexes: {
     mediaFilesHash: string;
+    mediaFilesFilename: string;
     mediaFilesDescriptionEmbedding: string;
     faceEmbeddingsVector: string;
     faceEmbeddingsMediaFileId: string;

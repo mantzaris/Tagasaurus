@@ -43,6 +43,7 @@ export const defaultDBConfig: DBConfig = {
   },
   indexes: {
     mediaFilesHash: "media_files_file_hash_idx",
+    mediaFilesFilename: "media_files_filename_idx",
     mediaFilesDescriptionEmbedding: "media_files_description_embedding_idx",
     faceEmbeddingsVector: "face_embeddings_face_embedding_idx",
     faceEmbeddingsMediaFileId: "face_embeddings_media_file_id_idx"
@@ -222,7 +223,7 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
       CREATE TABLE IF NOT EXISTS ${tables.mediaFiles} (
         ${columns.mediaFiles.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.mediaFiles.fileHash} TEXT NOT NULL UNIQUE,
-        ${columns.mediaFiles.filename} TEXT NOT NULL,
+        ${columns.mediaFiles.filename} TEXT NOT NULL UNIQUE,
         ${columns.mediaFiles.fileType} TEXT NOT NULL,
         ${columns.mediaFiles.description} TEXT,
         ${columns.mediaFiles.descriptionEmbedding} F32_BLOB(${meta.textEmbeddingSize})
@@ -241,6 +242,11 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
     db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS ${indexes.mediaFilesHash}
       ON ${tables.mediaFiles}(${columns.mediaFiles.fileHash});
+    `);
+
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ${indexes.mediaFilesFilename}
+      ON ${tables.mediaFiles}(${columns.mediaFiles.filename});
     `);
 
     db.exec(`
