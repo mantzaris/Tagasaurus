@@ -49,7 +49,7 @@ export const defaultDBConfig: DBConfig = {
   },
   metadata: {
     version: "1",
-    hashAlgorithm: "SHA-256",
+    hashAlgorithm: "sha256",
     textEmbeddingAlgorithm: "sentence-transformers/all-MiniLM-L6-v2",
     textEmbeddingSize: 384,
     faceEmbeddingAlgorithm: "FaceNet",

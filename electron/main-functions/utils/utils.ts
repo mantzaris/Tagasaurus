@@ -2,10 +2,11 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { createHash } from "crypto";
-import { fileTypeFromBuffer } from "file-type";
+import { loadEsm } from 'load-esm';
 
 
 export function computeFileHash(filePath: string, hashAlgorithm: string = "sha256"): string {
+  console.log(`in computeFileHash filepath = ${filePath}`)
   const fileBuffer = fs.readFileSync(filePath);
   return createHash(hashAlgorithm)
     .update(fileBuffer)
@@ -23,6 +24,9 @@ export async function detectTypeFromPartialBuffer(filePath: string) {
   //read from the start of the file
   fs.readSync(fd, buffer, 0, chunkSize, 0);
   fs.closeSync(fd);
+
+  //use loadEsm to dynamically import file-type as ESM
+  const { fileTypeFromBuffer } = await loadEsm<typeof import('file-type')>('file-type');
 
   const fileTypeResult = await fileTypeFromBuffer(buffer);
   return fileTypeResult ?? {ext: undefined, mime: 'application/octet-stream'};

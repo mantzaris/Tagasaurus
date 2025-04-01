@@ -89,6 +89,7 @@
     "electron-reload": "^2.0.0-alpha.1",
     "file-type": "^20.4.1",
     "fs-extra": "^11.3.0",
-    "libsql": "^0.5.3"
+    "libsql": "^0.5.3",
+    "load-esm": "^1.0.2"
   }
 }
