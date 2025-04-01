@@ -3,6 +3,8 @@ import * as fs from "fs";
 import { createHash } from "crypto";
 import { fileTypeFromBuffer } from "file-type";
 
+import { BrowserWindow } from "electron";
+
 import { DBConfig } from "../../types/dbConfig";
 import { type Database } from "libsql";
 import { defaultDBConfig } from "../initialization/init";
@@ -23,11 +25,13 @@ import {computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from
  * @param db         An open libsql Database instance
  * @param tempDir    Path to the temporary dir
  * @param mediaDir   Path to the root media dir (inside which the 4-level subdirs exist)
+ * @param mainWindow The main window for the user
  */
 export async function processTempFiles(
   db: Database,
   tempDir: string,
-  mediaDir: string
+  mediaDir: string,
+  mainWindow: BrowserWindow
 ): Promise<void> {
   const files = fs.readdirSync(tempDir); //list files needing processing
 
@@ -98,6 +102,9 @@ export async function processTempFiles(
       db.exec("COMMIT;");
 
       console.log(`Successfully imported "${tempFile}" as hash=${hash}.`);
+
+      mainWindow.webContents.send("new-media", hash);
+      
     } catch (err) {
       console.error(`Error processing file: ${tempFile}`, err);
 

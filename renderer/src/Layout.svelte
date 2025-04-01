@@ -1,16 +1,17 @@
 <script lang="ts">
 
+import { onMount } from 'svelte';
 
-    window.bridge.onTestMain2((data:string) => {
-      console.log("Received in renderer:", data);
-      // You could also do something like:
-      // document.getElementById('my-output').innerText = data;
-    });
+let newFiles = [];
+  
+onMount(() => {
+  window.bridge.onNewMedia((hash:string) => {
+    newFiles.push(hash);
 
-    console.log("layout")
+    console.log(hash)
+  });
+});
 
 </script>
 
-
 <slot />
-

@@ -5,8 +5,8 @@ import { join } from "path";
 import Database from "libsql";
 
 import { defaultDBConfig, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
-
 import { DBConfig } from "./types/dbConfig";
+import { processTempFiles } from "./main-functions/new-files/process-new-media";
 
 let mainWindow: BrowserWindow;
 
@@ -71,6 +71,10 @@ async function main() {
   mainWindow.once("ready-to-show", mainWindow.show);
 }
 
+mainWindow.webContents.on('did-finish-load', () => {
+  //files ready for processing done in the background (put into the db moved into folders etc.)
+  processTempFiles(db, tempDir, mediaDir, mainWindow);
+});
 
 
 ipcMain.handle("get-version", (_, key: "electron" | "node") => {
