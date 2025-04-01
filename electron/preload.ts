@@ -21,7 +21,11 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.on("new-media", (_event, data) => {
       callback(data);
     });
-  }
+  },
+
+  sendDroppedPaths: (paths: string[]) => {
+    ipcRenderer.send('user-dropped-files', paths);
+  },
 
 };
 

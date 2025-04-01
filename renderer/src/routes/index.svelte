@@ -16,7 +16,7 @@
 
 
 <Navbar   expand="md" style="background-color:var(--taga-color900);">
-  <NavbarBrand href="#" >Tagasaurus</NavbarBrand>
+  <NavbarBrand href="#" ><strong>Tagasaurus</strong></NavbarBrand>
 </Navbar>
 
 <Container class="mt-4 p-4">
@@ -26,7 +26,7 @@
       <Card>
         <CardBody>
           <CardTitle>Gallery</CardTitle>
-          <CardText>See your files, tag them, describe, and search as well. You can also import files one at a time by drag and drop.</CardText>
+          <CardText>See your files, tag them, describe, and search as well.</CardText>
           <Button color="primary" size="lg" href="/tagging">Open</Button>
         </CardBody>
       </Card>
@@ -72,7 +72,6 @@
       </Card>
     </Col>
   </Row>
-  <Button color="primary" size="lg" href="/main-menu">Open</Button>
 </Container>
 
 
