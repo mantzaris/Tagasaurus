@@ -1,7 +1,5 @@
 import * as path from "path";
 import * as fs from "fs";
-import { createHash } from "crypto";
-import { fileTypeFromBuffer } from "file-type";
 
 import { BrowserWindow } from "electron";
 
@@ -34,7 +32,7 @@ export async function processTempFiles(
   mainWindow: BrowserWindow
 ): Promise<void> {
   const files = fs.readdirSync(tempDir); //list files needing processing
-
+  console.log("FOO")
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
   const { mediaFiles } = tables;
@@ -59,7 +57,9 @@ export async function processTempFiles(
   `);
 
   for (const tempFile of files) {
+    console.log("BAR")
     const tempFilePath = path.join(tempDir, tempFile);
+    console.log(`tempFilePath = ${tempFilePath}`)
     try {
       const hash = computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
 
@@ -72,7 +72,7 @@ export async function processTempFiles(
       }
 
       //not a duplicate => get fileType from extension      
-      const result = await detectTypeFromPartialBuffer(tempFile);
+      const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
       const inferredFileType = result.mime;
 
       db.exec("BEGIN TRANSACTION;");
@@ -104,7 +104,7 @@ export async function processTempFiles(
       console.log(`Successfully imported "${tempFile}" as hash=${hash}.`);
 
       mainWindow.webContents.send("new-media", hash);
-      
+      console.log("BAZ")
     } catch (err) {
       console.error(`Error processing file: ${tempFile}`, err);
 

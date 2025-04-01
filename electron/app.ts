@@ -18,7 +18,6 @@ const dbPath = join(dataDir,defaultDBConfig.dbName);
 const db = new Database(dbPath);
 
 
-app.once("ready", main);
 
 async function main() {
 
@@ -71,10 +70,16 @@ async function main() {
   mainWindow.once("ready-to-show", mainWindow.show);
 }
 
-mainWindow.webContents.on('did-finish-load', () => {
-  //files ready for processing done in the background (put into the db moved into folders etc.)
+// mainWindow.webContents.on('did-finish-load', () => {
+//   console.log("about to process")
+//   processTempFiles(db, tempDir, mediaDir, mainWindow);
+// });
+
+app.once("ready", async () => {
+  await main()
   processTempFiles(db, tempDir, mediaDir, mainWindow);
 });
+app.on("activate", main); //macOS
 
 
 ipcMain.handle("get-version", (_, key: "electron" | "node") => {
@@ -84,3 +89,8 @@ ipcMain.handle("get-version", (_, key: "electron" | "node") => {
 
 setTimeout(()=>mainWindow.webContents.send("testMain1", "BAR"), 3000)
 setTimeout(()=>mainWindow.webContents.send("testMain2", "BAZ"), 5000)
+
+//make a handler for UI
+// mainWindow.webContents.on('did-finish-load', () => {
+//   processTempFiles(db, tempDir, mediaDir, mainWindow);
+// });
