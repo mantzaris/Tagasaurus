@@ -1,13 +1,13 @@
-import * as fs from "fs";
+import fs, {open} from "fs/promises"; //import * as fs from "fs";
 import * as path from "path";
 
 import { createHash } from "crypto";
 import { loadEsm } from 'load-esm';
 
 
-export function computeFileHash(filePath: string, hashAlgorithm: string = "sha256"): string {
-  console.log(`in computeFileHash filepath = ${filePath}`)
-  const fileBuffer = fs.readFileSync(filePath);
+export async function computeFileHash(filePath: string, hashAlgorithm: string = "sha256"): Promise<string> {
+  
+  const fileBuffer = await fs.readFile(filePath);
   return createHash(hashAlgorithm)
     .update(fileBuffer)
     .digest("hex");
@@ -17,19 +17,28 @@ export function computeFileHash(filePath: string, hashAlgorithm: string = "sha25
  * use only the first 12KB for detection
  */
 export async function detectTypeFromPartialBuffer(filePath: string) {
-  const fd = fs.openSync(filePath, 'r');
+  
   const chunkSize = 12288;
   const buffer = Buffer.alloc(chunkSize);
 
+  const fh = await open(filePath, "r");
+
   //read from the start of the file
-  fs.readSync(fd, buffer, 0, chunkSize, 0);
-  fs.closeSync(fd);
+  try {
+    // 2) Read up to `chunkSize` bytes starting at position 0
+    //    handle.read(...) is asynchronous
+    await fh.read(buffer, 0, chunkSize, 0);
+  } finally {
+    // 3) Always close the file (in a finally block so it closes even if there's an error)
+    await fh.close();
+  }
 
-  //use loadEsm to dynamically import file-type as ESM
-  const { fileTypeFromBuffer } = await loadEsm<typeof import('file-type')>('file-type');
+  // 4) Dynamically load `file-type`
+  const { fileTypeFromBuffer } = await loadEsm<typeof import("file-type")>("file-type");
 
+  // 5) Pass the buffer to fileType
   const fileTypeResult = await fileTypeFromBuffer(buffer);
-  return fileTypeResult ?? {ext: undefined, mime: 'application/octet-stream'};
+  return fileTypeResult ?? { ext: undefined, mime: "application/octet-stream" };
 }
 
 /**

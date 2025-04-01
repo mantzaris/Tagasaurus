@@ -32,7 +32,7 @@ export async function processTempFiles(
   mainWindow: BrowserWindow
 ): Promise<void> {
   const files = fs.readdirSync(tempDir); //list files needing processing
-  console.log("FOO")
+  
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
   const { mediaFiles } = tables;
@@ -57,11 +57,11 @@ export async function processTempFiles(
   `);
 
   for (const tempFile of files) {
-    console.log("BAR")
+    
     const tempFilePath = path.join(tempDir, tempFile);
-    console.log(`tempFilePath = ${tempFilePath}`)
+    
     try {
-      const hash = computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
+      const hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
 
       const existing = checkHashStmt.get(hash);
       if (existing) {
