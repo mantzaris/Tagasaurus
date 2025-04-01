@@ -17,6 +17,12 @@ export const CONTEXT_BRIDGE = {
     });
   },
 
+  onNewMedia: (callback) => {
+    ipcRenderer.on("new-media", (_event, data) => {
+      callback(data);
+    });
+  }
+
 };
 
 
@@ -25,10 +31,10 @@ contextBridge.exposeInMainWorld("bridge", CONTEXT_BRIDGE);
 
 
 
-window.addEventListener('DOMContentLoaded', () => {
-  ipcRenderer.on('testMain1', (_event, data) => {
-    console.log('Got from main:', data);
-    // Or manipulate DOM right here
-    // document.getElementById('my-elem').innerText = data;
-  });
-});
+// window.addEventListener('DOMContentLoaded', () => {
+//   ipcRenderer.on('testMain1', (_event, data) => {
+//     console.log('Got from main:', data);
+//     // Or manipulate DOM right here
+//     // document.getElementById('my-elem').innerText = data;
+//   });
+// });
