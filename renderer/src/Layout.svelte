@@ -1,15 +1,13 @@
 <script lang="ts">
-
 import { onMount } from 'svelte';
+import { addNewFileHash } from '$lib/utils/localStorageManager';
 
-let newFiles = [];
-  
 onMount(() => {
-  window.bridge.onNewMedia((hash:string) => {
-    newFiles.push(hash);
-
-    console.log(hash)
+  
+  window.bridge.onNewMedia((hash: string) => {
+    addNewFileHash(hash); 
   });
+
 });
 
 </script>

@@ -101,10 +101,9 @@ export async function processTempFiles(
       //if succeeded commit
       db.exec("COMMIT;");
 
-      console.log(`Successfully imported "${tempFile}" as hash=${hash}.`);
+      // console.log(`imported/processed new: "${tempFile}" as hash=${hash}.`);
 
       mainWindow.webContents.send("new-media", hash);
-      console.log("BAZ")
     } catch (err) {
       console.error(`Error processing file: ${tempFile}`, err);
 
