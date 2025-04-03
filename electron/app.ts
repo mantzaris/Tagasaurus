@@ -82,15 +82,11 @@ app.on("activate", async () => {
   }
 }); //macOS
 
-
-
-ipcMain.on("user-dropped-file", (event, filePath: string) => {
+ipcMain.on("user-dropped-paths", (event, filePath: string) => {
   console.log("Renderer dropped file/folder path:", filePath);
-  // For now just print it out
-  // Later you can do: processTempFiles(...) or whatever logic
+  
+  
 });
-
-
 
 
 

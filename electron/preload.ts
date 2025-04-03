@@ -24,7 +24,7 @@ export const CONTEXT_BRIDGE = {
   },
 
   sendDroppedPaths: (paths: string[]) => {
-    ipcRenderer.send('user-dropped-files', paths);
+    ipcRenderer.send('user-dropped-paths', paths);
   },
 
 };

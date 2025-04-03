@@ -10,6 +10,25 @@ import { defaultDBConfig } from "../initialization/init";
 import {computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
 
 
+//currently: images, videos, audio, and PDFs are allowed
+function isAllowedFileType(mime: string): boolean {
+  
+  if (mime.startsWith("image/")) {
+    return true;
+  }
+  if (mime.startsWith("video/")) {
+    return true;
+  }
+  if (mime.startsWith("audio/")) {
+    return true;
+  }
+  if (mime === "application/pdf") {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * processes all files in `tempDir`:
  * 1. compute SHA-256 hash
@@ -74,6 +93,11 @@ export async function processTempFiles(
       //not a duplicate => get fileType from extension      
       const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
       const inferredFileType = result.mime;
+
+      if (!isAllowedFileType(inferredFileType)) {
+        fs.unlinkSync(tempFilePath);
+        continue;
+      }
 
       db.exec("BEGIN TRANSACTION;");
 
