@@ -59,3 +59,33 @@ export interface DBConfig {
     faceEmbeddingSize: number;
   };
 }
+
+
+//---
+//for the temporary queue db, fileQueue.db
+
+export interface NewPaths {
+  path: string;
+}
+
+export interface NewFilePaths {
+  path: string;
+}
+
+export interface DBConfigFileQueue {
+  dbName: string;
+  tables: {
+    newPaths: string;
+    newFilePaths: string;
+  };
+  columns: {
+    newPaths: {
+      id: string,
+      path: string;
+    };
+    newFilePaths: {
+      id: string,
+      path: string;
+    };
+  };
+}
