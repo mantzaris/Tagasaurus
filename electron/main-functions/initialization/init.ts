@@ -6,7 +6,7 @@ import fsExtra from "fs-extra";
 
 import Database from "libsql";
 
-import { DBConfig } from "../../types/dbConfig";
+import { DBConfig, DBConfigFileQueue } from "../../types/dbConfig";
 
 
 
@@ -57,7 +57,23 @@ export const defaultDBConfig: DBConfig = {
   }
 };
 
-
+export const defaultDBConfigFileQueue: DBConfigFileQueue = {
+  dbName: "fileQueue.db",
+  tables: {
+    newPaths: "newPaths",
+    newFilePaths: "newFilePaths"
+  },
+  columns: {
+    newPaths: {
+      id: "id",
+      path: "path"
+    },
+    newFilePaths: {
+      id: "id",
+      path: "path"
+    }
+  }
+}
 
 
 export function initTagaFolders() {
@@ -78,6 +94,13 @@ export function initTagaFolders() {
       }
     }
     
+    if (created) {
+      try {
+        setupFileQueueDB(dataDir, defaultDBConfigFileQueue);
+      } catch (error) {
+        console.error("Error creating file queue DB:", error);
+      }
+    }
 
 }
 
@@ -288,6 +311,40 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
     db.exec(`COMMIT;`);
   } catch (error) {
     console.error("Error setting up database:", error);
+    db.exec(`ROLLBACK;`);
+    throw error;
+  } finally {
+    db.close();
+  }
+}
+
+
+function setupFileQueueDB(dbDir: string, config: DBConfigFileQueue = defaultDBConfigFileQueue): void {
+  const dbPath = join(dbDir, config.dbName);
+  const db = new Database(dbPath);
+
+  const { tables, columns } = config;
+
+  try {
+    db.exec(`BEGIN TRANSACTION;`);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ${tables.newPaths} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${columns.newPaths.path} TEXT UNIQUE
+      );
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ${tables.newFilePaths} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${columns.newFilePaths.path} TEXT UNIQUE
+      );
+    `);
+
+    db.exec(`COMMIT;`);
+  } catch (error) {
+    console.error("Error setting up file queue DB:", error);
     db.exec(`ROLLBACK;`);
     throw error;
   } finally {

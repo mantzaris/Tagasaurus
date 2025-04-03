@@ -4,8 +4,7 @@ import { join } from "path";
 
 import Database from "libsql";
 
-import { defaultDBConfig, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
-import { DBConfig } from "./types/dbConfig";
+import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
 import { processTempFiles } from "./main-functions/new-files/process-new-media";
 
 let mainWindow: BrowserWindow;
@@ -14,13 +13,15 @@ let mainWindow: BrowserWindow;
 //INIT
 initTagaFolders(); //create them
 const { tagaDir, mediaDir, tempDir, dataDir } = checkTagasaurusDirectories(); //get the dir names
+
 const dbPath = join(dataDir,defaultDBConfig.dbName);
 const db = new Database(dbPath);
 
+const dbPath_fileQueue = join(dataDir,defaultDBConfigFileQueue.dbName);
+const db_fileQueue = new Database(dbPath_fileQueue);
 
 
 async function main() {
-
   
   const minimalMenuTemplate: MenuItemConstructorOptions[] = [
     {
