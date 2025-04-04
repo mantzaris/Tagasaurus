@@ -90,6 +90,7 @@
     "file-type": "^20.4.1",
     "fs-extra": "^11.3.0",
     "libsql": "^0.5.3",
-    "load-esm": "^1.0.2"
+    "load-esm": "^1.0.2",
+    "readdirp": "^4.1.2"
   }
 }
