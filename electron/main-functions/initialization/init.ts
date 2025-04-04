@@ -312,7 +312,6 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
   } catch (error) {
     console.error("Error setting up database:", error);
     db.exec(`ROLLBACK;`);
-    throw error;
   } finally {
     db.close();
   }
@@ -346,7 +345,6 @@ function setupFileQueueDB(dbDir: string, config: DBConfigFileQueue = defaultDBCo
   } catch (error) {
     console.error("Error setting up file queue DB:", error);
     db.exec(`ROLLBACK;`);
-    throw error;
   } finally {
     db.close();
   }

@@ -2,10 +2,12 @@ import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "e
 import electronReload from "electron-reload";
 import { join } from "path";
 
-import Database from "libsql";
+import Database from "libsql"; //TODO: use "libsql/promises"
+
 
 import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
 import { processTempFiles } from "./main-functions/new-files/process-new-media";
+import { addNewPaths } from "./main-functions/new-files/file-queue";
 
 let mainWindow: BrowserWindow;
 
@@ -83,10 +85,18 @@ app.on("activate", async () => {
   }
 }); //macOS
 
-ipcMain.on("user-dropped-paths", (event, filePath: string) => {
-  console.log("Renderer dropped file/folder path:", filePath);
-  
-  
+ipcMain.on("user-dropped-paths", (event, filePaths: string[]) => {
+  console.log("Renderer dropped file/folder path:", filePaths);
+
+  //fire and forget
+  addNewPaths(db_fileQueue, filePaths, tempDir)
+  .then(() => {
+    console.log("done inserting paths");
+  })
+  .catch((error) => {
+    console.error("failed to add new paths:", error);
+  });
+
 });
 
 
