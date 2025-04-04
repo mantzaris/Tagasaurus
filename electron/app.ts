@@ -2,29 +2,52 @@ import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "e
 import electronReload from "electron-reload";
 import { join } from "path";
 
-import Database from "libsql"; //TODO: use "libsql/promises"
-
+import Database from "libsql/promise";
 
 import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
 import { processTempFiles } from "./main-functions/new-files/process-new-media";
 import { addNewPaths } from "./main-functions/new-files/file-queue";
 
 let mainWindow: BrowserWindow;
+let tagaDir: string;
+let mediaDir: string;
+let tempDir: string;
+let dataDir: string;
+let db: Database;
+let db_fileQueue: Database;
+let dbPath: string;
+let dbPath_fileQueue: string;
 
-
-//INIT
-initTagaFolders(); //create them
-const { tagaDir, mediaDir, tempDir, dataDir } = checkTagasaurusDirectories(); //get the dir names
-
-const dbPath = join(dataDir,defaultDBConfig.dbName);
-const db = new Database(dbPath);
-
-const dbPath_fileQueue = join(dataDir,defaultDBConfigFileQueue.dbName);
-const db_fileQueue = new Database(dbPath_fileQueue);
-
-
-async function main() {
+//single initialization point
+async function initialize() {
+  await initTagaFolders();
   
+  const dirs = await checkTagasaurusDirectories();
+  tagaDir = dirs.tagaDir;
+  mediaDir = dirs.mediaDir;
+  tempDir = dirs.tempDir;
+  dataDir = dirs.dataDir;
+  
+  //init databases
+  dbPath = join(dataDir, defaultDBConfig.dbName);
+  dbPath_fileQueue = join(dataDir, defaultDBConfigFileQueue.dbName);
+  
+  db = new Database(dbPath);
+  db_fileQueue = new Database(dbPath_fileQueue);
+  
+  return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
+}
+
+
+async function initDatabases() {
+  db = new Database(dbPath);
+  db_fileQueue = new Database(dbPath_fileQueue);
+  
+  return { db, db_fileQueue };
+}
+
+
+async function main() {  
   const minimalMenuTemplate: MenuItemConstructorOptions[] = [
     {
       label: app.name,
@@ -76,13 +99,33 @@ async function main() {
 
 
 app.once("ready", async () => {
-  await main()
-  processTempFiles(db, tempDir, mediaDir, mainWindow);
+  try {
+    await initialize(); //initialize directories and DBs
+
+    await main(); //create the BrowserWindow
+
+    processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+      console.error("Background processing error:", err)
+    );
+  } catch (error) {
+    console.error("error on the app startup! :", error)
+  }
 });
 app.on("activate", async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    await main();
-    processTempFiles(db, tempDir, mediaDir, mainWindow);
+    try {
+      await main();
+    
+      if (!db) {
+        await initialize();
+      }
+  
+      processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+        console.error("Background processing error:", err)
+      );
+    } catch (error) {
+      console.error("error during application activate = ", error);
+    }
   }
 }); //macOS
 
@@ -93,8 +136,9 @@ ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
     await addNewPaths(db_fileQueue, filePaths, tempDir);
     console.log("newPaths processed and copied to tempDir");
 
-    await processTempFiles(db, tempDir, mediaDir, mainWindow);
-    console.log("temp files processed into main DB");
+    processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+      console.error("Background processing error:", err)
+    );
   } catch (error) {
     console.error("Failed to handle user-dropped paths or process them:", error);
   }
@@ -107,8 +151,8 @@ ipcMain.handle("get-version", (_, key: "electron" | "node") => {
 });
 
 
-setTimeout(()=>mainWindow.webContents.send("testMain1", "BAR"), 3000)
-setTimeout(()=>mainWindow.webContents.send("testMain2", "BAZ"), 5000)
+// setTimeout(()=>mainWindow.webContents.send("testMain1", "BAR"), 3000)
+// setTimeout(()=>mainWindow.webContents.send("testMain2", "BAZ"), 5000)
 
 //make a handler for UI
 // mainWindow.webContents.on('did-finish-load', () => {
