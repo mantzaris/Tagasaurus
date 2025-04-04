@@ -4,7 +4,7 @@ import * as fs from "fs";
 import { BrowserWindow } from "electron";
 
 import { DBConfig } from "../../types/dbConfig";
-import { type Database } from "libsql";
+import { type Database } from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
 
 import {computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
@@ -50,7 +50,7 @@ export async function processTempFiles(
   mediaDir: string,
   mainWindow: BrowserWindow
 ): Promise<void> {
-  const files = fs.readdirSync(tempDir); //list files needing processing
+  const files = await fs.promises.readdir(tempDir); //list files needing processing
   
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
@@ -59,13 +59,13 @@ export async function processTempFiles(
     columns.mediaFiles;
 
   //prepare a statement to see if the file's hash already exists
-  const checkHashStmt = db.prepare(`
+  const checkHashStmt = await db.prepare(`
     SELECT 1 FROM ${mediaFiles}
     WHERE ${fileHash} = ?
   `);
 
   //prep the insert statement
-  const insertStmt = db.prepare(`
+  const insertStmt = await db.prepare(`
     INSERT INTO ${mediaFiles} (
       ${fileHash},
       ${filename},
@@ -82,10 +82,10 @@ export async function processTempFiles(
     try {
       const hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
 
-      const existing = checkHashStmt.get(hash);
+      const existing = await checkHashStmt.get(hash);
       if (existing) {
         //exists, exact file, remove from tempDir
-        fs.unlinkSync(tempFilePath);
+        fs.promises.unlink(tempFilePath);
         // console.log(`duplicate detected (hash = ${hash}). Removed ${tempFile}.`);
         continue;
       }
@@ -95,15 +95,15 @@ export async function processTempFiles(
       const inferredFileType = result.mime;
 
       if (!isAllowedFileType(inferredFileType)) {
-        fs.unlinkSync(tempFilePath);
+        fs.promises.unlink(tempFilePath);
         continue;
       }
 
-      db.exec("BEGIN TRANSACTION;");
+      await db.exec("BEGIN TRANSACTION;");
 
       //insert row with empty description and null embedding (or "")
       //'filename' store the user’s original name
-      insertStmt.run(
+      await insertStmt.run(
         hash,            //fileHash
         tempFile,        //filename (the original user name, or store something else)
         inferredFileType, //fileType
@@ -120,10 +120,10 @@ export async function processTempFiles(
       const finalPath = path.join(finalDir, finalName);
 
       // Attempt to move
-      fs.renameSync(tempFilePath, finalPath);
+      fs.promises.rename(tempFilePath, finalPath);
 
       //if succeeded commit
-      db.exec("COMMIT;");
+      await db.exec("COMMIT;");
 
       // console.log(`imported/processed new: "${tempFile}" as hash=${hash}.`);
 
@@ -133,7 +133,7 @@ export async function processTempFiles(
 
       //roll back DB changes if anything failed (db insert or rename)
       try {
-        db.exec("ROLLBACK;");
+        await db.exec("ROLLBACK;");
       } catch (rollbackErr) {
         console.error("Rollback error:", rollbackErr);
       }

@@ -2,7 +2,8 @@ import fs from "fs/promises";
 import { constants } from "fs";
 import path from "path";
 import crypto from "crypto";
-import { type Database } from "libsql";
+import { type Database } from "libsql/promise";
+
 import { readdirp } from "readdirp";
 
 import { defaultDBConfigFileQueue } from "../initialization/init";
@@ -19,17 +20,17 @@ import { defaultDBConfigFileQueue } from "../initialization/init";
 export async function addNewPaths(dbFileQueue: Database, paths: string[], tempDir: string): Promise<void> {
     if (!paths || paths.length === 0) return;
 
-    dbFileQueue.exec("BEGIN");
+    await dbFileQueue.exec("BEGIN");
     try {
-        const stmt = dbFileQueue.prepare(`INSERT OR IGNORE INTO ${defaultDBConfigFileQueue.tables.newPaths} (path) VALUES (?)`);
+        const stmt = await dbFileQueue.prepare(`INSERT OR IGNORE INTO ${defaultDBConfigFileQueue.tables.newPaths} (path) VALUES (?)`);
   
         for (const p of paths) {
-            stmt.run(p);
+            await stmt.run(p);
         }
   
-        dbFileQueue.exec("COMMIT");
+        await dbFileQueue.exec("COMMIT");
     } catch (err) {
-        dbFileQueue.exec("ROLLBACK");
+        await dbFileQueue.exec("ROLLBACK");
         console.error("Error inserting newPaths:", err);
         return;
     }
@@ -49,10 +50,9 @@ export async function pathsToNewFilePaths(dbFileQueue: Database, tempDir: string
   
     while (true) {
       //fetch a single row from newPaths
-      const row = dbFileQueue
-        .prepare(`SELECT path FROM ${newPaths} LIMIT 1`)
-        .get() as { path: string } | undefined;
-  
+      const stmt = await dbFileQueue.prepare(`SELECT path FROM ${newPaths} LIMIT 1`);
+      const row = await stmt.get() as { path: string } | undefined;
+
       if (!row) { //0 rows left in newPaths
         await copyToTempDir(dbFileQueue, tempDir);
         return; //break from loop and function
@@ -66,37 +66,37 @@ export async function pathsToNewFilePaths(dbFileQueue: Database, tempDir: string
           //expand all files in this directory into newFilePaths
           const success = await addNewFilePathsDir(dbFileQueue, p);
           if (success) {
-            removeFromTable(dbFileQueue, newPaths, p);
+            await removeFromTable(dbFileQueue, newPaths, p);
           }
         } else if (stats.isFile()) {
-          insertIntoTable(dbFileQueue, newFilePaths, p);
-          removeFromTable(dbFileQueue, newPaths, p);
+          await insertIntoTable(dbFileQueue, newFilePaths, p);
+          await removeFromTable(dbFileQueue, newPaths, p);
         } else {
           console.warn(`Skipping unsupported path: ${p}`);
-          removeFromTable(dbFileQueue, newPaths, p);
+          await removeFromTable(dbFileQueue, newPaths, p);
         }
       } catch (err) {
         console.error(`Error reading path ${p}, removing from newPaths:`, err);
-        removeFromTable(dbFileQueue, newPaths, p);
+        await removeFromTable(dbFileQueue, newPaths, p);
       }
   
-      //once row is handled (file or directory), loop repeats, picking next row until `newPaths` is empty.
+      //once row is handled (file or directory), loop repeats, picking next row until `newPaths` is empty
     }
 }
 
 async function addNewFilePathsDir(dbFileQueue: Database, dir: string): Promise<boolean> {
-    const stmt = dbFileQueue.prepare(`INSERT OR IGNORE INTO ${defaultDBConfigFileQueue.tables.newFilePaths} (path) VALUES (?)`);
+    const stmt = await dbFileQueue.prepare(`INSERT OR IGNORE INTO ${defaultDBConfigFileQueue.tables.newFilePaths} (path) VALUES (?)`);
 
-    dbFileQueue.exec("BEGIN");
+    await dbFileQueue.exec("BEGIN");
     try {
         //readdirp(dir, options) returns an async iterator of "entry" objects
         for await (const entry of readdirp(dir, { type: "files" })) {
-            stmt.run(entry.fullPath);
+            await stmt.run(entry.fullPath);
         }
         
-        dbFileQueue.exec("COMMIT");
+        await dbFileQueue.exec("COMMIT");
     } catch (err) {
-        dbFileQueue.exec("ROLLBACK");
+        await dbFileQueue.exec("ROLLBACK");
     }    
     
     return true;
@@ -110,9 +110,8 @@ async function addNewFilePathsDir(dbFileQueue: Database, dir: string): Promise<b
 export async function copyToTempDir(dbFileQueue: Database, tempDir: string) {
     const { newFilePaths } = defaultDBConfigFileQueue.tables;
   
-    const rows = dbFileQueue
-        .prepare(`SELECT path FROM ${newFilePaths}`)
-        .all() as { path: string }[];
+    const stmt = await dbFileQueue.prepare(`SELECT path FROM ${newFilePaths}`);
+    const rows = await stmt.all() as { path: string }[];
   
     if (!rows || rows.length === 0) {
         console.log("No entries in newFilePaths to copy.");
@@ -127,10 +126,10 @@ export async function copyToTempDir(dbFileQueue: Database, tempDir: string) {
         try {
             await safeCopyFile(sourcePath, destination);
             console.log(`Copied ${sourcePath} -> ${destination}`);    
-            removeFromTable(dbFileQueue, newFilePaths, sourcePath);
+            await removeFromTable(dbFileQueue, newFilePaths, sourcePath);
         } catch (err) {
             console.error(`Failed to copy ${sourcePath} -> ${destination}:`, err);
-            removeFromTable(dbFileQueue, newFilePaths, sourcePath);
+            await removeFromTable(dbFileQueue, newFilePaths, sourcePath);
         }
     }
 }
@@ -173,15 +172,14 @@ function uniqueSuffixName(destPath: string): string {
 /**
  * Helper: Insert a single path into a given table (synchronously)
  */
-function insertIntoTable(dbFileQueue: Database, tableName: string, p: string) {
-    dbFileQueue.exec("BEGIN");
+async function insertIntoTable(dbFileQueue: Database, tableName: string, p: string) {
+    await dbFileQueue.exec("BEGIN");
     try {
-        dbFileQueue
-          .prepare(`INSERT OR IGNORE INTO ${tableName} (path) VALUES (?)`)
-          .run(p);
-        dbFileQueue.exec("COMMIT");
+        const stmt = await dbFileQueue.prepare(`INSERT OR IGNORE INTO ${tableName} (path) VALUES (?)`);
+        await stmt.run(p);
+        await dbFileQueue.exec("COMMIT");
     } catch (err) {
-        dbFileQueue.exec("ROLLBACK");
+        await dbFileQueue.exec("ROLLBACK");
         console.error(`Failed to insert ${p} into ${tableName}`, err);
     }
 }
@@ -189,15 +187,15 @@ function insertIntoTable(dbFileQueue: Database, tableName: string, p: string) {
 /**
  * Helper: Remove a single path from a given table (synchronously)
  */
-function removeFromTable(dbFileQueue: Database, tableName: string, p: string) {
-    dbFileQueue.exec("BEGIN");
+async function removeFromTable(dbFileQueue: Database, tableName: string, p: string) {
+    await dbFileQueue.exec("BEGIN");
+
     try {
-        dbFileQueue
-        .prepare(`DELETE FROM ${tableName} WHERE path = ?`)
-        .run(p);
-        dbFileQueue.exec("COMMIT");
+        const stmt = await dbFileQueue.prepare(`DELETE FROM ${tableName} WHERE path = ?`);
+        await stmt.run(p);
+        await dbFileQueue.exec("COMMIT");
     } catch (err) {
-        dbFileQueue.exec("ROLLBACK");
+        await dbFileQueue.exec("ROLLBACK");
         console.error(`Failed to remove ${p} from ${tableName}`, err);
     }
 }

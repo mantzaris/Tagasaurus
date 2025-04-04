@@ -1,13 +1,12 @@
 
-import { existsSync, mkdirSync } from "fs";
+import { promises as fsPromises } from "fs";
 import { join, dirname } from "path";
 import { app } from "electron";
 import fsExtra from "fs-extra";
 
-import Database from "libsql";
+import Database from "libsql/promise";
 
 import { DBConfig, DBConfigFileQueue } from "../../types/dbConfig";
-
 
 
 export const defaultDBConfig: DBConfig = {
@@ -76,8 +75,8 @@ export const defaultDBConfigFileQueue: DBConfigFileQueue = {
 }
 
 
-export function initTagaFolders() {
-    const { tagaDir, mediaDir, tempDir, dataDir, created } = checkTagasaurusDirectories();
+export async function initTagaFolders() {
+    const { tagaDir, mediaDir, tempDir, dataDir, created } = await checkTagasaurusDirectories();
     console.log("TagasaurusFiles Directory:", tagaDir);
     
     if(created) {
@@ -88,7 +87,7 @@ export function initTagaFolders() {
 
     if (created) {
       try {
-        setupDB(dataDir, defaultDBConfig);
+        await setupDB(dataDir, defaultDBConfig);
       } catch (error) {
         console.error("Error creating DB:", error);
       }
@@ -96,7 +95,7 @@ export function initTagaFolders() {
     
     if (created) {
       try {
-        setupFileQueueDB(dataDir, defaultDBConfigFileQueue);
+        await setupFileQueueDB(dataDir, defaultDBConfigFileQueue);
       } catch (error) {
         console.error("Error creating file queue DB:", error);
       }
@@ -111,19 +110,30 @@ export function initTagaFolders() {
  * @param root - The root directory under which to create subdirectories.
  * @param levels - How many levels deep to create (each level creates 16 subdirectories).
  */
-function createHexSubdirectories(root: string, levels: number): void {
+async function createHexSubdirectories(root: string, levels: number): Promise<void> {
   const hexDigits = "0123456789abcdef".split("");
   if (levels === 0) return;
   
-  for (const digit of hexDigits) {
+  //use Promise.all to create subdirectories in parallel for better performance
+  const promises = hexDigits.map(async (digit) => {
     const subDir = join(root, digit);
-    if (!existsSync(subDir)) {
-      mkdirSync(subDir);
-      // console.log(`Created subdirectory: ${subDir}`);
+    try {
+      //check if directory exists
+      try {
+        await fsPromises.access(subDir);
+      } catch {
+        //directory doesn't exist, create it
+        await fsPromises.mkdir(subDir);
+      }
+      
+      //recursively create the next level of subdirectories
+      await createHexSubdirectories(subDir, levels - 1);
+    } catch (error) {
+      console.error(`Error creating subdirectory ${subDir}:`, error);
     }
-    // Recursively create the next level of subdirectories.
-    createHexSubdirectories(subDir, levels - 1);
-  }
+  });
+  
+  await Promise.all(promises);
 }
 
 /**
@@ -145,13 +155,13 @@ function createHexSubdirectories(root: string, levels: number): void {
  *  - `tempDir`:     The Temporary data folder
  *  - `created`:     Boolean for if the directory needed to be created or not
  */
-export function checkTagasaurusDirectories(): {
+export async function checkTagasaurusDirectories(): Promise<{
     tagaDir: string;
     mediaDir: string;
     tempDir: string;
     dataDir: string;
     created: boolean;
-  } {
+  }> {
     let baseDir: string;
     let created = false;
   
@@ -168,39 +178,53 @@ export function checkTagasaurusDirectories(): {
     }
   
     const tagaDir = join(baseDir, "TagasaurusFiles");
-  
-    if (!existsSync(tagaDir)) {
-      mkdirSync(tagaDir);
-      created = true;
-      console.log(`Created: ${tagaDir}`);
-    } else {
-      console.log(`Already exists: ${tagaDir}`);
-    }
-  
-    const mediaDir = join(tagaDir, "MediaFiles");
-    if (!existsSync(mediaDir)) {
-      mkdirSync(mediaDir);
-      console.log(`Created: ${mediaDir}`);
-    }
 
-    // Create a 4-level deep hex subdirectory tree under MediaFiles.
-    const hexLevels = 4;
-    createHexSubdirectories(mediaDir, hexLevels);
+    try {
+      //check if directory exists
+      try {
+        await fsPromises.access(tagaDir);
+        console.log(`Already exists: ${tagaDir}`);
+      } catch {
+        //directory doesn't exist, create it
+        await fsPromises.mkdir(tagaDir);
+        created = true;
+        console.log(`Created: ${tagaDir}`);
+      }
 
-    const tempDir = join(tagaDir, "TempFiles");
-    if (!existsSync(tempDir)) {
-      mkdirSync(tempDir);
-      console.log(`Created: ${tempDir}`);
+      const mediaDir = join(tagaDir, "MediaFiles");
+      try {
+        await fsPromises.access(mediaDir);
+      } catch {
+        await fsPromises.mkdir(mediaDir);
+        console.log(`Created: ${mediaDir}`);
+      }
+
+      //create a 4-level deep hex subdirectory tree under MediaFiles
+      const hexLevels = 4;
+      await createHexSubdirectories(mediaDir, hexLevels);
+
+      const tempDir = join(tagaDir, "TempFiles");
+      try {
+        await fsPromises.access(tempDir);
+      } catch {
+        await fsPromises.mkdir(tempDir);
+        console.log(`Created: ${tempDir}`);
+      }
+
+      const dataDir = join(tagaDir, "Data");
+      try {
+        await fsPromises.access(dataDir);
+      } catch {
+        await fsPromises.mkdir(dataDir);
+        console.log(`Created: ${dataDir}`);
+      }
+
+      return { tagaDir, mediaDir, tempDir, dataDir, created };
+    } catch (error) {
+      console.error("Error checking/creating directories:", error);
+      throw error;
     }
-  
-    const dataDir = join(tagaDir, "Data");
-    if (!existsSync(dataDir)) {
-      mkdirSync(dataDir);
-      console.log(`Created: ${dataDir}`);
-    }
-  
-    return { tagaDir, mediaDir, tempDir, dataDir, created };
-  }
+}
 
 
 /**
@@ -230,16 +254,16 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
 
 
 // DB INIT
-function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
+async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promise<void> {
   const dbPath = join(dbDir, config.dbName);
   const db = new Database(dbPath);
 
   const { tables, columns, indexes, metadata: meta } = config;
 
   try {
-    db.exec(`BEGIN TRANSACTION;`);
+    await db.exec(`BEGIN TRANSACTION;`);
 
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.metadata} (
         ${columns.metadata.id} INTEGER PRIMARY KEY CHECK (${columns.metadata.id} = 1),
         ${columns.metadata.version} TEXT NOT NULL,
@@ -251,7 +275,7 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
       );
     `);
     
-    db.exec(`
+    await db.exec(`
       INSERT OR IGNORE INTO ${tables.metadata} (
         ${columns.metadata.id}, ${columns.metadata.version}, ${columns.metadata.hashType},
         ${columns.metadata.textEmbeddingAlgorithm}, ${columns.metadata.textEmbeddingSize},
@@ -268,7 +292,7 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
     `);
     
 
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.mediaFiles} (
         ${columns.mediaFiles.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.mediaFiles.fileHash} TEXT NOT NULL UNIQUE,
@@ -279,7 +303,7 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
       );
     `);
 
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.faceEmbeddings} (
         ${columns.faceEmbeddings.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.faceEmbeddings.mediaFileId} INTEGER NOT NULL,
@@ -288,64 +312,64 @@ function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): void {
       );
     `);
 
-    db.exec(`
+    await db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS ${indexes.mediaFilesHash}
       ON ${tables.mediaFiles}(${columns.mediaFiles.fileHash});
     `);
 
-    db.exec(`
+    await db.exec(`
       CREATE INDEX IF NOT EXISTS ${indexes.mediaFilesDescriptionEmbedding}
       ON ${tables.mediaFiles}(libsql_vector_idx(${columns.mediaFiles.descriptionEmbedding}));
     `);
 
-    db.exec(`
+    await db.exec(`
       CREATE INDEX IF NOT EXISTS ${indexes.faceEmbeddingsVector}
       ON ${tables.faceEmbeddings}(libsql_vector_idx(${columns.faceEmbeddings.faceEmbedding}));
     `);
 
-    db.exec(`
+    await db.exec(`
       CREATE INDEX IF NOT EXISTS ${indexes.faceEmbeddingsMediaFileId}
       ON ${tables.faceEmbeddings}(${columns.faceEmbeddings.mediaFileId});
     `);
 
-    db.exec(`COMMIT;`);
+    await db.exec(`COMMIT;`);
   } catch (error) {
     console.error("Error setting up database:", error);
-    db.exec(`ROLLBACK;`);
+    await db.exec(`ROLLBACK;`);
   } finally {
-    db.close();
+    await db.close();
   }
 }
 
 
-function setupFileQueueDB(dbDir: string, config: DBConfigFileQueue = defaultDBConfigFileQueue): void {
+async function setupFileQueueDB(dbDir: string, config: DBConfigFileQueue = defaultDBConfigFileQueue): Promise<void> {
   const dbPath = join(dbDir, config.dbName);
   const db = new Database(dbPath);
 
   const { tables, columns } = config;
 
   try {
-    db.exec(`BEGIN TRANSACTION;`);
+    await db.exec(`BEGIN TRANSACTION;`);
 
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.newPaths} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.newPaths.path} TEXT UNIQUE
       );
     `);
 
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.newFilePaths} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.newFilePaths.path} TEXT UNIQUE
       );
     `);
 
-    db.exec(`COMMIT;`);
+    await db.exec(`COMMIT;`);
   } catch (error) {
     console.error("Error setting up file queue DB:", error);
-    db.exec(`ROLLBACK;`);
+    await db.exec(`ROLLBACK;`);
   } finally {
-    db.close();
+    await db.close();
   }
 }
