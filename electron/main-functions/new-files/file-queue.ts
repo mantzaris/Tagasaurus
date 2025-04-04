@@ -1,5 +1,7 @@
 import fs from "fs/promises";
+import { constants } from "fs";
 import path from "path";
+import crypto from "crypto";
 import { type Database } from "libsql";
 import { readdirp } from "readdirp";
 
@@ -123,7 +125,7 @@ export async function copyToTempDir(dbFileQueue: Database, tempDir: string) {
         const destination = path.join(tempDir, fileName);
     
         try {
-            await fs.copyFile(sourcePath, destination);
+            await safeCopyFile(sourcePath, destination);
             console.log(`Copied ${sourcePath} -> ${destination}`);    
             removeFromTable(dbFileQueue, newFilePaths, sourcePath);
         } catch (err) {
@@ -133,6 +135,40 @@ export async function copyToTempDir(dbFileQueue: Database, tempDir: string) {
     }
 }
 
+/**
+ * attempt to copy a file using COPYFILE_EXCL (no overwrite)
+ * if EEXIST occurs, generate a new filename with a short hash suffix and retry
+ */
+async function safeCopyFile(source: string, dest: string) {
+    while (true) {
+      try {
+        await fs.copyFile(source, dest, constants.COPYFILE_EXCL);
+        return;
+      } catch (err: any) {
+        if (err.code === "EEXIST") {
+          // Generate a new name
+          dest = uniqueSuffixName(dest);
+        } else {
+          throw err; 
+        }
+      }
+    }
+}
+
+/**
+ * append short hash suffix to the provided destination path 
+ * and avoid collision, e.g., "cat.png" -> "cat-a1b2c3d4.png"
+ */
+function uniqueSuffixName(destPath: string): string {
+    const dir = path.dirname(destPath);
+    const ext = path.extname(destPath);
+    const base = path.basename(destPath, ext);
+  
+    //make a short random hash
+    const randomHash = crypto.randomBytes(8).toString("hex");
+    const newBase = `${base}-${randomHash}${ext}`;
+    return path.join(dir, newBase);
+}
 
 /**
  * Helper: Insert a single path into a given table (synchronously)
