@@ -74,6 +74,7 @@ async function main() {
 }
 
 
+
 app.once("ready", async () => {
   await main()
   processTempFiles(db, tempDir, mediaDir, mainWindow);
@@ -85,18 +86,18 @@ app.on("activate", async () => {
   }
 }); //macOS
 
-ipcMain.on("user-dropped-paths", (event, filePaths: string[]) => {
-  console.log("Renderer dropped file/folder path:", filePaths);
+ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
+  console.log("renderer dropped file/folder path:", filePaths);
 
-  //fire and forget
-  addNewPaths(db_fileQueue, filePaths, tempDir)
-  .then(() => {
-    console.log("done inserting paths");
-  })
-  .catch((error) => {
-    console.error("failed to add new paths:", error);
-  });
+  try {
+    await addNewPaths(db_fileQueue, filePaths, tempDir);
+    console.log("newPaths processed and copied to tempDir");
 
+    await processTempFiles(db, tempDir, mediaDir, mainWindow);
+    console.log("temp files processed into main DB");
+  } catch (error) {
+    console.error("Failed to handle user-dropped paths or process them:", error);
+  }
 });
 
 
