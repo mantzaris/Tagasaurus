@@ -6,11 +6,11 @@ import { BrowserWindow } from "electron";
 import { type Database } from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
 
-import {computeFileHash, convertMediaFile, detectTypeFromPartialBuffer, getHashSubdirectory, isAllowedFileType } from "../utils/utils"
+import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
+import { convertMediaFile, isAllowedFileType } from "../utils/media-conversion";
 
 //TODO: extract and store exif data?..
 //TODO: exclude SVG?
-//TODO: backup if sharp fails using magicwand.js https://www.npmjs.com/package/magickwand.js and for convert to gif
 
 
 
@@ -83,20 +83,18 @@ export async function processTempFiles(
       if (!isAllowedFileType(inferredFileType)) {
         const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
 
-        if(!conversion) {
-          //TODO: fallback to magicwand.js attempt
+        if (!conversion) {
           fs.promises.unlink(tempFilePath);
           continue;
         }
         
-        if(conversion) {
+        if (conversion) {
           await fs.promises.unlink(tempFilePath);
           hash = await computeFileHash(conversion.newFilePath, defaultDBConfig.metadata.hashAlgorithm);
           tempFile = conversion.newFileName;
           inferredFileType = conversion.newMime;
           tempFilePath = path.join(tempDir, tempFile);
-        }
-        
+        }        
       }
 
       await db.exec("BEGIN TRANSACTION;");
