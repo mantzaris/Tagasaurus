@@ -39,13 +39,6 @@ async function initialize() {
 }
 
 
-async function initDatabases() {
-  db = new Database(dbPath);
-  db_fileQueue = new Database(dbPath_fileQueue);
-  
-  return { db, db_fileQueue };
-}
-
 
 async function main() {  
   const minimalMenuTemplate: MenuItemConstructorOptions[] = [

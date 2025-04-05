@@ -3,31 +3,16 @@ import * as fs from "fs";
 
 import { BrowserWindow } from "electron";
 
-import { DBConfig } from "../../types/dbConfig";
 import { type Database } from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
 
-import {computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
+import {computeFileHash, convertMediaFile, detectTypeFromPartialBuffer, getHashSubdirectory, isAllowedFileType } from "../utils/utils"
+
+//TODO: extract and store exif data?..
+//TODO: exclude SVG?
+//TODO: backup if sharp fails using magicwand.js https://www.npmjs.com/package/magickwand.js and for convert to gif
 
 
-//currently: images, videos, audio, and PDFs are allowed
-function isAllowedFileType(mime: string): boolean {
-  
-  if (mime.startsWith("image/")) {
-    return true;
-  }
-  if (mime.startsWith("video/")) {
-    return true;
-  }
-  if (mime.startsWith("audio/")) {
-    return true;
-  }
-  if (mime === "application/pdf") {
-    return true;
-  }
-
-  return false;
-}
 
 /**
  * processes all files in `tempDir`:
@@ -51,6 +36,7 @@ export async function processTempFiles(
   mainWindow: BrowserWindow
 ): Promise<void> {
   const files = await fs.promises.readdir(tempDir); //list files needing processing
+  //TODO: shuffle file names
   
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
@@ -75,28 +61,42 @@ export async function processTempFiles(
     ) VALUES (?, ?, ?, ?, ?)
   `);
 
-  for (const tempFile of files) {
-    
-    const tempFilePath = path.join(tempDir, tempFile);
+  for (const file of files) {
+    let tempFile = file;
+    let tempFilePath = path.join(tempDir, tempFile);
     
     try {
-      const hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
+      let hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
 
       const existing = await checkHashStmt.get(hash);
       if (existing) {
         //exists, exact file, remove from tempDir
-        fs.promises.unlink(tempFilePath);
+        await fs.promises.unlink(tempFilePath);
         // console.log(`duplicate detected (hash = ${hash}). Removed ${tempFile}.`);
         continue;
       }
 
       //not a duplicate => get fileType from extension      
       const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
-      const inferredFileType = result.mime;
+      let inferredFileType = result.mime;
 
       if (!isAllowedFileType(inferredFileType)) {
-        fs.promises.unlink(tempFilePath);
-        continue;
+        const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
+
+        if(!conversion) {
+          //TODO: fallback to magicwand.js attempt
+          fs.promises.unlink(tempFilePath);
+          continue;
+        }
+        
+        if(conversion) {
+          await fs.promises.unlink(tempFilePath);
+          hash = await computeFileHash(conversion.newFilePath, defaultDBConfig.metadata.hashAlgorithm);
+          tempFile = conversion.newFileName;
+          inferredFileType = conversion.newMime;
+          tempFilePath = path.join(tempDir, tempFile);
+        }
+        
       }
 
       await db.exec("BEGIN TRANSACTION;");
@@ -120,7 +120,7 @@ export async function processTempFiles(
       const finalPath = path.join(finalDir, finalName);
 
       // Attempt to move
-      fs.promises.rename(tempFilePath, finalPath);
+      await fs.promises.rename(tempFilePath, finalPath);
 
       //if succeeded commit
       await db.exec("COMMIT;");
