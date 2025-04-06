@@ -13,6 +13,7 @@ export const defaultDBConfig: DBConfig = {
   dbName: "tagasaurus.db",
   tables: {
     metadata: "metadata",
+    dbStats: "db_stats",
     mediaFiles: "media_files",
     faceEmbeddings: "face_embeddings"
   },
@@ -38,6 +39,10 @@ export const defaultDBConfig: DBConfig = {
       id: "id",
       mediaFileId: "media_file_id",
       faceEmbedding: "face_embedding"
+    },
+    dbStats: {
+      tableName: "table_name",
+      rowCount: "row_count"
     }
   },
   indexes: {
@@ -332,6 +337,47 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
       ON ${tables.faceEmbeddings}(${columns.faceEmbeddings.mediaFileId});
     `);
 
+    //---------------------
+    //DB stats
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS ${tables.dbStats} (
+        ${columns.dbStats.tableName} TEXT PRIMARY KEY,
+        ${columns.dbStats.rowCount} INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+
+    // Insert row for "media_files" if not existing
+    await db.exec(`
+      INSERT OR IGNORE INTO ${tables.dbStats} (
+        ${columns.dbStats.tableName}, 
+        ${columns.dbStats.rowCount}
+      )
+      VALUES ('${tables.mediaFiles}', 0);
+    `);
+
+    await db.exec(`
+      CREATE TRIGGER IF NOT EXISTS increment_media_files_count
+      AFTER INSERT ON ${tables.mediaFiles}
+      BEGIN
+        UPDATE ${tables.dbStats}
+        SET ${columns.dbStats.rowCount} = ${columns.dbStats.rowCount} + 1
+        WHERE ${columns.dbStats.tableName} = '${tables.mediaFiles}';
+      END;
+    `);
+
+    await db.exec(`
+      CREATE TRIGGER IF NOT EXISTS decrement_media_files_count
+      AFTER DELETE ON ${tables.mediaFiles}
+      BEGIN
+        UPDATE ${tables.dbStats}
+        SET ${columns.dbStats.rowCount} = ${columns.dbStats.rowCount} - 1
+        WHERE ${columns.dbStats.tableName} = '${tables.mediaFiles}';
+      END;
+    `);
+
+
+    await fixMediaFilesRowCountIfZero(db, config);
+
     await db.exec(`COMMIT;`);
   } catch (error) {
     console.error("Error setting up database:", error);
@@ -371,5 +417,45 @@ async function setupFileQueueDB(dbDir: string, config: DBConfigFileQueue = defau
     await db.exec(`ROLLBACK;`);
   } finally {
     await db.close();
+  }
+}
+
+
+
+
+export async function fixMediaFilesRowCountIfZero(
+  db: Database,
+  config: DBConfig
+): Promise<void> {
+  const { tables, columns } = config;
+
+  const stmt = await db.prepare(`
+    SELECT ${columns.dbStats.rowCount} AS rc
+    FROM ${tables.dbStats}
+    WHERE ${columns.dbStats.tableName} = '${tables.mediaFiles}'
+  `);
+  const rowCountObj = await stmt.get();
+
+  const currentCount = rowCountObj ? rowCountObj.rc : 0;
+
+  if (currentCount === 0) {
+    const stmt2 = await db.prepare(`
+      SELECT COUNT(*) AS existingCount
+      FROM ${tables.mediaFiles};
+    `);
+    const countRow = await stmt2.get();
+
+    const existingCount = countRow?.existingCount ?? 0;
+
+    if (existingCount > 0) {
+      const stmt3 = await db.prepare(`
+        UPDATE ${tables.dbStats}
+        SET ${columns.dbStats.rowCount} = ?
+        WHERE ${columns.dbStats.tableName} = '${tables.mediaFiles}'
+      `);
+      
+      await stmt3.run(existingCount);
+      
+    }
   }
 }

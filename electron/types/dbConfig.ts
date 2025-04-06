@@ -19,6 +19,7 @@ export interface DBConfig {
     metadata: string;
     mediaFiles: string;
     faceEmbeddings: string;
+    dbStats:string;
   };
   columns: {
     metadata: {
@@ -43,6 +44,10 @@ export interface DBConfig {
       mediaFileId: string;
       faceEmbedding: string;
     };
+    dbStats: {
+      tableName: string;
+      rowCount: string;
+    }
   };
   indexes: {
     mediaFilesHash: string;
@@ -57,7 +62,7 @@ export interface DBConfig {
     textEmbeddingSize: number;
     faceEmbeddingAlgorithm: string;
     faceEmbeddingSize: number;
-  };
+  }
 }
 
 

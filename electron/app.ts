@@ -139,6 +139,8 @@ ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
 
 
 
+
+
 ipcMain.handle("get-version", (_, key: "electron" | "node") => {
   return String(process.versions[key]);
 });
