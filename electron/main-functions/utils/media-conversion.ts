@@ -15,67 +15,107 @@ const allowedAudioMimeTypes = [
     'audio/mpeg',
     'audio/mp4',
     'audio/wav',
-    'audio/wave',
-    'audio/x-wav',
     'audio/ogg',
     'audio/webm',
-    'audio/flac',
-    'audio/x-flac',
-  ];
-  
-  const allowedImageMimeTypes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp'
-  ];
-  
-  //currently: images, videos, audio, and PDFs are allowed
-  export function isAllowedFileType(mime: string): boolean {  
-    if (mime.startsWith("image/")) {
-      if(allowedImageMimeTypes.includes(mime)) {
-        return true;
-      }
-  
-      return false;
-    }
-    if (mime.startsWith("video/")) {
+];
+
+const allowedImageMimeTypes = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp'
+];
+
+//currently: images, videos, audio, and PDFs are allowed
+export function isAllowedFileType(mime: string): boolean {  
+  if (mime.startsWith("image/")) {
+    if(allowedImageMimeTypes.includes(mime)) {
       return true;
     }
-    if (mime.startsWith("audio/")) {
-      return true;
-    }
-    if (mime === "application/pdf") {
-      return true;
-    }
-  
+
     return false;
   }
+  if (mime.startsWith("video/")) {
+    return true;
+  }
+  if (mime.startsWith("audio/")) {
+    if (mime.startsWith("audio/")) {
+      return allowedAudioMimeTypes.includes(mime);
+    }
+
+    return false;
+  }
+  if (mime === "application/pdf") {
+    return true;
+  }
+
+  return false;
+}
   
-  export async function convertMediaFile(
+export async function convertMediaFile(
     mime: string,
     filePath: string,
     dirPath: string,
     fileName: string): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false> {
   
-      if (mime.startsWith("image/")) {
-        return await convertImage(filePath,dirPath,fileName);
-      }
-  
-      return false;
+    if (mime.startsWith("image/")) {
+      return await convertImage(filePath,dirPath,fileName);
+    }
+
+    if (mime.startsWith("audio/")) {
+      return await convertAudio(filePath, dirPath, fileName);
+    }
+
+
+    return false;
+}
+
+
+export async function convertAudio(
+  filePath: string,
+  dirPath: string,
+  fileName: string
+): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false> {
+  try {
+    const randomSuffix = randomBytes(10).toString("hex");
+    const { name: baseName } = path.parse(fileName);
+
+    const newFileName = `${baseName}_${randomSuffix}.mp3`;
+    const newFilePath = path.join(dirPath, newFileName);
+
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(filePath)
+        .audioBitrate('192k') //set audio bitrate, 192k decent default
+        .audioCodec('libmp3lame') //libmp3lame (most ffmpeg distributions have this)
+        .format('mp3') //container/format mp3
+        .on('end', () => resolve())
+        .on('error', (err) => reject(err))
+        .save(newFilePath);
+    });
+
+    //if successful return the new path/name with MP3 mime
+    const newMime = "audio/mpeg";
+    return { newFilePath, newFileName, newMime };
+
+  } catch (err) {
+    console.error(`Failed to convert ${fileName} to MP3:`, err);
+    return false;
   }
-  
-  /**
-   * attempts to convert an image to PNG if it is not in the whitelist
-   * creates a new file with a random hex suffix and .png extension
-   *
-   * @param filePath path to the file
-   * @param dirPath  directory path where the file currently resides
-   * @param fileName existing file name (e.g. "photo.heic")
-   * @returns        object with { newFilePath, newFileName, newMime } if success; else false
-   */
-  export async function convertImage(
+}
+
+
+
+/**
+ * attempts to convert an image to PNG if it is not in the whitelist
+ * creates a new file with a random hex suffix and .png extension
+ *
+ * @param filePath path to the file
+ * @param dirPath  directory path where the file currently resides
+ * @param fileName existing file name (e.g. "photo.heic")
+ * @returns        object with { newFilePath, newFileName, newMime } if success; else false
+ */
+export async function convertImage(
     filePath: string,
     dirPath: string,
     fileName: string
@@ -111,29 +151,29 @@ const allowedAudioMimeTypes = [
         await convertAnimatedToGif(filePath, newFilePath);
         const newMime = "image/gif";
         return { newFilePath, newFileName, newMime };
-      }    
+      }
     } catch (err) {
       console.error(`Failed to convert ${fileName} to PNG or GIF:`, err);
       return false;
     }
-  }
+}
   
-  /** ffmpeg to convert a static image to PNG */
-  async function convertToPngViaFfmpeg(inputPath: string, outputPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      ffmpeg(inputPath)
-        .outputFormat('png')
-        .output(outputPath)
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .run();
-    });
-  }
-  
-  /**
-   * convert animated image to animated GIF with ffmpeg
-   */
-  export function convertAnimatedToGif(
+/** ffmpeg to convert a static image to PNG */
+async function convertToPngViaFfmpeg(inputPath: string, outputPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .outputFormat('png')
+      .output(outputPath)
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
+      .run();
+  });
+}
+
+/**
+ * convert animated image to animated GIF with ffmpeg
+ */
+export function convertAnimatedToGif(
     inputPath: string,
     outputPath: string
   ): Promise<void> {
@@ -152,9 +192,9 @@ const allowedAudioMimeTypes = [
         .on('error', (err) => reject(err))
         .run();
     });
-  }
+}
   
-  async function detectAnimation(filePath: string) {
+async function detectAnimation(filePath: string) {
     //first attempt with sharp, faster but less reliable, can produce false negatives
     try {
       const metadata = await sharp(filePath).metadata();
@@ -170,9 +210,9 @@ const allowedAudioMimeTypes = [
       console.error("Failed to run ffprobe:", ffmpegError);
       return false;
     }
-  }
+}
   
-  export async function isAnimatedImageFFmpeg(filePath: string): Promise<boolean> {
+export async function isAnimatedImageFFmpeg(filePath: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, metadata) => {
         if (err) {
@@ -189,7 +229,7 @@ const allowedAudioMimeTypes = [
         resolve(totalFrames > 1);
       });
     });
-  }
+}
   
   
   //reliable but slower needing ffmpeg each time
