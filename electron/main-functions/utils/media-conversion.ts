@@ -8,7 +8,13 @@ import ffmpegPath from 'ffmpeg-static';
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
 
-
+const allowedVideoMimeTypes = [
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
+  'video/x-matroska'
+];
 
 const allowedAudioMimeTypes = [
     'audio/mp3',
@@ -20,11 +26,11 @@ const allowedAudioMimeTypes = [
 ];
 
 const allowedImageMimeTypes = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/gif',
-  'image/webp'
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp'
 ];
 
 //currently: images, videos, audio, and PDFs are allowed
@@ -36,16 +42,15 @@ export function isAllowedFileType(mime: string): boolean {
 
     return false;
   }
-  if (mime.startsWith("video/")) {
-    return true;
-  }
-  if (mime.startsWith("audio/")) {
-    if (mime.startsWith("audio/")) {
-      return allowedAudioMimeTypes.includes(mime);
-    }
 
-    return false;
+  if (mime.startsWith("video/")) {
+    return allowedVideoMimeTypes.includes(mime);
   }
+  
+  if (mime.startsWith("audio/")) {
+    return allowedAudioMimeTypes.includes(mime);
+  }
+  
   if (mime === "application/pdf") {
     return true;
   }
@@ -67,8 +72,56 @@ export async function convertMediaFile(
       return await convertAudio(filePath, dirPath, fileName);
     }
 
+    if (mime.startsWith("video/")) {
+      return await convertVideo(filePath, dirPath, fileName);
+    }
 
     return false;
+}
+
+
+/**
+ * convert any input video to a standard MP4 (H.264 + AAC)
+ *
+ * @param filePath  path to input video
+ * @param dirPath   directory to place the converted file
+ * @param fileName  original file name (e.g. "movie.avi")
+ * @returns         { newFilePath, newFileName, newMime } if success; else false
+ */
+export async function convertVideo(
+  filePath: string,
+  dirPath: string,
+  fileName: string
+): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false> {
+  try {
+    const randomSuffix = randomBytes(10).toString("hex");
+    const { name: baseName } = path.parse(fileName);
+
+    const newFileName = `${baseName}_${randomSuffix}.mp4`;
+    const newFilePath = path.join(dirPath, newFileName);
+
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(filePath)
+        .videoCodec("libx264")
+        .audioCodec("aac")
+        .outputOptions([
+          "-movflags", "+faststart",
+          "-preset", "medium",
+          "-crf", "23"
+        ])
+        .format("mp4")
+        .on("end", () => resolve())
+        .on("error", (err) => reject(err))
+        .save(newFilePath);
+    });
+
+    const newMime = "video/mp4";
+    return { newFilePath, newFileName, newMime };
+
+  } catch (err) {
+    console.error(`Failed to convert ${fileName} to MP4:`, err);
+    return false;
+  }
 }
 
 
