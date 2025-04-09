@@ -8,6 +8,7 @@ import { defaultDBConfig } from "../initialization/init";
 
 import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
 import { convertMediaFile, isAllowedFileType } from "../utils/media-conversion";
+import { MediaFile } from "../../types/dbConfig";
 
 //TODO: extract and store exif data?..
 //TODO: exclude SVG?
@@ -94,7 +95,7 @@ export async function processTempFiles(
           tempFile = conversion.newFileName;
           inferredFileType = conversion.newMime;
           tempFilePath = path.join(tempDir, tempFile);
-        }        
+        }
       }
 
       await db.exec("BEGIN TRANSACTION;");
@@ -125,7 +126,26 @@ export async function processTempFiles(
 
       // console.log(`imported/processed new: "${tempFile}" as hash=${hash}.`);
 
-      mainWindow.webContents.send("new-media", hash);
+      // mainWindow.webContents.send("new-media", hash);
+
+      const fetchStmt = await db.prepare(`
+        SELECT
+          id,
+          file_hash             AS fileHash,
+          filename,
+          file_type             AS fileType,
+          description,
+          description_embedding AS descriptionEmbedding
+        FROM ${mediaFiles}
+        WHERE file_hash = ?
+      `);
+      const insertedFile = await fetchStmt.get<MediaFile>(hash);
+
+      if (insertedFile) {
+        mainWindow.webContents.send("new-media", insertedFile);
+      }
+
+
     } catch (err) {
       console.error(`Error processing file: ${tempFile}`, err);
 

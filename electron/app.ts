@@ -7,7 +7,10 @@ import Database from "libsql/promise";
 import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
 import { processTempFiles } from "./main-functions/new-files/process-new-media";
 import { addNewPaths } from "./main-functions/new-files/file-queue";
+import { getRandomEntries } from "./main-functions/db-operations/random-entries";
+import { MediaFile } from "./types/dbConfig";
 
+const sampleSize = 200;
 let mainWindow: BrowserWindow;
 let tagaDir: string;
 let mediaDir: string;
@@ -17,6 +20,7 @@ let db: Database;
 let db_fileQueue: Database;
 let dbPath: string;
 let dbPath_fileQueue: string;
+let sampleMediaFiles: MediaFile[];
 
 //single initialization point
 async function initialize() {
@@ -67,7 +71,8 @@ async function main() {
     webPreferences: {
       devTools: !app.isPackaged,
       preload: join(__dirname, "preload.js"),
-    },
+      webSecurity: app.isPackaged,
+    }
   });
 
   if(!app.isPackaged) {
@@ -100,6 +105,8 @@ app.once("ready", async () => {
     processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
       console.error("Background processing error:", err)
     );
+
+    sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
   } catch (error) {
     console.error("error on the app startup! :", error)
   }
@@ -116,11 +123,14 @@ app.on("activate", async () => {
       processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
         console.error("Background processing error:", err)
       );
+
+      sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
     } catch (error) {
       console.error("error during application activate = ", error);
     }
   }
 }); //macOS
+
 
 ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
   console.log("renderer dropped file/folder path:", filePaths);
@@ -137,8 +147,24 @@ ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
   }
 });
 
+async function samplerHelper() {
+  sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
+}
 
+ipcMain.handle("get-random-sample", async (event) => {
+  if (!sampleMediaFiles || sampleMediaFiles.length === 0) {
+    sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
+  }
 
+  const newMedia = [...sampleMediaFiles];
+  
+  samplerHelper();
+  return newMedia;
+});
+
+ipcMain.handle("get-media-dir", async (event) => {
+  return mediaDir;
+})
 
 
 ipcMain.handle("get-version", (_, key: "electron" | "node") => {

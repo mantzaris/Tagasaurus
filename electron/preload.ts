@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, ipcMain } from "electron";
+import { MediaFile } from "./types/dbConfig";
 
 export const CONTEXT_BRIDGE = {
   /**
@@ -21,6 +22,14 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.on("new-media", (_event, data) => {
       callback(data);
     });
+  },
+  
+  requestSampleEntries: async (): Promise<MediaFile[]> => {
+    return await ipcRenderer.invoke("get-random-sample");
+  },
+
+  requestMediaDir: async () => {
+    return ipcRenderer.invoke("get-media-dir")
   },
 
   sendDroppedPaths: (paths: string[]) => {
