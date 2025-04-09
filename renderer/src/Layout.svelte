@@ -1,16 +1,20 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { addNewFileHash } from '$lib/utils/localStorageManager';
+import { addNewMediaFile, fillSampleMediaFiles, storeMediaDirInLocalStorage } from '$lib/utils/localStorageManager';
 import { Toast, ToastBody, ToastHeader, Icon } from '@sveltestrap/sveltestrap';
+import type { MediaFile } from '$lib/types/general-types';
 
 let isOpen = false;
+let mediaDir: string|null = null;
 
-onMount(() => {
+onMount(async () => {
   
-  window.bridge.onNewMedia((hash: string) => {
-    addNewFileHash(hash); 
+  window.bridge.onNewMedia((mediaFile: MediaFile) => {
+    addNewMediaFile(mediaFile); 
   });
 
+  fillSampleMediaFiles(); //fire n'4get
+  mediaDir = await storeMediaDirInLocalStorage();
 });
 
 function handleDragOver(event: DragEvent) {
