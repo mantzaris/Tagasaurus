@@ -1,11 +1,12 @@
 <script lang="ts">
-import { fillSampleMediaFiles, getMediaDir, getNewMediaFiles } from '$lib/utils/localStorageManager';
+import { getMediaDir } from '$lib/utils/localStorageManager';
 import { buildCombinedEntries } from '$lib/utils/select-cards';
 import { getMediaFilePath } from '$lib/utils/utils';
 import { Button, Container, Row, Col, Card, CardImg, CardBody, CardTitle, CardText, Popover, Tooltip , Icon} from '@sveltestrap/sveltestrap';
 import { onMount } from 'svelte';
 
 import { type MediaFile } from '$lib/types/general-types';
+  import { fillSampleMediaFiles, getNewMediaFiles } from '$lib/utils/temp-mediafiles';
   
 const image_asset_dir = "../../../assets/images/"
 
@@ -21,8 +22,10 @@ onMount(async () => {
 })
 
 async function setCards() {
-  newMedia = getNewMediaFiles();
-  sampleMedia = await fillSampleMediaFiles();
+  if( newMedia.length == 0 || newMedia.length == 0 || Math.random() < 0.2 ) {
+    newMedia = await getNewMediaFiles();
+    sampleMedia = await fillSampleMediaFiles(true);
+  }
   
   cardData = buildCombinedEntries(newMedia, sampleMedia, 10);
 }

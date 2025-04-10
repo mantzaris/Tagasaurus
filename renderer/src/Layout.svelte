@@ -1,8 +1,9 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { addNewMediaFile, fillSampleMediaFiles, getMediaDir } from '$lib/utils/localStorageManager';
+import { getMediaDir } from '$lib/utils/localStorageManager';
 import { Toast, Icon } from '@sveltestrap/sveltestrap';
 import type { MediaFile } from '$lib/types/general-types';
+  import { addNewMediaFile, fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
 
 let isOpen = false;
 let mediaDir: string|null = null;
