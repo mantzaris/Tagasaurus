@@ -2,21 +2,6 @@ import { contextBridge, ipcRenderer, ipcMain } from "electron";
 import { MediaFile } from "./types/dbConfig";
 
 export const CONTEXT_BRIDGE = {
-  /**
-   * Returns the version from process.versions of the supplied target.
-   */
-  getVersion: async (opt: "electron" | "node"): Promise<string> => {
-    return await ipcRenderer.invoke(`get-version`, opt);
-  },
-  testFn: () => {
-    return "FOO"
-  },
-
-  onTestMain2: (callback) => {
-    ipcRenderer.on("testMain2", (_event, data) => {
-      callback(data);
-    });
-  },
 
   onNewMedia: (callback) => {
     ipcRenderer.on("new-media", (_event, data) => {
@@ -38,10 +23,7 @@ export const CONTEXT_BRIDGE = {
 
 };
 
-
 contextBridge.exposeInMainWorld("bridge", CONTEXT_BRIDGE);
-
-
 
 
 // window.addEventListener('DOMContentLoaded', () => {

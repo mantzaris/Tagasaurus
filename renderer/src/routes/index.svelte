@@ -6,13 +6,6 @@
 
   </script>
   
-  <!-- <main style="background-color: green;">
- 
-    <i class="fa-solid fa-house"></i>
-
-    <a href="/main-menu">main</a>
- 
-    </main> -->
 
 
 <Navbar   expand="md" style="background-color:var(--taga-color900);">
