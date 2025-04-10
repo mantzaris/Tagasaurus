@@ -3,7 +3,6 @@
 import type { MediaFile } from "$lib/types/general-types";
 
 export function getNewMediaFiles(): MediaFile[] {
-
   const stored = localStorage.getItem("newMediaFiles");
   if (!stored) return [];
 
@@ -11,6 +10,18 @@ export function getNewMediaFiles(): MediaFile[] {
       return JSON.parse(stored) as MediaFile[];
   } catch (error) {
       console.error("Error parsing newMediaFiles from localStorage:", error);
+      return [];
+  }
+}
+
+export function getSampleMediaFiles(): MediaFile[] {
+  const stored = localStorage.getItem("sampleMediaFiles");
+  if (!stored) return [];
+
+  try {
+      return JSON.parse(stored) as MediaFile[];
+  } catch (error) {
+      console.error("Error parsing sampleMediaFiles from localStorage:", error);
       return [];
   }
 }
@@ -28,11 +39,9 @@ export function addNewMediaFile(mediaFile: MediaFile): void {
     }
 
     current.push(mediaFile);
-
     localStorage.setItem("newMediaFiles", JSON.stringify(current));
 }
 
-  
 export function removeNewMediaFile(fileHash: string): void {
   const current = getNewMediaFiles();
   
@@ -43,6 +52,15 @@ export function removeNewMediaFile(fileHash: string): void {
   }
 }
 
+export function removeSampleMediaFile(fileHash: string): void {
+  const current = getSampleMediaFiles();
+  
+  const index = current.findIndex(m => m.fileHash === fileHash);
+  if (index !== -1) {
+      current.splice(index, 1);
+      localStorage.setItem("sampleMediaFiles", JSON.stringify(current));
+  }
+}
 
 
 /**
@@ -51,60 +69,49 @@ export function removeNewMediaFile(fileHash: string): void {
  * store them in localStorage under "sampleMediaFiles"
  */
 export async function fillSampleMediaFiles(): Promise<MediaFile[]> {
-    const MIN_REQUIRED = 400;
-    let stored = localStorage.getItem("sampleMediaFiles");
-  
-    let sampleMedia: MediaFile[] = stored ? JSON.parse(stored) : [];
-  
-    if (sampleMedia.length < MIN_REQUIRED) { //TODO: maybe also a random number to get new
-      try {
-        const newMedia: MediaFile[] = await window.bridge.requestSampleEntries(); //TODO: use ipc?
-        sampleMedia = sampleMedia.concat(newMedia);  
-                
-        const dedupMap = new Map(sampleMedia.map(m => [m.fileHash, m]));
-        sampleMedia = Array.from(dedupMap.values());
-  
-        localStorage.setItem("sampleMediaFiles", JSON.stringify(sampleMedia));
-      } catch (error) {
-        console.error("failed to fetch new sample entries from main:", error);
-      }
-    }
-  
-    return sampleMedia;
-  }
+  const MIN_REQUIRED = 400;
+  let stored = localStorage.getItem("sampleMediaFiles");
+  let sampleMedia: MediaFile[] = stored ? JSON.parse(stored) : [];
 
-
-  export async function storeMediaDirInLocalStorage(): Promise<string> {
+  if (sampleMedia.length < MIN_REQUIRED) { //TODO: maybe also a random number to get new
     try {
-      const dir: string = await window.bridge.requestMediaDir(); //TODO: use ipc
-      localStorage.setItem("mediaDir", dir);
-      return dir;
+      const newMedia: MediaFile[] = await window.bridge.requestSampleEntries(); //TODO: use ipc?
+      sampleMedia = sampleMedia.concat(newMedia);  
+              
+      const dedupMap = new Map(sampleMedia.map(m => [m.fileHash, m]));
+      sampleMedia = Array.from(dedupMap.values());
+
+      localStorage.setItem("sampleMediaFiles", JSON.stringify(sampleMedia));
     } catch (error) {
-      console.error("Error fetching mediaDir from main:", error);
-      return "";
+      console.error("failed to fetch new sample entries from main:", error);
     }
   }
 
-  /**
+  return sampleMedia;
+}
+
+
+/**
  * Retrieves the mediaDir from localStorage if present. If not present,
  * requests it from the main process and stores it in localStorage
  */
 export async function getMediaDir(): Promise<string> {
-    let dir = localStorage.getItem("mediaDir");
-    if (dir) {
-      return dir;
-    }
+  let dir = localStorage.getItem("mediaDir");
 
-    try {
-        dir = await window.bridge.requestMediaDir(); //TODO: use ipc
-        if(dir) {
-            localStorage.setItem("mediaDir", dir);
-            return dir;
-        }
+  if (dir) {
+    return dir;
+  }
 
-        return "";
-    } catch (error) {
-        console.error("Failed to fetch mediaDir from main:", error);
-        return "";
-    }
+  try {
+      dir = await window.bridge.requestMediaDir(); //TODO: use ipc
+      if(dir) {
+          localStorage.setItem("mediaDir", dir);
+          return dir;
+      }
+
+      return "";
+  } catch (error) {
+      console.error("Failed to fetch mediaDir from main:", error);
+      return "";
+  }
 }

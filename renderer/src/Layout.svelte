@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { addNewMediaFile, fillSampleMediaFiles, storeMediaDirInLocalStorage } from '$lib/utils/localStorageManager';
-import { Toast, ToastBody, ToastHeader, Icon } from '@sveltestrap/sveltestrap';
+import { addNewMediaFile, fillSampleMediaFiles, getMediaDir } from '$lib/utils/localStorageManager';
+import { Toast, Icon } from '@sveltestrap/sveltestrap';
 import type { MediaFile } from '$lib/types/general-types';
 
 let isOpen = false;
@@ -14,7 +14,7 @@ onMount(async () => {
   });
 
   fillSampleMediaFiles(); //fire n'4get
-  mediaDir = await storeMediaDirInLocalStorage();
+  mediaDir = await getMediaDir();
 });
 
 function handleDragOver(event: DragEvent) {
@@ -28,12 +28,10 @@ function handleDrop(event: DragEvent) {
   const paths: string[] = [];
   for (const item of event.dataTransfer?.files ?? []) {
     const filePath = (item as any).path; //Electron 'path' property
-    //console.log("Dropped file/folder path:", filePath);
     paths.push(filePath);
   }
   
-  console.log("array set of files = ", paths)
-  //send the entire array of paths to the main process
+  //send the entire array of paths to the main process (handles directories too)
   window.bridge.sendDroppedPaths(paths);
   isOpen = true
 }
