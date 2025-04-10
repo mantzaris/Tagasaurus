@@ -165,22 +165,3 @@ ipcMain.handle("get-random-sample", async (event) => {
 ipcMain.handle("get-media-dir", async (event) => {
   return mediaDir;
 })
-
-
-ipcMain.handle("get-version", (_, key: "electron" | "node") => {
-  return String(process.versions[key]);
-});
-
-
-// setTimeout(()=>mainWindow.webContents.send("testMain1", "BAR"), 3000)
-// setTimeout(()=>mainWindow.webContents.send("testMain2", "BAZ"), 5000)
-
-//make a handler for UI
-// mainWindow.webContents.on('did-finish-load', () => {
-//   processTempFiles(db, tempDir, mediaDir, mainWindow);
-// });
-
-// mainWindow.webContents.on('did-finish-load', () => {
-//   console.log("about to process")
-//   processTempFiles(db, tempDir, mediaDir, mainWindow);
-// });

@@ -32,37 +32,6 @@ export const routes = {
     },
     {
       "meta": {},
-      "id": "_default_main_menu",
-      "name": "main-menu",
-      "module": false,
-      "file": {
-        "path": "src/routes/main-menu",
-        "dir": "src/routes",
-        "base": "main-menu",
-        "ext": "",
-        "name": "main-menu"
-      },
-      "children": [
-        {
-          "meta": {
-            "isDefault": true
-          },
-          "id": "_default_main_menu_index_svelte",
-          "name": "index",
-          "file": {
-            "path": "src/routes/main-menu/index.svelte",
-            "dir": "src/routes/main-menu",
-            "base": "index.svelte",
-            "ext": ".svelte",
-            "name": "index"
-          },
-          "asyncModule": () => import('../src/routes/main-menu/index.svelte'),
-          "children": []
-        }
-      ]
-    },
-    {
-      "meta": {},
       "id": "_default_streaming",
       "name": "streaming",
       "module": false,
