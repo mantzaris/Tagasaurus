@@ -11,7 +11,6 @@ import { convertMediaFile, isAllowedFileType } from "../utils/media-conversion";
 import { MediaFile } from "../../types/dbConfig";
 
 //TODO: extract and store exif data?..
-//TODO: exclude SVG?
 
 
 
@@ -36,9 +35,6 @@ export async function processTempFiles(
   mediaDir: string,
   mainWindow: BrowserWindow
 ): Promise<void> {
-  const files = await fs.promises.readdir(tempDir); //list files needing processing
-  //TODO: shuffle file names
-  
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
   const { mediaFiles } = tables;
@@ -62,10 +58,29 @@ export async function processTempFiles(
     ) VALUES (?, ?, ?, ?, ?)
   `);
 
-  for (const file of files) {
-    let tempFile = file;
+  const fetchStmt = await db.prepare(`
+    SELECT
+      id,
+      file_hash             AS fileHash,
+      filename,
+      file_type             AS fileType,
+      description,
+      description_embedding AS descriptionEmbedding
+    FROM ${mediaFiles}
+    WHERE file_hash = ?
+  `);
+
+  //const files = await fs.promises.readdir(tempDir); //list files needing processing
+  //for (const file of files) {
+    //let tempFile = file;
+    //let tempFilePath = path.join(tempDir, tempFile);
+
+  const dir = await fs.promises.opendir(tempDir);
+  for await (const dirent of dir) {
+    if (!dirent.isFile()) continue;  
+    let tempFile = dirent.name;
     let tempFilePath = path.join(tempDir, tempFile);
-    
+        
     try {
       let hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
 
@@ -73,7 +88,6 @@ export async function processTempFiles(
       if (existing) {
         //exists, exact file, remove from tempDir
         await fs.promises.unlink(tempFilePath);
-        // console.log(`duplicate detected (hash = ${hash}). Removed ${tempFile}.`);
         continue;
       }
 
@@ -85,7 +99,7 @@ export async function processTempFiles(
         const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
 
         if (!conversion) {
-          fs.promises.unlink(tempFilePath);
+          await fs.promises.unlink(tempFilePath);
           continue;
         }
         
@@ -115,36 +129,17 @@ export async function processTempFiles(
       const finalDir = path.join(mediaDir, subPath);
       
       // e.g. "a3e71df2abc", dp mopt store file extensions just the hash and use the inferred filetype later
-      const finalName = hash;
-      const finalPath = path.join(finalDir, finalName);
-
-      // Attempt to move
-      await fs.promises.rename(tempFilePath, finalPath);
+      const finalPath = path.join(finalDir, hash);
+      await fs.promises.rename(tempFilePath, finalPath); //attempt to move
 
       //if succeeded commit
       await db.exec("COMMIT;");
 
-      // console.log(`imported/processed new: "${tempFile}" as hash=${hash}.`);
-
-      // mainWindow.webContents.send("new-media", hash);
-
-      const fetchStmt = await db.prepare(`
-        SELECT
-          id,
-          file_hash             AS fileHash,
-          filename,
-          file_type             AS fileType,
-          description,
-          description_embedding AS descriptionEmbedding
-        FROM ${mediaFiles}
-        WHERE file_hash = ?
-      `);
       const insertedFile = await fetchStmt.get<MediaFile>(hash);
 
       if (insertedFile) {
         mainWindow.webContents.send("new-media", insertedFile);
       }
-
 
     } catch (err) {
       console.error(`Error processing file: ${tempFile}`, err);
