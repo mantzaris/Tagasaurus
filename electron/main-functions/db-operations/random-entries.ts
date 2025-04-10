@@ -36,7 +36,7 @@ export async function getRandomEntries(
   //if rowCount is small enough, do an ORDER BY RANDOM() query
   if (rowCount <= threshold) {
 
-    const stmt2 = await db.prepare(`
+    const stmtRandom = await db.prepare(`
       SELECT
         id,
         file_hash               AS fileHash,
@@ -49,7 +49,7 @@ export async function getRandomEntries(
       LIMIT ?
     `);
 
-    const rows = await stmt2.all<MediaFile>([ numberOfEntries ]);
+    const rows = await stmtRandom.all<MediaFile>([ numberOfEntries ]);
 
     return rows || [];
   }  
@@ -114,7 +114,7 @@ export async function getRandomEntries(
   const finalHashes = Array.from(chosenHashes).slice(0, numberOfEntries); // ensure we don't exceed needed
   const placeholders = finalHashes.map(() => "?").join(",");
 
-  const sql = `
+  const stmtGetHashes = `
     SELECT
       id,
       file_hash             AS fileHash,
@@ -126,7 +126,7 @@ export async function getRandomEntries(
     WHERE file_hash IN (${placeholders})
   `;
 
-  const stmt3 = await db.prepare<MediaFile>(sql);
+  const stmt3 = await db.prepare<MediaFile>(stmtGetHashes);
   const rows = await stmt3.all<MediaFile>(finalHashes);
 
   return rows || [];
