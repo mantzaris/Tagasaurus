@@ -9,6 +9,7 @@ import { processTempFiles } from "./main-functions/new-files/process-new-media";
 import { addNewPaths } from "./main-functions/new-files/file-queue";
 import { getRandomEntries } from "./main-functions/db-operations/random-entries";
 import { MediaFile } from "./types/dbConfig";
+import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 
 const sampleSize = 200;
 let mainWindow: BrowserWindow;
@@ -163,5 +164,6 @@ ipcMain.handle("get-random-sample", async (event) => {
 });
 
 ipcMain.handle("get-media-dir", async (event) => {
-  return mediaDir;
+  // return mediaDir;
+  return getMediaFrontEndDirBase(mediaDir);
 })

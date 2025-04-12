@@ -1,5 +1,6 @@
 import fs, {open} from "fs/promises"; //import * as fs from "fs";
 import * as path from "path";
+import { pathToFileURL } from "url";
 
 import { createHash } from "crypto";
 import { loadEsm } from 'load-esm';
@@ -7,6 +8,7 @@ import { loadEsm } from 'load-esm';
 import sharp from 'sharp';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
@@ -61,5 +63,19 @@ export function getHashSubdirectory(hash: string): string {
 }
 
 
+/**
+ * convert a directory path to a properly formatted file:// URL with a trailing slash
+ * @param {string} mediaDir - absolute path to the media directory
+ * @returns {string} - file URL representing the media directory
+ */
+export function getMediaFrontEndDirBase(mediaDir: string) {
+  //convert directory path to a file URL
+  let baseUrl = pathToFileURL(mediaDir).href;
+  //ensure trailing slash to correctly join file names in frontend/ui/renderer
+  if (!baseUrl.endsWith('/')) {
+    baseUrl += '/';
+  }
 
+  return baseUrl;
+}
 

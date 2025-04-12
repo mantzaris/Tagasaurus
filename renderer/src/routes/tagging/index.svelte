@@ -72,7 +72,7 @@ function truncateDescription(description: string): string {
 
           <!-- TODO: make mediaDir windows compatible  -->
           <CardMedia filePath={"file://" + getMediaFilePath(mediaDir,card.fileHash)} fileType={card.fileType} />
-
+          
           <CardBody >
             <CardTitle>
               <Button  outline color="primary" size="md" href="/tagging/Taga.png"><Icon name="hand-index-thumb-fill" /></Button>

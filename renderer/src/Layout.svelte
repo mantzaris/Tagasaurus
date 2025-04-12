@@ -16,6 +16,7 @@ onMount(async () => {
 
   fillSampleMediaFiles(); //fire n'4get
   mediaDir = await getMediaDir();
+  console.log(mediaDir)
 });
 
 function handleDragOver(event: DragEvent) {
