@@ -9,7 +9,7 @@ import { onMount } from 'svelte';
 import { type MediaFile } from '$lib/types/general-types';
 import { fillSampleMediaFiles, getNewMediaFiles } from '$lib/utils/temp-mediafiles';
   
-
+// let { mediaDir } = $props();
 let mediaDir = $state("");
 let newMedia: MediaFile[] = [];
 let sampleMedia: MediaFile[] = [];
@@ -48,7 +48,7 @@ function truncateDescription(description: string): string {
       <div class="d-flex flex-row justify-content-evenly">
         <Button color="primary" class="w-25" href="/"><Icon name="house-fill" class="fs-4"/></Button>
         <Button id="btn-dice-sm" color="primary" class="w-25" on:click={setCards}><Icon name="dice-5-fill"/></Button>
-        <Tooltip target="btn-dice-sm" placement="right">See New</Tooltip>
+        <Tooltip target="btn-dice-sm" placement="bottom">See New</Tooltip>
       </div>
     </div>
     
@@ -60,7 +60,7 @@ function truncateDescription(description: string): string {
         </Col>
         <Col md="2" class="text-center">
           <Button id="btn-dice-md" color="primary" size="lg" style="white-space: nowrap;" on:click={setCards}><Icon name="dice-5-fill" /></Button>
-          <Tooltip target="btn-dice-md" placement="right">See New</Tooltip>
+          <Tooltip target="btn-dice-md" placement="right">Get New</Tooltip>
         </Col>
       </Row>
     </div>
@@ -78,7 +78,7 @@ function truncateDescription(description: string): string {
             
             <CardBody >
               <CardTitle>
-                <Button  outline color="primary" size="md" href="/tagging/Taga.png"><Icon name="hand-index-thumb-fill" /></Button>
+                <Button  outline color="primary" size="md" href={"/tagging/"+card.fileHash}><Icon name="hand-index-thumb-fill" /></Button>
               </CardTitle>
               <CardText>{truncateDescription(card.description)}</CardText>
             </CardBody>

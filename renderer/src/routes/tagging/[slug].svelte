@@ -1,54 +1,69 @@
 <script lang="ts">
-  import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure } from '@sveltestrap/sveltestrap';
-  import { params, goto } from '@roxi/routify';
+import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure } from '@sveltestrap/sveltestrap';
+import { params } from '@roxi/routify';
 
-  import MediaView from '$lib/MediaView.svelte';
-  
-    // Retrieve the slug from Routify's $params store
-    let { slug } = $params;
-    console.log(slug)
+import MediaView from '$lib/MediaView.svelte';
 
-    let imageUrl = "../../../assets/images/Taga.png";
+// Retrieve the slug from Routify's $params store
+let { slug } = $params; //hash
+console.log(slug)
 
-    let description = "hi";
-    let mode: "edit" | "gallery" = "edit";
-    
-    let openSearch = false;
-    const toggleSearch = () => {
-      openSearch = !openSearch
-      console.log(`open search = ${openSearch}`)
-      };
+let imageUrl = "../../../assets/images/Taga.png";
+
+let description = "hi";
+let mode: "edit" | "gallery" = "edit";
+let openSearch = false;
 
 
 
-    let searchInputId = 1;
-    let accordionOpen = true;
 
-    const toggleSearchAccordion = (...args: any[]) => {
-      console.log('toggle', ...args);
-    };
 
-    let faces = [
-    { id: 1, src: 'https://picsum.photos/100/100?random=1', selected: false },
-    { id: 2, src: 'https://picsum.photos/300/100?random=2', selected: false },
-    { id: 3, src: 'https://picsum.photos/100/100?random=3', selected: false },
-    { id: 4, src: 'https://picsum.photos/100/300?random=3', selected: false },
-    { id: 5, src: 'https://picsum.photos/100/100?random=5', selected: false },
-    { id: 6, src: 'https://picsum.photos/200/150?random=4', selected: false },
-    { id: 7, src: 'https://picsum.photos/100/100?random=7', selected: false },
-    { id: 8, src: 'https://picsum.photos/100/100?random=8', selected: false },
-    { id: 9, src: 'https://picsum.photos/100/100?random=9', selected: false },
-    { id: 10, src: 'https://picsum.photos/500/300?random=11', selected: false },
-    { id: 11, src: 'https://picsum.photos/100/100?random=11', selected: false }
-  ];
 
-  function toggleFace(i: number) {
-      faces[i] = {
-      ...faces[i],
-      selected: !faces[i].selected
-    };
-    faces = [...faces];
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+const toggleSearch = () => {
+  openSearch = !openSearch
+  console.log(`open search = ${openSearch}`)
+};
+
+let searchInputId = 1;
+let accordionOpen = true;
+
+const toggleSearchAccordion = (...args: any[]) => {
+  console.log('toggle', ...args);
+};
+
+let faces = [
+{ id: 1, src: 'https://picsum.photos/100/100?random=1', selected: false },
+{ id: 2, src: 'https://picsum.photos/300/100?random=2', selected: false },
+{ id: 3, src: 'https://picsum.photos/100/100?random=3', selected: false },
+{ id: 4, src: 'https://picsum.photos/100/300?random=3', selected: false },
+{ id: 5, src: 'https://picsum.photos/100/100?random=5', selected: false },
+{ id: 6, src: 'https://picsum.photos/200/150?random=4', selected: false },
+{ id: 7, src: 'https://picsum.photos/100/100?random=7', selected: false },
+{ id: 8, src: 'https://picsum.photos/100/100?random=8', selected: false },
+{ id: 9, src: 'https://picsum.photos/100/100?random=9', selected: false },
+{ id: 10, src: 'https://picsum.photos/500/300?random=11', selected: false },
+{ id: 11, src: 'https://picsum.photos/100/100?random=11', selected: false }
+];
+
+function toggleFace(i: number) {
+  faces[i] = {
+  ...faces[i],
+  selected: !faces[i].selected
+};
+faces = [...faces];
+}
 </script>
 
 
