@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CardMedia from './../../lib/components/CardMedia.svelte';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { buildCombinedEntries } from '$lib/utils/select-cards';
 import { getMediaFilePath } from '$lib/utils/utils';
@@ -68,7 +69,10 @@ function truncateDescription(description: string): string {
       <Col sm="12" md="6" lg="4" xl="3" class="mb-4">
         
         <Card id={card.fileHash}>
-          <CardImg top src={"file://" + getMediaFilePath(mediaDir,card.fileHash)} alt={card.fileType} class="p-2"/>
+
+          <!-- TODO: make mediaDir windows compatible  -->
+          <CardMedia filePath={"file://" + getMediaFilePath(mediaDir,card.fileHash)} fileType={card.fileType} />
+
           <CardBody >
             <CardTitle>
               <Button  outline color="primary" size="md" href="/tagging/Taga.png"><Icon name="hand-index-thumb-fill" /></Button>
