@@ -10,11 +10,11 @@ import { type MediaFile } from '$lib/types/general-types';
   
 const image_asset_dir = "../../../assets/images/"
 
-let mediaDir: string;
+let mediaDir = $state("");
 let newMedia: MediaFile[] = [];
 let sampleMedia: MediaFile[] = [];
 
-let cardData: MediaFile[];
+let cardData:MediaFile[] = $state([]);
 
 onMount(async () => {
   mediaDir = await getMediaDir();

@@ -1,7 +1,7 @@
 
 <script lang="ts"> 
     // import { Container } from '@sveltestrap/sveltestrap';
-    import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand } from '@sveltestrap/sveltestrap';
+    import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand, Icon } from '@sveltestrap/sveltestrap';
 
 
   </script>
@@ -20,7 +20,7 @@
         <CardBody>
           <CardTitle>Gallery</CardTitle>
           <CardText>See your files, tag them, describe, and search as well.</CardText>
-          <Button color="primary" size="lg" href="/tagging">Open</Button>
+          <Button color="primary" outline size="lg" href="/tagging"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -29,7 +29,7 @@
         <CardBody>
           <CardTitle >Stream</CardTitle>
           <CardText>Use your webcam, or screen to search for people you know in real time or capture and save images/video.</CardText>
-          <Button color="primary" size="lg">Open</Button>
+          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -41,7 +41,7 @@
         <CardBody>
           <CardTitle >Face Map</CardTitle>
           <CardText>Explore and search through faces in the media stored.</CardText>
-          <Button color="primary" size="lg">Open</Button>
+          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -50,7 +50,7 @@
         <CardBody>
           <CardTitle >Export / Import</CardTitle>
           <CardText>Export your data to be used elsewhere or uploaded, or import new data.</CardText>
-          <Button color="primary" size="lg">Open</Button>
+          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -60,7 +60,7 @@
         <CardBody>
           <CardTitle >Settings</CardTitle>
           <CardText>Configure Tagasaurus preferences.</CardText>
-          <Button color="primary"  size="lg">Open</Button>
+          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
