@@ -15,8 +15,7 @@ onMount(async () => {
   });
 
   fillSampleMediaFiles(); //fire n'4get
-  mediaDir = await getMediaDir();
-  console.log(mediaDir)
+  mediaDir = await getMediaDir(); // TODO: rename to fileURLbase
 });
 
 function handleDragOver(event: DragEvent) {

@@ -24,7 +24,7 @@ export const localMediaFilesDB = new MediaFilesDexieDB();
 
 //---
 
-const MAX_SIZE = 1000;
+const MAX_SIZE = 10000;
 
 /**
  * get all new media files
@@ -81,11 +81,11 @@ export async function removeSampleMediaFile(fileHash: string): Promise<void> {
  * ensures at least `MIN_REQUIRED` sampleMediaFiles are stored
  * fetching from main if needed, and removing duplicates by fileHash
  */
-export async function fillSampleMediaFiles(addRegardless = false): Promise<MediaFile[]> {
+export async function fillSampleMediaFiles(): Promise<MediaFile[]> {
   const MIN_REQUIRED = 400;
   const currentCount = await localMediaFilesDB.sampleMediaFiles.count();
 
-  if ( currentCount < MIN_REQUIRED || addRegardless ) {
+  if ( currentCount < MIN_REQUIRED && currentCount < MAX_SIZE ) {
     try {
       const newMedia: MediaFile[] = await window.bridge.requestSampleEntries();
 
