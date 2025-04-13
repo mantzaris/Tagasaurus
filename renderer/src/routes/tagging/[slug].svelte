@@ -21,6 +21,8 @@ let openSearch = $state(false);
 let searchInputId = $state(1);
 let accordionOpen = $state(true);
 
+let askDelete = $state(false);
+
 onMount(async () => {
   try {
     mediaDir = await getMediaDir();
@@ -85,6 +87,18 @@ async function prevMediaFile() {
 }
 
 
+function openDeleteModal() {
+  askDelete = true;
+}
+function closeDeleteModal() {
+  askDelete = false;
+}
+function confirmDelete() {
+  console.log("Deleting file", mediaFile?.fileHash);
+  askDelete = false;
+}
+
+
 const toggleSearch = () => {
   openSearch = !openSearch
 };
@@ -117,6 +131,18 @@ function toggleFace(i: number) {
 }
 </script>
 
+<div>
+  <Modal isOpen={askDelete} toggle={closeDeleteModal} size={'lg'}>
+    <ModalHeader toggle={closeDeleteModal}>Verify Delete</ModalHeader>
+    <ModalBody>
+      Delete this Media File forever?
+    </ModalBody>
+    <ModalFooter>
+      <Button color="primary" onclick={confirmDelete} >Delete</Button>
+      <Button color="secondary" onclick={closeDeleteModal} >Cancel</Button>
+    </ModalFooter>
+  </Modal>
+</div>
  
 <Container fluid class="d-flex flex-column vh-100 p-2 m-0 .min-vh-0" style="min-height: 0;" >
   <!-- <MyComponent name="Tester" /> -->
@@ -134,7 +160,7 @@ function toggleFace(i: number) {
         </Input>
       </Col>
       <Col xs="6" class="d-flex justify-content-end">
-        <Button id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
+        <Button onclick={openDeleteModal} id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
         <Tooltip target="btn-delete-sm" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
@@ -167,7 +193,7 @@ function toggleFace(i: number) {
         <Button onclick={nextMediaFile} color="primary" size="md"><Icon name="caret-right-fill" class="fs-3"/></Button>
       </Col>
       <Col xs="4" class="d-flex justify-content-end">
-        <Button id="btn-delete-md" color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
+        <Button onclick={openDeleteModal} id="btn-delete-md" color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
         <Tooltip target="btn-delete-md" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
