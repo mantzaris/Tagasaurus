@@ -28,7 +28,6 @@ onMount(async () => {
 
 const toggleSearch = () => {
   openSearch = !openSearch
-  console.log(`open search = ${openSearch}`)
 };
 
 

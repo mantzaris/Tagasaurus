@@ -3,7 +3,7 @@ import CardMedia from './../../lib/components/CardMedia.svelte';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { buildCombinedEntries } from '$lib/utils/select-cards';
 import { getMediaFilePath } from '$lib/utils/utils';
-import { Button, Container, Row, Col, Card, CardImg, CardBody, CardTitle, CardText, Popover, Tooltip , Icon} from '@sveltestrap/sveltestrap';
+import { Button, Container, Row, Col, Card, CardImg, CardBody, CardTitle, CardText, Popover, Tooltip , Icon, Spinner} from '@sveltestrap/sveltestrap';
 import { getContext, onMount } from 'svelte';
 
 import { type MediaFile } from '$lib/types/general-types';
@@ -68,38 +68,45 @@ function truncateDescription(description: string): string {
   </div>
 
   <Row>
-
-    {#if cardData.length > 0}
-      {#each cardData as card}
-        <Col sm="12" md="6" lg="4" xl="3" class="mb-4">
-          
-          <Card id={card.fileHash}>
-
-            <CardMedia filePath={getMediaFilePath(mediaDir,card.fileHash)} fileType={card.fileType} />
-            
-            <CardBody >
-              <CardTitle>
-                <Button 
-                  outline 
-                  color="primary" 
-                  size="md" 
-                  href={`/tagging/${card.fileHash}?fileType=${encodeURIComponent(card.fileType)}`}>
-                  <Icon name="hand-index-thumb-fill" />
-                </Button>
-              </CardTitle>
-              <CardText>{truncateDescription(card.description)}</CardText>
-            </CardBody>
-          </Card>
-
-        </Col>
-      {/each}
+    {#if isMounting}
+      <Col class="d-flex justify-content-center align-items-center">
+        <Spinner type="border" color="primary"/>
+      </Col>
     {:else}
-        <h2>Empty, add files.</h2>
-    {/if}
+      {#if cardData.length > 0}
+        {#each cardData as card}
+          <Col sm="12" md="6" lg="4" xl="3" class="mb-4">
+            
+            <Card id={card.fileHash}>
 
+              <CardMedia filePath={getMediaFilePath(mediaDir,card.fileHash)} fileType={card.fileType} />
+              
+              <CardBody >
+                <CardTitle>
+                  <Button 
+                    outline 
+                    color="primary" 
+                    size="md" 
+                    href={`/tagging/${card.fileHash}?fileType=${encodeURIComponent(card.fileType)}`}>
+                    <Icon name="hand-index-thumb-fill" />
+                  </Button>
+                </CardTitle>
+                <CardText>{truncateDescription(card.description)}</CardText>
+              </CardBody>
+            </Card>
+
+          </Col>
+        {/each}
+      {:else}
+          <h2>Empty, add files.</h2>
+      {/if}
+    {/if}
   
   </Row>
 
 </Container>
   
+<style>
 
+
+</style>
