@@ -20,7 +20,7 @@ onMount(async () => {
   mediaDir = await getMediaDir();
   await setCards();
   isMounting = false;
-})
+});
 
 async function setCards() {
   if( newMedia.length == 0 || sampleMedia.length == 0 || Math.random() < 0.2 ) {

@@ -158,7 +158,7 @@ function toggleFace(i: number) {
       <Col sm="7" lg="8" class="d-flex flex-column p-3 image-col" >
         
         {#if mediaFile}
-          <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)}/>  
+          <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)} fileType={mediaFile.fileType}/>  
         {:else}
           Not Found
         {/if}  
@@ -169,7 +169,7 @@ function toggleFace(i: number) {
     <div style="flex: 1;">
       
       {#if mediaFile}
-        <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)}/>
+        <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)} fileType={mediaFile.fileType}/>
       {:else}
         Not Found
       {/if}

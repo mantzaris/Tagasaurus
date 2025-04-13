@@ -17,7 +17,7 @@
   <audio controls preload="metadata" class="w-100 p-2">
     <source src={filePath} type={fileType} />
   </audio>
-{:else if fileType.startsWith('application/pdf')} <!-- TODO: consider: https://github.com/vinodnimbalkar/svelte-pdf -->
+{:else if fileType.startsWith('application/pdf')}
   <!-- svelte-ignore a11y_missing_attribute -->
   <object data={filePath} type="application/pdf" class="w-100 p-2"><p>Browser does not support PDFs</p></object>
   <!-- <embed src={filePath} type="application/pdf" class="w-100"/> -->
