@@ -26,6 +26,47 @@ export const localMediaFilesDB = new MediaFilesDexieDB();
 
 const MAX_SIZE = 10000;
 
+
+/**
+ * getMediaFile - returns a MediaFile by its fileHash from either newMediaFiles or sampleMediaFiles
+ *
+ * @param fileHash - unique hash identifier of the MediaFile
+ * @param removeAfter - boolean flag, if true, the found media file will be removed from its store
+ * @returns promise that resolves to the found MediaFile or undefined if not found
+ */
+export async function getMediaFile(
+  fileHash: string,
+  removeAfter: boolean = false
+): Promise<MediaFile | undefined> {
+  let mediaFile: MediaFile | undefined;
+
+  mediaFile = await localMediaFilesDB.newMediaFiles.get(fileHash);
+
+  if (mediaFile) {
+    if (removeAfter) {
+      await localMediaFilesDB.newMediaFiles.delete(fileHash);
+    }
+
+    void fillSampleMediaFiles();//fire and 4'get
+    return mediaFile;
+  }
+
+  mediaFile = await localMediaFilesDB.sampleMediaFiles.get(fileHash);
+  if (mediaFile) { 
+    if (removeAfter) { 
+      await localMediaFilesDB.sampleMediaFiles.delete(fileHash);
+    }
+
+    void fillSampleMediaFiles();//fire and 4'get
+    return mediaFile;
+  }
+
+  void fillSampleMediaFiles();//fire and 4'get
+  return undefined;
+}
+
+
+
 /**
  * get all new media files
  */
@@ -85,7 +126,7 @@ export async function fillSampleMediaFiles(): Promise<MediaFile[]> {
   const MIN_REQUIRED = 400;
   const currentCount = await localMediaFilesDB.sampleMediaFiles.count();
 
-  if ( currentCount < MIN_REQUIRED && currentCount < MAX_SIZE ) {
+  if ( currentCount < MIN_REQUIRED ) {
     try {
       const newMedia: MediaFile[] = await window.bridge.requestSampleEntries();
 

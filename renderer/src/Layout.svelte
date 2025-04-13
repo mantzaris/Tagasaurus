@@ -1,12 +1,16 @@
 <script lang="ts">
-import { onMount } from 'svelte';
+import { onMount, setContext } from 'svelte';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { Toast, Icon } from '@sveltestrap/sveltestrap';
 import type { MediaFile } from '$lib/types/general-types';
-  import { addNewMediaFile, fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
+import { addNewMediaFile, fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
 
-let isOpen = false;
-let mediaDir: string|null = null;
+let isOpen = $state(false);
+let mediaDir: string|null = $state(null);
+
+$effect(() => {
+    setContext('mediaDir', mediaDir);
+});
 
 onMount(async () => {
   
@@ -15,7 +19,7 @@ onMount(async () => {
   });
 
   fillSampleMediaFiles(); //fire n'4get
-  mediaDir = await getMediaDir(); // TODO: rename to fileURLbase
+  mediaDir = await getMediaDir();
 });
 
 function handleDragOver(event: DragEvent) {
@@ -47,7 +51,7 @@ function handleDrop(event: DragEvent) {
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div on:dragover={handleDragOver} on:drop={handleDrop} style="width:100%; height:100vh;">
+<div ondragover={handleDragOver} ondrop={handleDrop} style="width:100%; height:100vh;">
 
   <slot />
 

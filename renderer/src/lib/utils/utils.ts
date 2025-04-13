@@ -1,3 +1,5 @@
+
+
 export function getMediaFilePath(mediaDir: string, fileHash: string): string {
     if (!mediaDir.endsWith('/')) {
       mediaDir += '/';
@@ -7,6 +9,5 @@ export function getMediaFilePath(mediaDir: string, fileHash: string): string {
     const subfolders = firstFour.split('');
     const subPath = subfolders.join('/');
     
-    return `${mediaDir}${subPath}/${fileHash}`;
+    return `file://${mediaDir}${subPath}/${fileHash}`;
 }
-  

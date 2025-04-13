@@ -4,21 +4,22 @@ import { getMediaDir } from '$lib/utils/localStorageManager';
 import { buildCombinedEntries } from '$lib/utils/select-cards';
 import { getMediaFilePath } from '$lib/utils/utils';
 import { Button, Container, Row, Col, Card, CardImg, CardBody, CardTitle, CardText, Popover, Tooltip , Icon} from '@sveltestrap/sveltestrap';
-import { onMount } from 'svelte';
+import { getContext, onMount } from 'svelte';
 
 import { type MediaFile } from '$lib/types/general-types';
 import { fillSampleMediaFiles, getNewMediaFiles } from '$lib/utils/temp-mediafiles';
-  
-// let { mediaDir } = $props();
-let mediaDir = $state("");
+
+
+let mediaDir: string = $state(getContext('mediaDir')); 
+
 let newMedia: MediaFile[] = [];
 let sampleMedia: MediaFile[] = [];
-
 let cardData:MediaFile[] = $state([]);
-
+let isMounting: boolean = $state(true);
 onMount(async () => {
   mediaDir = await getMediaDir();
-  setCards();
+  await setCards();
+  isMounting = false;
 })
 
 async function setCards() {
@@ -74,11 +75,17 @@ function truncateDescription(description: string): string {
           
           <Card id={card.fileHash}>
 
-            <CardMedia filePath={"file://" + getMediaFilePath(mediaDir,card.fileHash)} fileType={card.fileType} />
+            <CardMedia filePath={getMediaFilePath(mediaDir,card.fileHash)} fileType={card.fileType} />
             
             <CardBody >
               <CardTitle>
-                <Button  outline color="primary" size="md" href={"/tagging/"+card.fileHash}><Icon name="hand-index-thumb-fill" /></Button>
+                <Button 
+                  outline 
+                  color="primary" 
+                  size="md" 
+                  href={`/tagging/${card.fileHash}?fileType=${encodeURIComponent(card.fileType)}`}>
+                  <Icon name="hand-index-thumb-fill" />
+                </Button>
               </CardTitle>
               <CardText>{truncateDescription(card.description)}</CardText>
             </CardBody>
@@ -95,7 +102,4 @@ function truncateDescription(description: string): string {
 
 </Container>
   
-
-  
-
 

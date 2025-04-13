@@ -3,24 +3,49 @@ import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, Moda
 import { params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
+import { getContext, onMount } from 'svelte';
+import { getMediaFile } from '$lib/utils/temp-mediafiles';
+import type { MediaFile } from '$lib/types/general-types';
+import { getMediaDir } from '$lib/utils/localStorageManager';
+import { getMediaFilePath } from '$lib/utils/utils';
 
-// Retrieve the slug from Routify's $params store
 let { slug } = $params; //hash
-console.log(slug)
+
+let mediaDir: string = $state( getContext('mediaDir') );
+let mediaFile: MediaFile | undefined = $state(undefined);
+
+onMount(async () => {
+  mediaDir = await getMediaDir();
+  mediaFile = await getMediaFile(slug);
+
+
+  // if (!false) {
+  //   const link = document.createElement('a');
+  //   link.href = '/tagging';
+
+  //   // Append to the document to ensure it is part of the DOM
+  //   document.body.appendChild(link);
+
+  //   // Simulate a click on the link
+  //   link.click();
+
+  //   // Remove the link from the document
+  //   document.body.removeChild(link);
+  //   return;
+  // }
+
+});
+
+
+
+
+
 
 let imageUrl = "../../../assets/images/Taga.png";
 
 let description = "hi";
 let mode: "edit" | "gallery" = "edit";
 let openSearch = false;
-
-
-
-
-
-
-
-
 
 
 
@@ -59,14 +84,14 @@ let faces = [
 
 function toggleFace(i: number) {
   faces[i] = {
-  ...faces[i],
-  selected: !faces[i].selected
-};
-faces = [...faces];
+    ...faces[i],
+    selected: !faces[i].selected
+  };
+  faces = [...faces];
 }
 </script>
 
-
+ 
 <Container  fluid class="d-flex flex-column vh-100 p-2 m-0 .min-vh-0" style="min-height: 0;" >
   <!-- <MyComponent name="Tester" /> -->
   <!-- Layout for extra-small screens -->
@@ -131,12 +156,24 @@ faces = [...faces];
       </Col>
 
       <Col sm="7" lg="8" class="d-flex flex-column p-3 image-col" >
-        <MediaView imageUrl={imageUrl} />
+        
+        {#if mediaFile}
+          <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)}/>  
+        {:else}
+          Not Found
+        {/if}  
+      
       </Col>
     </Row>
   {:else if mode === "gallery"}
     <div style="flex: 1;">
-      <MediaView  imageUrl={imageUrl} />
+      
+      {#if mediaFile}
+        <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)}/>
+      {:else}
+        Not Found
+      {/if}
+    
     </div>
   {/if}
 
