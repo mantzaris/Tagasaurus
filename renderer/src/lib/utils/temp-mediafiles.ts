@@ -93,8 +93,8 @@ export async function addNewMediaFile(mediaFile: MediaFile): Promise<void> {
     }
   }
 
-  //add new item
-  await localMediaFilesDB.newMediaFiles.add(mediaFile);
+  //put overwrites and no error, add new item will cause an error if duplicate
+  await localMediaFilesDB.newMediaFiles.put(mediaFile);
 }
 
 /**
