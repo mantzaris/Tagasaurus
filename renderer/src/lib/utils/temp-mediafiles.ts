@@ -23,7 +23,6 @@ export const localMediaFilesDB = new MediaFilesDexieDB();
 
 
 //---
-
 const MAX_SIZE = 10000;
 
 
@@ -145,4 +144,93 @@ export async function fillSampleMediaFiles(): Promise<MediaFile[]> {
 
   //return the entire updated list
   return localMediaFilesDB.sampleMediaFiles.toArray();
+}
+
+
+/**
+ * getRandomNewMediaFile - samples random media file from the newMediaFiles collection
+ *
+ * @param removeAfter - if true, the found media file is removed from newMediaFiles
+ * @returns promise resolving to a MediaFile or undefined if the collection is empty
+ */
+export async function getRandomNewMediaFile(removeAfter: boolean = false): Promise<MediaFile | undefined> {
+  const count = await localMediaFilesDB.newMediaFiles.count();
+  if (count === 0) {
+    void fillSampleMediaFiles();
+    return undefined;
+  }
+
+  const randIndex = Math.floor(Math.random() * count);
+  // 'orderBy("fileHash")' is fine if fileHash is the PK or an indexed key
+  const mediaFile = await localMediaFilesDB.newMediaFiles
+    .orderBy("fileHash")
+    .offset(randIndex)
+    .first();
+
+  if (mediaFile && removeAfter) {
+    await localMediaFilesDB.newMediaFiles.delete(mediaFile.fileHash);
+  }
+
+  void fillSampleMediaFiles(); // Fire-and-forget to ensure sampleMediaFiles is always replenished
+  return mediaFile;
+}
+
+/**
+ * getRandomSampleMediaFile - samples random media file from the sampleMediaFiles collection
+ *
+ * @param removeAfter - if true, the found media file is removed from sampleMediaFiles
+ * @returns promise resolving to a MediaFile or undefined if the collection is empty
+ */
+export async function getRandomSampleMediaFile(removeAfter: boolean = false): Promise<MediaFile | undefined> {
+  const count = await localMediaFilesDB.sampleMediaFiles.count();
+  if (count === 0) {
+    void fillSampleMediaFiles();
+    return undefined;
+  }
+
+  const randIndex = Math.floor(Math.random() * count);
+  const mediaFile = await localMediaFilesDB.sampleMediaFiles
+    .orderBy("fileHash")
+    .offset(randIndex)
+    .first();
+
+  if (mediaFile && removeAfter) {
+    await localMediaFilesDB.sampleMediaFiles.delete(mediaFile.fileHash);
+  }
+
+  void fillSampleMediaFiles();
+  return mediaFile;
+}
+
+/**
+ * getRandomMediaFile - returns a media file chosen randomly from one or the other collection
+ *
+ * starts by randomly selecting which collection to try first and if the selected collection is empty,
+ * it falls back to the other. The removeAfter parameter is passed along so that the media file is deleted
+ * from whichever collection it originates from if set to true
+ *
+ * @param removeAfter - Boolean indicating whether to delete the media file after retrieval
+ * @returns promise resolving to a MediaFile or undefined if no media files exist
+ */
+export async function getRandomMediaFile(removeAfter: boolean = false): Promise<MediaFile | undefined> {
+  // Randomly choose which collection to try first (50/50 chance).
+  const chooseNewFirst = Math.random() < 0.5;
+  let mediaFile: MediaFile | undefined;
+
+  if (chooseNewFirst) {
+    // Try sampling from newMediaFiles first.
+    mediaFile = await getRandomNewMediaFile(removeAfter);
+    // If no file was found, try sampleMediaFiles.
+    if (!mediaFile) {
+      mediaFile = await getRandomSampleMediaFile(removeAfter);
+    }
+  } else {
+    // Try sampling from sampleMediaFiles first.
+    mediaFile = await getRandomSampleMediaFile(removeAfter);
+    if (!mediaFile) {
+      mediaFile = await getRandomNewMediaFile(removeAfter);
+    }
+  }
+  void fillSampleMediaFiles();
+  return mediaFile;
 }

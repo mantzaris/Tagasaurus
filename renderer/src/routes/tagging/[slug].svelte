@@ -1,10 +1,10 @@
 <script lang="ts">
-import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure } from '@sveltestrap/sveltestrap';
-import { params } from '@roxi/routify';
+import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure, Tooltip } from '@sveltestrap/sveltestrap';
+import { goto, params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
-import { getMediaFile } from '$lib/utils/temp-mediafiles';
+import { fillSampleMediaFiles, getMediaFile, getRandomMediaFile } from '$lib/utils/temp-mediafiles';
 import type { MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
@@ -13,6 +13,7 @@ let { slug } = $params; //hash
 
 let mediaDir: string = $state( getContext('mediaDir') );
 let mediaFile: MediaFile | undefined = $state(undefined);
+let seenMediaFiles: MediaFile[] = $state([]);
 
 let mode: "edit" | "gallery" = $state("edit");
 let openSearch = $state(false);
@@ -21,10 +22,68 @@ let searchInputId = $state(1);
 let accordionOpen = $state(true);
 
 onMount(async () => {
-  mediaDir = await getMediaDir();
-  mediaFile = await getMediaFile(slug);
+  try {
+    mediaDir = await getMediaDir();
 
+    if(!slug) {
+      mediaFile = await getRandomMediaFile(true);
+    } else {
+      mediaFile = await getMediaFile(slug);
+    }
+
+    if(!mediaFile) {
+      $goto('/tagging'); //window.location.href = "/tagging"
+    } else {
+      seenMediaFiles.push(mediaFile);
+    }  
+  } catch (error) {
+    console.error("Error during media retrieval:", error);
+    $goto('/tagging');
+  }
 });
+
+async function nextMediaFile() {
+  try {
+    mediaFile = await getRandomMediaFile(true);
+  
+    if (mediaFile) {
+      seenMediaFiles.push(mediaFile);
+
+      if (seenMediaFiles.length > 400) {
+        seenMediaFiles.shift();
+      }
+    } else {
+      $goto('/tagging');
+    }
+  } catch (error) {
+    console.error("Error in nextMediaFile:", error);
+    $goto('/tagging');
+  }
+}
+
+async function prevMediaFile() {
+  try {
+    if (!mediaFile) {
+      console.warn("No current media file is set.");
+      $goto('/tagging');
+      return;
+    }
+
+    const currentIndex = seenMediaFiles.findIndex(
+      (m) => m.fileHash === mediaFile?.fileHash
+    );
+
+    if (currentIndex > 0) {
+      mediaFile = seenMediaFiles[currentIndex - 1];
+    } else {
+      console.info("Current media file is already the first entry; no previous file exists.");
+    }
+  } catch (error) {
+    console.error("Error in prevMediaFile:", error);
+    $goto('/tagging');
+  }
+}
+
 
 const toggleSearch = () => {
   openSearch = !openSearch
@@ -75,15 +134,16 @@ function toggleFace(i: number) {
         </Input>
       </Col>
       <Col xs="6" class="d-flex justify-content-end">
-        <Button color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
+        <Button id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
+        <Tooltip target="btn-delete-sm" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
     <!-- Bottom row: Center group -->
     <Row class="mb-2">
       <Col class="d-flex justify-content-center gap-2">
-        <Button color="primary" size="sm"><Icon name="caret-left-fill" class="fs-4"/></Button>
+        <Button onclick={prevMediaFile} color="primary" size="sm"><Icon name="caret-left-fill" class="fs-4"/></Button>
         <Button color="primary" size="sm" on:click={toggleSearch}><Icon name="search" class="fs-4"/></Button>
-        <Button color="primary" size="sm"><Icon name="caret-right-fill" class="fs-4"/></Button>
+        <Button onclick={nextMediaFile} color="primary" size="sm"><Icon name="caret-right-fill" class="fs-4"/></Button>
       </Col>
     </Row>
   </div>
@@ -102,12 +162,13 @@ function toggleFace(i: number) {
 
       </Col>
       <Col xs="4" class="d-flex justify-content-center gap-3">
-        <Button color="primary" size="md"><Icon name="caret-left-fill" class="fs-3"/></Button>
+        <Button onclick={prevMediaFile} color="primary" size="md"><Icon name="caret-left-fill" class="fs-3"/></Button>
         <Button color="primary" size="md" on:click={toggleSearch}><Icon name="search" class="fs-3"/></Button>
-        <Button color="primary" size="md"><Icon name="caret-right-fill" class="fs-3"/></Button>
+        <Button onclick={nextMediaFile} color="primary" size="md"><Icon name="caret-right-fill" class="fs-3"/></Button>
       </Col>
       <Col xs="4" class="d-flex justify-content-end">
-        <Button color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
+        <Button id="btn-delete-md" color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
+        <Tooltip target="btn-delete-md" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
   </div>
@@ -119,7 +180,8 @@ function toggleFace(i: number) {
       <!-- Left column: description and save button -->
       <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
         <textarea class="h-75 form-control mb-2" placeholder="description..." >{mediaFile?.description}</textarea>
-        <Button class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
+        <Button id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
+        <Tooltip target="btn-save" placement="top">Save</Tooltip>
       </Col>
 
       <Col sm="7" lg="8" class="d-flex flex-column p-3 image-col" >
@@ -173,7 +235,7 @@ function toggleFace(i: number) {
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
                 class="image-item"
-                on:click={() => toggleFace(i)}
+                onclick={() => toggleFace(i)}
               >
                 <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
               </div>
