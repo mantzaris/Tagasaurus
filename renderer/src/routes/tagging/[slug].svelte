@@ -14,61 +14,29 @@ let { slug } = $params; //hash
 let mediaDir: string = $state( getContext('mediaDir') );
 let mediaFile: MediaFile | undefined = $state(undefined);
 
+let mode: "edit" | "gallery" = $state("edit");
+let openSearch = $state(false);
+
+let searchInputId = $state(1);
+let accordionOpen = $state(true);
+
 onMount(async () => {
   mediaDir = await getMediaDir();
   mediaFile = await getMediaFile(slug);
 
-
-  // if (!false) {
-  //   const link = document.createElement('a');
-  //   link.href = '/tagging';
-
-  //   // Append to the document to ensure it is part of the DOM
-  //   document.body.appendChild(link);
-
-  //   // Simulate a click on the link
-  //   link.click();
-
-  //   // Remove the link from the document
-  //   document.body.removeChild(link);
-  //   return;
-  // }
-
 });
-
-
-
-
-
-
-let imageUrl = "../../../assets/images/Taga.png";
-
-let description = "hi";
-let mode: "edit" | "gallery" = "edit";
-let openSearch = false;
-
-
-
-
-
-
-
-
-
 
 const toggleSearch = () => {
   openSearch = !openSearch
   console.log(`open search = ${openSearch}`)
 };
 
-let searchInputId = 1;
-let accordionOpen = true;
 
 const toggleSearchAccordion = (...args: any[]) => {
   console.log('toggle', ...args);
 };
 
-let faces = [
+let faces = $state([
 { id: 1, src: 'https://picsum.photos/100/100?random=1', selected: false },
 { id: 2, src: 'https://picsum.photos/300/100?random=2', selected: false },
 { id: 3, src: 'https://picsum.photos/100/100?random=3', selected: false },
@@ -80,7 +48,7 @@ let faces = [
 { id: 9, src: 'https://picsum.photos/100/100?random=9', selected: false },
 { id: 10, src: 'https://picsum.photos/500/300?random=11', selected: false },
 { id: 11, src: 'https://picsum.photos/100/100?random=11', selected: false }
-];
+]);
 
 function toggleFace(i: number) {
   faces[i] = {
@@ -92,7 +60,7 @@ function toggleFace(i: number) {
 </script>
 
  
-<Container  fluid class="d-flex flex-column vh-100 p-2 m-0 .min-vh-0" style="min-height: 0;" >
+<Container fluid class="d-flex flex-column vh-100 p-2 m-0 .min-vh-0" style="min-height: 0;" >
   <!-- <MyComponent name="Tester" /> -->
   <!-- Layout for extra-small screens -->
   <div class="d-block d-sm-none">
@@ -151,7 +119,7 @@ function toggleFace(i: number) {
     <Row style="flex: 1;">
       <!-- Left column: description and save button -->
       <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
-        <textarea class="h-75 form-control mb-2" placeholder="description..." ></textarea>
+        <textarea class="h-75 form-control mb-2" placeholder="description..." >{mediaFile?.description}</textarea>
         <Button class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
       </Col>
 
@@ -273,6 +241,21 @@ function toggleFace(i: number) {
 </style>
 
 
+<!--// if (!false) {
+  //   const link = document.createElement('a');
+  //   link.href = '/tagging';
+
+  //   // Append to the document to ensure it is part of the DOM
+  //   document.body.appendChild(link);
+
+  //   // Simulate a click on the link
+  //   link.click();
+
+  //   // Remove the link from the document
+  //   document.body.removeChild(link);
+  //   return;
+  // }
+-->
 <!--      <Container  fluid class="d-flex flex-column h-100 .min-h-0" style="min-height: 0; background-color:red" >
         {#each faces as face, i}
           <!~~ svelte-ignore a11y_click_events_have_key_events ~~>
