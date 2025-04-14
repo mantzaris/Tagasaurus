@@ -14,11 +14,15 @@ export const CONTEXT_BRIDGE = {
   },
 
   requestMediaDir: async () => {
-    return ipcRenderer.invoke("get-media-dir")
+    return ipcRenderer.invoke("get-media-dir");
   },
 
   sendDroppedPaths: (paths: string[]) => {
     ipcRenderer.send('user-dropped-paths', paths);
+  },
+
+  deleteMediaFile: (fileHash: string) => {
+    ipcRenderer.send('delete-media-hash', fileHash);
   },
 
 };

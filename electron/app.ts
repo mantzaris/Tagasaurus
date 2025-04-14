@@ -10,6 +10,7 @@ import { addNewPaths } from "./main-functions/new-files/file-queue";
 import { getRandomEntries } from "./main-functions/db-operations/random-entries";
 import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
+import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 
 const sampleSize = 200;
 let mainWindow: BrowserWindow;
@@ -148,6 +149,19 @@ ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
   }
 });
 
+ipcMain.on("delete-media-hash", async (event, fileHash: string) => {
+  try {
+    await deleteMediaFileByHash(
+      db,
+      mediaDir,
+      fileHash,
+      defaultDBConfig
+    );
+  } catch (error) {
+    console.error("Error deleting media file:", error);
+  }
+});
+
 async function samplerHelper() {
   sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
 }
@@ -166,4 +180,4 @@ ipcMain.handle("get-random-sample", async (event) => {
 ipcMain.handle("get-media-dir", async (event) => {
   // return mediaDir;
   return getMediaFrontEndDirBase(mediaDir);
-})
+});

@@ -4,7 +4,7 @@ import { goto, params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
-import { fillSampleMediaFiles, getMediaFile, getRandomMediaFile } from '$lib/utils/temp-mediafiles';
+import { fillSampleMediaFiles, getMediaFile, getRandomMediaFile, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
 import type { MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
@@ -86,7 +86,6 @@ async function prevMediaFile() {
   }
 }
 
-
 function openDeleteModal() {
   askDelete = true;
 }
@@ -96,6 +95,16 @@ function closeDeleteModal() {
 function confirmDelete() {
   console.log("Deleting file", mediaFile?.fileHash);
   askDelete = false;
+
+  if(mediaFile) {
+    //frontend
+    seenMediaFiles = seenMediaFiles.filter(file => file.fileHash !== mediaFile?.fileHash);
+    removeMediaFileSequential(mediaFile.fileHash)
+    //backend
+    window.bridge.deleteMediaFile(mediaFile?.fileHash);
+  }
+
+  nextMediaFile();
 }
 
 

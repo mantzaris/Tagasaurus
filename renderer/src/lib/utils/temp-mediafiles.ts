@@ -146,6 +146,27 @@ export async function fillSampleMediaFiles(): Promise<MediaFile[]> {
   return localMediaFilesDB.sampleMediaFiles.toArray();
 }
 
+/**
+ * removeMediaFileSequential - Removes a media file by first checking which table contains it
+ *
+ * @param fileHash - unique hash identifier of the MediaFile
+ * @returns Promise<void>
+ */
+export async function removeMediaFileSequential(fileHash: string): Promise<void> {
+  //check the 'newMediaFiles' table first
+  const mediaInNew = await localMediaFilesDB.newMediaFiles.get(fileHash);
+  if (mediaInNew) {
+    await localMediaFilesDB.newMediaFiles.delete(fileHash);
+    return;
+  }
+  
+  //now here check the 'sampleMediaFiles' table
+  const mediaInSample = await localMediaFilesDB.sampleMediaFiles.get(fileHash);
+  if (mediaInSample) {
+    await localMediaFilesDB.sampleMediaFiles.delete(fileHash);
+  }
+}
+
 
 /**
  * getRandomNewMediaFile - samples random media file from the newMediaFiles collection
