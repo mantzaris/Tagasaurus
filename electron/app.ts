@@ -150,6 +150,8 @@ ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
 });
 
 ipcMain.on("delete-media-hash", async (event, fileHash: string) => {
+  sampleMediaFiles = sampleMediaFiles.filter( mf => mf.fileHash != fileHash);
+
   try {
     await deleteMediaFileByHash(
       db,
@@ -159,6 +161,10 @@ ipcMain.on("delete-media-hash", async (event, fileHash: string) => {
     );
   } catch (error) {
     console.error("Error deleting media file:", error);
+  }
+
+  if( sampleMediaFiles.length < Math.round(sampleSize/2) ) {
+    await samplerHelper();
   }
 });
 

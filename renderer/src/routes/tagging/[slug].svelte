@@ -4,7 +4,7 @@ import { goto, params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
-import { fillSampleMediaFiles, getMediaFile, getRandomMediaFile, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
+import { fillSampleMediaFiles, getCombinedCounts, getMediaFile, getRandomMediaFile, getTotalMediaFileCount, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
 import type { MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
@@ -24,6 +24,7 @@ let accordionOpen = $state(true);
 let askDelete = $state(false);
 
 onMount(async () => {
+  console.log("on mount slug")
   try {
     mediaDir = await getMediaDir();
 
@@ -34,13 +35,13 @@ onMount(async () => {
     }
 
     if(!mediaFile) {
-      $goto('/tagging'); //window.location.href = "/tagging"
+      window.location.href = "/tagging"
     } else {
       seenMediaFiles.push(mediaFile);
     }  
   } catch (error) {
     console.error("Error during media retrieval:", error);
-    $goto('/tagging');
+    window.location.href = "/tagging" //$goto('/tagging');
   }
 });
 
@@ -55,11 +56,11 @@ async function nextMediaFile() {
         seenMediaFiles.shift();
       }
     } else {
-      $goto('/tagging');
+      window.location.href = "/tagging"; //$goto('/tagging');
     }
   } catch (error) {
     console.error("Error in nextMediaFile:", error);
-    $goto('/tagging');
+    window.location.href = "/tagging" //$goto('/tagging');
   }
 }
 
@@ -67,7 +68,7 @@ async function prevMediaFile() {
   try {
     if (!mediaFile) {
       console.warn("No current media file is set.");
-      $goto('/tagging');
+      window.location.href = "/tagging"; //$goto('/tagging');
       return;
     }
 
@@ -82,7 +83,7 @@ async function prevMediaFile() {
     }
   } catch (error) {
     console.error("Error in prevMediaFile:", error);
-    $goto('/tagging');
+    window.location.href = "/tagging"; //$goto('/tagging');
   }
 }
 
@@ -92,16 +93,21 @@ function openDeleteModal() {
 function closeDeleteModal() {
   askDelete = false;
 }
-function confirmDelete() {
+async function confirmDelete() {
   console.log("Deleting file", mediaFile?.fileHash);
   askDelete = false;
 
   if(mediaFile) {
     //frontend
     seenMediaFiles = seenMediaFiles.filter(file => file.fileHash !== mediaFile?.fileHash);
-    removeMediaFileSequential(mediaFile.fileHash)
+    await removeMediaFileSequential(mediaFile.fileHash)
     //backend
     window.bridge.deleteMediaFile(mediaFile?.fileHash);
+  }
+
+  const freshCount = await getTotalMediaFileCount();
+  if( freshCount <= 0 ) {
+    window.location.href = "/tagging";
   }
 
   nextMediaFile();

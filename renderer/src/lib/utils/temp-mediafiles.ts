@@ -153,18 +153,11 @@ export async function fillSampleMediaFiles(): Promise<MediaFile[]> {
  * @returns Promise<void>
  */
 export async function removeMediaFileSequential(fileHash: string): Promise<void> {
-  //check the 'newMediaFiles' table first
-  const mediaInNew = await localMediaFilesDB.newMediaFiles.get(fileHash);
-  if (mediaInNew) {
-    await localMediaFilesDB.newMediaFiles.delete(fileHash);
-    return;
-  }
+  // Attempt to remove from newMediaFiles
+  await localMediaFilesDB.newMediaFiles.delete(fileHash);
   
-  //now here check the 'sampleMediaFiles' table
-  const mediaInSample = await localMediaFilesDB.sampleMediaFiles.get(fileHash);
-  if (mediaInSample) {
-    await localMediaFilesDB.sampleMediaFiles.delete(fileHash);
-  }
+  // Attempt to remove from sampleMediaFiles
+  await localMediaFilesDB.sampleMediaFiles.delete(fileHash);
 }
 
 
@@ -189,12 +182,42 @@ export async function getRandomNewMediaFile(removeAfter: boolean = false): Promi
     .first();
 
   if (mediaFile && removeAfter) {
-    await localMediaFilesDB.newMediaFiles.delete(mediaFile.fileHash);
+    await removeMediaFileSequential(mediaFile.fileHash);
   }
 
   void fillSampleMediaFiles(); // Fire-and-forget to ensure sampleMediaFiles is always replenished
   return mediaFile;
 }
+
+/**
+ * Returns the counts for both newMediaFiles and sampleMediaFiles collections.
+ *
+ * @returns A Promise resolving to an object containing counts for both collections.
+ */
+export async function getCombinedCounts(): Promise<{ newMediaFiles: number; sampleMediaFiles: number }> {
+  const [newCount, sampleCount] = await Promise.all([
+    localMediaFilesDB.newMediaFiles.count(),
+    localMediaFilesDB.sampleMediaFiles.count()
+  ]);
+  return { newMediaFiles: newCount, sampleMediaFiles: sampleCount };
+}
+
+/**
+ * Returns the total number of media files from both newMediaFiles and sampleMediaFiles.
+ *
+ * @returns A Promise resolving to the total count (sum) of media files.
+ */
+export async function getTotalMediaFileCount(): Promise<number> {
+  // Fetch counts concurrently for both collections
+  const [newCount, sampleCount] = await Promise.all([
+    localMediaFilesDB.newMediaFiles.count(),
+    localMediaFilesDB.sampleMediaFiles.count()
+  ]);
+
+  // Return the sum of both counts
+  return newCount + sampleCount;
+}
+
 
 /**
  * getRandomSampleMediaFile - samples random media file from the sampleMediaFiles collection
@@ -216,7 +239,7 @@ export async function getRandomSampleMediaFile(removeAfter: boolean = false): Pr
     .first();
 
   if (mediaFile && removeAfter) {
-    await localMediaFilesDB.sampleMediaFiles.delete(mediaFile.fileHash);
+    await removeMediaFileSequential(mediaFile.fileHash);
   }
 
   void fillSampleMediaFiles();
