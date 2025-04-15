@@ -16,6 +16,9 @@ let newMedia: MediaFile[] = [];
 let sampleMedia: MediaFile[] = [];
 let cardData:MediaFile[] = $state([]);
 let isMounting: boolean = $state(true);
+
+let isProcessing = $state(false);
+
 onMount(async () => {
   mediaDir = await getMediaDir();
   await setCards();
@@ -48,7 +51,7 @@ function truncateDescription(description: string): string {
     <div class="d-block d-md-none mb-4">
       <div class="d-flex flex-row justify-content-evenly">
         <Button color="primary" class="w-25" href="/"><Icon name="house-fill" class="fs-4"/></Button>
-        <Button id="btn-dice-sm" color="primary" class="w-25" on:click={setCards}><Icon name="dice-5-fill"/></Button>
+        <Button disabled={isProcessing} id="btn-dice-sm" color="primary" class="w-25" on:click={setCards}><Icon name="dice-5-fill"/></Button>
         <Tooltip target="btn-dice-sm" placement="bottom">See New</Tooltip>
       </div>
     </div>
@@ -60,7 +63,7 @@ function truncateDescription(description: string): string {
           <Button color="primary" size="lg" href="/"><Icon name="house-fill" class="fs-4"/></Button>
         </Col>
         <Col md="2" class="text-center">
-          <Button id="btn-dice-md" color="primary" size="lg" style="white-space: nowrap;" on:click={setCards}><Icon name="dice-5-fill" /></Button>
+          <Button disabled={isProcessing} id="btn-dice-md" color="primary" size="lg" style="white-space: nowrap;" on:click={setCards}><Icon name="dice-5-fill" /></Button>
           <Tooltip target="btn-dice-md" placement="right">Get New</Tooltip>
         </Col>
       </Row>

@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure, Tooltip } from '@sveltestrap/sveltestrap';
-import { goto, params } from '@roxi/routify';
+import { params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
@@ -23,8 +23,11 @@ let accordionOpen = $state(true);
 
 let askDelete = $state(false);
 
+let isProcessing = $state(false);
+
 onMount(async () => {
-  console.log("on mount slug")
+  isProcessing = true;
+
   try {
     mediaDir = await getMediaDir();
 
@@ -43,6 +46,8 @@ onMount(async () => {
     console.error("Error during media retrieval:", error);
     window.location.href = "/tagging" //$goto('/tagging');
   }
+
+  isProcessing = false;
 });
 
 async function nextMediaFile() {
@@ -96,6 +101,7 @@ function closeDeleteModal() {
 async function confirmDelete() {
   console.log("Deleting file", mediaFile?.fileHash);
   askDelete = false;
+  isProcessing = true;
 
   if(mediaFile) {
     //frontend
@@ -110,6 +116,7 @@ async function confirmDelete() {
     window.location.href = "/tagging";
   }
 
+  isProcessing = false;
   nextMediaFile();
 }
 
@@ -168,23 +175,23 @@ function toggleFace(i: number) {
       <Col xs="6" class="d-flex justify-content-start">
         <Button color="primary" size="sm" href="/"><Icon name="house-fill" class="fs-4"/></Button>
 
-        <Input type="select" class="w-auto ms-1 me-2" bind:value={mode}>
+        <Input disabled={isProcessing} type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
             <option value={option}>{option}</option>
           {/each}
         </Input>
       </Col>
       <Col xs="6" class="d-flex justify-content-end">
-        <Button onclick={openDeleteModal} id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
+        <Button disabled={isProcessing} onclick={openDeleteModal} id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
         <Tooltip target="btn-delete-sm" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
     <!-- Bottom row: Center group -->
     <Row class="mb-2">
       <Col class="d-flex justify-content-center gap-2">
-        <Button onclick={prevMediaFile} color="primary" size="sm"><Icon name="caret-left-fill" class="fs-4"/></Button>
-        <Button color="primary" size="sm" on:click={toggleSearch}><Icon name="search" class="fs-4"/></Button>
-        <Button onclick={nextMediaFile} color="primary" size="sm"><Icon name="caret-right-fill" class="fs-4"/></Button>
+        <Button disabled={isProcessing} onclick={prevMediaFile} color="primary" size="sm"><Icon name="caret-left-fill" class="fs-4"/></Button>
+        <Button disabled={isProcessing} color="primary" size="sm" on:click={toggleSearch}><Icon name="search" class="fs-4"/></Button>
+        <Button disabled={isProcessing} onclick={nextMediaFile} color="primary" size="sm"><Icon name="caret-right-fill" class="fs-4"/></Button>
       </Col>
     </Row>
   </div>
@@ -195,7 +202,7 @@ function toggleFace(i: number) {
       <Col xs="4" class="d-flex justify-content-start">
         <Button color="primary" size="md" href="/"><Icon name="house-fill" class="fs-3"/></Button>
         
-        <Input type="select" class="w-auto ms-2 me-2" bind:value={mode}>
+        <Input disabled={isProcessing} type="select" class="w-auto ms-2 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
             <option value={option}>{option}</option>
           {/each}
@@ -203,12 +210,12 @@ function toggleFace(i: number) {
 
       </Col>
       <Col xs="4" class="d-flex justify-content-center gap-3">
-        <Button onclick={prevMediaFile} color="primary" size="md"><Icon name="caret-left-fill" class="fs-3"/></Button>
-        <Button color="primary" size="md" on:click={toggleSearch}><Icon name="search" class="fs-3"/></Button>
-        <Button onclick={nextMediaFile} color="primary" size="md"><Icon name="caret-right-fill" class="fs-3"/></Button>
+        <Button disabled={isProcessing} onclick={prevMediaFile} color="primary" size="md"><Icon name="caret-left-fill" class="fs-3"/></Button>
+        <Button disabled={isProcessing} color="primary" size="md" on:click={toggleSearch}><Icon name="search" class="fs-3"/></Button>
+        <Button disabled={isProcessing} onclick={nextMediaFile} color="primary" size="md"><Icon name="caret-right-fill" class="fs-3"/></Button>
       </Col>
       <Col xs="4" class="d-flex justify-content-end">
-        <Button onclick={openDeleteModal} id="btn-delete-md" color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
+        <Button disabled={isProcessing} onclick={openDeleteModal} id="btn-delete-md" color="danger" size="md"><Icon name="x-square-fill" class="fs-3"/></Button>
         <Tooltip target="btn-delete-md" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
@@ -221,7 +228,7 @@ function toggleFace(i: number) {
       <!-- Left column: description and save button -->
       <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
         <textarea class="h-75 form-control mb-2" placeholder="description..." >{mediaFile?.description}</textarea>
-        <Button id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
+        <Button disabled={isProcessing} id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
         <Tooltip target="btn-save" placement="top">Save</Tooltip>
       </Col>
 
@@ -297,8 +304,8 @@ function toggleFace(i: number) {
       
     </ModalBody>
     <ModalFooter >
-      <Button color="primary" on:click={toggleSearch} class="me-4"><Icon name="search" class="fs-3 "/></Button>
-      <Button color="secondary" on:click={toggleSearch} class="ms-4 me-2"><Icon name="x-square-fill" class="fs-3"/></Button>
+      <Button disabled={isProcessing} color="primary" on:click={toggleSearch} class="me-4"><Icon name="search" class="fs-3 "/></Button>
+      <Button disabled={isProcessing} color="secondary" on:click={toggleSearch} class="ms-4 me-2"><Icon name="x-square-fill" class="fs-3"/></Button>
     </ModalFooter>
   </Modal>
 
