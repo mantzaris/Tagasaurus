@@ -11,7 +11,7 @@ import { getMediaFilePath } from '$lib/utils/utils';
 
 
 // //---
-import { pipeline } from '@xenova/transformers';
+import { pipeline } from '@xenova/transformers'; //TODO: in dev also import 'env' and do, 'env.useBrowserCache = false;'
 async function test1() {
   const extractor = await pipeline(
     'feature-extraction',
