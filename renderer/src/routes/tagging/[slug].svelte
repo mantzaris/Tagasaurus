@@ -9,6 +9,55 @@ import type { MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
 
+
+// //---
+import { pipeline } from '@xenova/transformers';
+async function test1() {
+  const extractor = await pipeline(
+    'feature-extraction',
+    "../../../assets/models/sentence-transformers/all-MiniLM-L6-v2",
+    { quantized: false }
+  );
+
+  const embedding = await extractor("FOO BAR BAZ QUX. QUUX CORGE. GRAULT.");
+  console.log('Embedding result:', embedding);
+  console.log('Dims:', embedding.dims); 
+  // e.g. [1, 17, 384] if you have 17 tokens
+
+  console.log('Raw data array:', Array.from(embedding.data));
+
+const meanPooled = meanPool(embedding);
+// meanPooled is now a Float32Array(384)
+console.log('Mean-pooled embedding:', meanPooled);
+const vectorArray = Array.from(meanPooled); // normal JS array
+const vectorJSON = JSON.stringify(vectorArray);
+}
+test1();
+// //---
+function meanPool(tensor:any) {
+  // The pipeline returned a 3D tensor [batch_size, seq_len, hidden_dim].
+  // For one sentence at a time, batch_size = 1.
+  const [batchSize, seqLen, dim] = tensor.dims; // e.g. [1, 17, 384]
+  const data = tensor.data; // A Float32Array of length seqLen * dim
+
+  // We'll create an output vector of length "dim" initialized to 0
+  const out = new Float32Array(dim).fill(0);
+
+  // Sum across all tokens
+  for (let i = 0; i < seqLen; i++) {
+    for (let j = 0; j < dim; j++) {
+      out[j] += data[i * dim + j];
+    }
+  }
+  // Divide by seqLen to get the average
+  for (let j = 0; j < dim; j++) {
+    out[j] /= seqLen;
+  }
+  return out;
+}
+//
+
+
 let { slug } = $params; //hash
 
 let mediaDir: string = $state( getContext('mediaDir') );
