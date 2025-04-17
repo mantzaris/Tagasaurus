@@ -34,7 +34,7 @@ const allowedImageMimeTypes = [
 ];
 
 //currently: images, videos, audio, and PDFs are allowed
-export function isAllowedFileType(mime: string): boolean {  
+export function isAllowedFileType(mime: string): boolean {
   if (mime.startsWith("image/")) {
     if(allowedImageMimeTypes.includes(mime)) {
       return true;

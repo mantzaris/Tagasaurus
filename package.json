@@ -10,7 +10,8 @@
     "build:renderer": "cd renderer && npm run build",
     "dev:renderer": "cd renderer && npm run dev",
     "dev:electron": "npm run build:electron && electron .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.tagasaurus.app",
@@ -18,9 +19,9 @@
     "directories": {
       "output": "build"
     },
-    "files": [
-      "dist/**/*",
-      "package.json"
+    "asarUnpack": [
+      "**/sharp/**",
+      "**/ffmpeg-static/**"
     ],
     "win": {
       "target": [

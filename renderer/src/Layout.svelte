@@ -56,6 +56,7 @@ function handleDrop(event: DragEvent) {
 <div ondragover={handleDragOver} ondrop={handleDrop} style="width:100%; height:100vh;">
 
   <!-- <slot /> -->
+  <!-- potentially,   {@render children?.()} -->
   {@render children()}
 
 </div>

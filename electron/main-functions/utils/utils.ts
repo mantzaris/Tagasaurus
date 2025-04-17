@@ -5,7 +5,6 @@ import { pathToFileURL } from "url";
 import { createHash } from "crypto";
 import { loadEsm } from 'load-esm';
 
-import sharp from 'sharp';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
 
