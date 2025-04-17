@@ -12,9 +12,9 @@ export function getMediaFilePath(mediaDir: string, fileHash: string): string {
     }
     
     const subPath = fileHash
-    .slice(0, 4)       // "abcd"
-    .split("")         // ["a","b","c","d"]
-    .join("/");        // "a/b/c/d"
+    .slice(0, 4) // "abcd"
+    .split("") // ["a","b","c","d"]
+    .join("/"); // "a/b/c/d"
     
     return `${FILE_SCHEME}${mediaDir}${subPath}/${fileHash}`;
 }

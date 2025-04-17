@@ -5,6 +5,8 @@ import { Toast, Icon } from '@sveltestrap/sveltestrap';
 import type { MediaFile } from '$lib/types/general-types';
 import { addNewMediaFile, fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
 
+let { children } = $props();
+
 let isOpen = $state(false);
 let mediaDir: string|null = $state(null);
 
@@ -53,7 +55,8 @@ function handleDrop(event: DragEvent) {
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div ondragover={handleDragOver} ondrop={handleDrop} style="width:100%; height:100vh;">
 
-  <slot />
+  <!-- <slot /> -->
+  {@render children()}
 
 </div>
 
