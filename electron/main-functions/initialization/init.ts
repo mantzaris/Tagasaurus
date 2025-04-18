@@ -21,11 +21,13 @@ export const defaultDBConfig: DBConfig = {
     metadata: {
       id: "id",
       version: "version",
-      hashType: "hash_type",
+      hashAlgorithm: "hash_algorithm",
       textEmbeddingAlgorithm: "text_embedding_algorithm",
       textEmbeddingSize: "text_embedding_size",
-      faceRecognitionAlgorithm: "face_recognition_algorithm",
-      faceEmbeddingSize: "face_embedding_size"
+      textEmbeddingPrecision: "text_embedding_precision",
+      faceEmbeddingAlgorithm: "face_embedding_algorithm",
+      faceEmbeddingSize: "face_embedding_size",
+      faceEmbeddingPrecision: "face_embedding_precision"
     },
     mediaFiles: {
       id: "id",
@@ -56,10 +58,14 @@ export const defaultDBConfig: DBConfig = {
     hashAlgorithm: "sha256",
     textEmbeddingAlgorithm: "sentence-transformers/all-MiniLM-L6-v2",
     textEmbeddingSize: 384,
+    textEmbeddingPrecision: "f16",
     faceEmbeddingAlgorithm: "FaceNet",
-    faceEmbeddingSize: 128
+    faceEmbeddingSize: 128,
+    faceEmbeddingPrecision: "f32"
   }
 };
+
+
 
 export const defaultDBConfigFileQueue: DBConfigFileQueue = {
   dbName: "fileQueue.db",
@@ -262,8 +268,18 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
 async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promise<void> {
   const dbPath = join(dbDir, config.dbName);
   const db = new Database(dbPath);
+  await db.exec(`PRAGMA journal_mode = WAL;`);
 
   const { tables, columns, indexes, metadata: meta } = config;
+
+    // column type depends on precision field
+    const descVecDDL = meta.textEmbeddingPrecision === "f16"
+      ? `F16_BLOB(${meta.textEmbeddingSize})`
+      : `F32_BLOB(${meta.textEmbeddingSize})`;
+
+    const faceVecDDL = meta.faceEmbeddingPrecision === "f16"
+      ? `F16_BLOB(${meta.faceEmbeddingSize})`
+      : `F32_BLOB(${meta.faceEmbeddingSize})`;
 
   try {
     await db.exec(`BEGIN TRANSACTION;`);
@@ -272,31 +288,38 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
       CREATE TABLE IF NOT EXISTS ${tables.metadata} (
         ${columns.metadata.id} INTEGER PRIMARY KEY CHECK (${columns.metadata.id} = 1),
         ${columns.metadata.version} TEXT NOT NULL,
-        ${columns.metadata.hashType} TEXT NOT NULL,
+        ${columns.metadata.hashAlgorithm} TEXT NOT NULL,
         ${columns.metadata.textEmbeddingAlgorithm} TEXT NOT NULL,
         ${columns.metadata.textEmbeddingSize} INTEGER NOT NULL,
-        ${columns.metadata.faceRecognitionAlgorithm} TEXT NOT NULL,
-        ${columns.metadata.faceEmbeddingSize} INTEGER NOT NULL
+        ${columns.metadata.textEmbeddingPrecision} TEXT NOT NULL,
+        ${columns.metadata.faceEmbeddingAlgorithm} TEXT NOT NULL,
+        ${columns.metadata.faceEmbeddingSize} INTEGER NOT NULL,
+        ${columns.metadata.faceEmbeddingPrecision} TEXT NOT NULL
       );
     `);
     
     await db.exec(`
       INSERT OR IGNORE INTO ${tables.metadata} (
-        ${columns.metadata.id}, ${columns.metadata.version}, ${columns.metadata.hashType},
+        ${columns.metadata.id}, ${columns.metadata.version}, ${columns.metadata.hashAlgorithm},
+        
         ${columns.metadata.textEmbeddingAlgorithm}, ${columns.metadata.textEmbeddingSize},
-        ${columns.metadata.faceRecognitionAlgorithm}, ${columns.metadata.faceEmbeddingSize}
+        ${columns.metadata.textEmbeddingPrecision},
+
+        ${columns.metadata.faceEmbeddingAlgorithm}, ${columns.metadata.faceEmbeddingSize},
+        ${columns.metadata.faceEmbeddingPrecision}
       ) VALUES (
         1,
         '${meta.version}',
         '${meta.hashAlgorithm}',
         '${meta.textEmbeddingAlgorithm}',
         ${meta.textEmbeddingSize},
+        '${meta.textEmbeddingPrecision}',
         '${meta.faceEmbeddingAlgorithm}',
-        ${meta.faceEmbeddingSize}
+        ${meta.faceEmbeddingSize},
+        '${meta.faceEmbeddingPrecision}'
       );
     `);
     
-
     await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.mediaFiles} (
         ${columns.mediaFiles.id} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -304,7 +327,7 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
         ${columns.mediaFiles.filename} TEXT NOT NULL,
         ${columns.mediaFiles.fileType} TEXT NOT NULL,
         ${columns.mediaFiles.description} TEXT,
-        ${columns.mediaFiles.descriptionEmbedding} F32_BLOB(${meta.textEmbeddingSize})
+        ${columns.mediaFiles.descriptionEmbedding} ${descVecDDL}
       );
     `);
 
@@ -312,7 +335,7 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
       CREATE TABLE IF NOT EXISTS ${tables.faceEmbeddings} (
         ${columns.faceEmbeddings.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.faceEmbeddings.mediaFileId} INTEGER NOT NULL,
-        ${columns.faceEmbeddings.faceEmbedding} F32_BLOB(${meta.faceEmbeddingSize}), 
+        ${columns.faceEmbeddings.faceEmbedding} ${faceVecDDL}, 
         FOREIGN KEY (${columns.faceEmbeddings.mediaFileId}) REFERENCES ${tables.mediaFiles}(${columns.mediaFiles.id}) ON DELETE CASCADE
       );
     `);

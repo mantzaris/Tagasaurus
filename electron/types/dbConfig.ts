@@ -25,11 +25,13 @@ export interface DBConfig {
     metadata: {
       id: string;
       version: string;
-      hashType: string;
+      hashAlgorithm: string;
       textEmbeddingAlgorithm: string;
       textEmbeddingSize: string;
-      faceRecognitionAlgorithm: string;
+      textEmbeddingPrecision: string;
+      faceEmbeddingAlgorithm: string;
       faceEmbeddingSize: string;
+      faceEmbeddingPrecision: string;
     };
     mediaFiles: {
       id: string;
@@ -60,8 +62,10 @@ export interface DBConfig {
     hashAlgorithm: string;
     textEmbeddingAlgorithm: string;
     textEmbeddingSize: number;
+    textEmbeddingPrecision: 'f16' | 'f32';
     faceEmbeddingAlgorithm: string;
     faceEmbeddingSize: number;
+    faceEmbeddingPrecision: 'f16' | 'f32';
   }
 }
 

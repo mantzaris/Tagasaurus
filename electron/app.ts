@@ -40,6 +40,10 @@ async function initialize() {
   
   db = new Database(dbPath);
   db_fileQueue = new Database(dbPath_fileQueue);
+  await db.exec(`
+    PRAGMA synchronous = FULL;
+    PRAGMA foreign_keys = ON;
+  `);
   
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }

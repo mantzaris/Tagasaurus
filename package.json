@@ -21,7 +21,8 @@
     },
     "asarUnpack": [
       "**/sharp/**",
-      "**/ffmpeg-static/**"
+      "**/ffmpeg-static/**",
+       "**/libsql/**"
     ],
     "win": {
       "target": [
