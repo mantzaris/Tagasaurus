@@ -25,6 +25,10 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.send('delete-media-hash', fileHash);
   },
 
+  saveMediaFileDescription: (fileHash: string, description: string, embedding: number[]) => {
+    ipcRenderer.send('save-media-description', {fileHash, description, embedding});
+  },
+
 };
 
 contextBridge.exposeInMainWorld("bridge", CONTEXT_BRIDGE);

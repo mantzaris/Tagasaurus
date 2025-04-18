@@ -11,6 +11,7 @@ import { getRandomEntries } from "./main-functions/db-operations/random-entries"
 import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
+import { saveMediaDescription } from "./main-functions/db-operations/media-description";
 
 const sampleSize = 200;
 let mainWindow: BrowserWindow;
@@ -192,4 +193,17 @@ ipcMain.handle("get-media-dir", async (event) => {
   return getMediaFrontEndDirBase(mediaDir);
 });
 
+
+ipcMain.on(
+  'save-media-description',
+  async (_evt, payload: { fileHash: string; description: string; embedding: number[] }) => {
+    try {
+      const { fileHash, description, embedding } = payload;
+      await saveMediaDescription(db, fileHash, description, embedding);
+    } catch (err) {
+      console.error('Failed to save media description:', err);
+      // (optional) reply with an error so renderer can show toast
+    }
+  },
+);
 

@@ -9,12 +9,7 @@ import type { MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
 
-
 import {embedText} from '$lib/utils/text-embeddings';
-const tempVec = embedText("Embed this text.");
-$effect(() => {
-  console.log(tempVec);
-});
 
 
 let { slug } = $params; //hash
@@ -32,6 +27,17 @@ let accordionOpen = $state(true);
 let askDelete = $state(false);
 
 let isProcessing = $state(false);
+
+let descriptionText = $state('');
+$effect(() => {
+  if (mediaFile && !dirtyDescription) {
+    descriptionText = mediaFile.description ?? '';
+  }
+});
+let lastSave = $state(0);
+const isDirty = (md: MediaFile | undefined, txt: string): boolean => !!md && txt !== md.description;
+let dirtyDescription = $derived(isDirty(mediaFile, descriptionText));
+let canSave = $derived(dirtyDescription && Date.now() - lastSave >= 1000);
 
 onMount(async () => {
   isProcessing = true;
@@ -63,8 +69,12 @@ async function nextMediaFile() {
     mediaFile = await getRandomMediaFile(true);
   
     if (mediaFile) {
-      seenMediaFiles.push(mediaFile);
-
+      const { fileHash } = mediaFile; 
+      if (!seenMediaFiles.some(m => m.fileHash === fileHash)) {
+         seenMediaFiles.push(mediaFile);
+      }
+      // seenMediaFiles.push(mediaFile);
+      lastSave = 0;
       if (seenMediaFiles.length > 400) {
         seenMediaFiles.shift();
       }
@@ -91,6 +101,7 @@ async function prevMediaFile() {
 
     if (currentIndex > 0) {
       mediaFile = seenMediaFiles[currentIndex - 1];
+      lastSave = 0;
     } else {
       console.info("Current media file is already the first entry; no previous file exists.");
     }
@@ -107,7 +118,7 @@ function closeDeleteModal() {
   askDelete = false;
 }
 async function confirmDelete() {
-  console.log("Deleting file", mediaFile?.fileHash);
+  // console.log("Deleting file", mediaFile?.fileHash);
   askDelete = false;
   isProcessing = true;
 
@@ -125,7 +136,30 @@ async function confirmDelete() {
   }
 
   isProcessing = false;
+  lastSave = 0;
   nextMediaFile();
+}
+
+async function saveDescription() {
+  if (!mediaFile || !canSave) return;
+
+  mediaFile.description = descriptionText;
+
+  const seen = seenMediaFiles.find((m) => m.fileHash === mediaFile?.fileHash);
+  if (seen) {
+    seen.description = descriptionText;
+  }
+
+  lastSave = Date.now();
+
+  const textVecBatch = await embedText(descriptionText);
+  const textVec = Array.from(textVecBatch[0]); 
+
+  window.bridge.saveMediaFileDescription(
+    mediaFile.fileHash,
+    descriptionText,
+    textVec
+  );
 }
 
 
@@ -235,8 +269,8 @@ function toggleFace(i: number) {
     <Row style="flex: 1;">
       <!-- Left column: description and save button -->
       <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
-        <textarea class="h-75 form-control mb-2" placeholder="description..." >{mediaFile?.description}</textarea>
-        <Button disabled={isProcessing} id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill" /></Button>
+        <textarea class="h-75 form-control mb-2" placeholder="description..." bind:value={descriptionText}></textarea>
+        <Button onclick={saveDescription} disabled={!canSave || isProcessing} id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill"/></Button>
         <Tooltip target="btn-save" placement="top">Save</Tooltip>
       </Col>
 
