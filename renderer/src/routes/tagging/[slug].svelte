@@ -152,13 +152,13 @@ async function saveDescription() {
 
   lastSave = Date.now();
 
-  const textVecBatch = await embedText(descriptionText);
-  const textVec = Array.from(textVecBatch[0]); 
+  const vec32 = (await embedText(descriptionText))[0]; //F32 array (384)
+  console.log(vec32);
 
   window.bridge.saveMediaFileDescription(
     mediaFile.fileHash,
     descriptionText,
-    textVec
+    vec32
   );
 }
 

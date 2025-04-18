@@ -11,7 +11,7 @@ import { getRandomEntries } from "./main-functions/db-operations/random-entries"
 import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
-import { saveMediaDescription } from "./main-functions/db-operations/media-description";
+
 
 const sampleSize = 200;
 let mainWindow: BrowserWindow;
@@ -194,16 +194,16 @@ ipcMain.handle("get-media-dir", async (event) => {
 });
 
 
-ipcMain.on(
-  'save-media-description',
-  async (_evt, payload: { fileHash: string; description: string; embedding: number[] }) => {
-    try {
-      const { fileHash, description, embedding } = payload;
-      await saveMediaDescription(db, fileHash, description, embedding);
-    } catch (err) {
-      console.error('Failed to save media description:', err);
-      // (optional) reply with an error so renderer can show toast
-    }
-  },
-);
+ipcMain.on('save-media-description', async (_evt, p: {
+  fileHash: string;
+  description: string;
+  embedding: Float32Array;
+}) => {
+  const blob = Buffer.from(p.embedding.buffer);
+  const stmt = await db.prepare(`UPDATE media_files
+       SET description = ?, description_embedding = ?
+     WHERE file_hash   = ?`);
+  await stmt.run([p.description, blob, p.fileHash]);
+});
+
 

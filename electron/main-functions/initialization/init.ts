@@ -58,7 +58,7 @@ export const defaultDBConfig: DBConfig = {
     hashAlgorithm: "sha256",
     textEmbeddingAlgorithm: "sentence-transformers/all-MiniLM-L6-v2",
     textEmbeddingSize: 384,
-    textEmbeddingPrecision: "f16",
+    textEmbeddingPrecision: "f32",
     faceEmbeddingAlgorithm: "FaceNet",
     faceEmbeddingSize: 128,
     faceEmbeddingPrecision: "f32"
@@ -193,7 +193,7 @@ export async function checkTagasaurusDirectories(): Promise<{
     try {
       //check if directory exists
       try {
-        await fsPromises.access(tagaDir);
+        await fsPromises.access(tagaDir); //TODO: fsPromises.mkdir(path, { recursive:true }) instead
         console.log(`Already exists: ${tagaDir}`);
       } catch {
         //directory doesn't exist, create it
@@ -269,6 +269,7 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
   const dbPath = join(dbDir, config.dbName);
   const db = new Database(dbPath);
   await db.exec(`PRAGMA journal_mode = WAL;`);
+  await db.exec('PRAGMA foreign_keys = ON');
 
   const { tables, columns, indexes, metadata: meta } = config;
 

@@ -25,7 +25,7 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.send('delete-media-hash', fileHash);
   },
 
-  saveMediaFileDescription: (fileHash: string, description: string, embedding: number[]) => {
+  saveMediaFileDescription: (fileHash: string, description: string, embedding: Float32Array) => {
     ipcRenderer.send('save-media-description', {fileHash, description, embedding});
   },
 
