@@ -29,8 +29,10 @@ let askDelete = $state(false);
 let isProcessing = $state(false);
 
 let descriptionText = $state('');
+
 $effect(() => {
   if (mediaFile && !dirtyDescription) {
+    // only when you load a new image OR you just saved
     descriptionText = mediaFile.description ?? '';
   }
 });
@@ -50,7 +52,7 @@ onMount(async () => {
     } else {
       mediaFile = await getMediaFile(slug);
     }
-
+    console.log(mediaFile);
     if(!mediaFile) {
       window.location.href = "/tagging"
     } else {
@@ -58,7 +60,7 @@ onMount(async () => {
     }  
   } catch (error) {
     console.error("Error during media retrieval:", error);
-    window.location.href = "/tagging" //$goto('/tagging');
+    window.location.href = "/tagging"; //$goto('/tagging');
   }
 
   isProcessing = false;
@@ -67,7 +69,7 @@ onMount(async () => {
 async function nextMediaFile() {
   try {
     mediaFile = await getRandomMediaFile(true);
-  
+    console.log(mediaFile?.description);
     if (mediaFile) {
       const { fileHash } = mediaFile; 
       if (!seenMediaFiles.some(m => m.fileHash === fileHash)) {
@@ -169,12 +171,9 @@ async function saveDescription() {
 const toggleSearch = () => {
   openSearch = !openSearch
 };
-
-
 const toggleSearchAccordion = (...args: any[]) => {
   console.log('toggle', ...args);
 };
-
 let faces = $state([
 { id: 1, src: 'https://picsum.photos/100/100?random=1', selected: false },
 { id: 2, src: 'https://picsum.photos/300/100?random=2', selected: false },
@@ -188,7 +187,6 @@ let faces = $state([
 { id: 10, src: 'https://picsum.photos/500/300?random=11', selected: false },
 { id: 11, src: 'https://picsum.photos/100/100?random=11', selected: false }
 ]);
-
 function toggleFace(i: number) {
   faces[i] = {
     ...faces[i],

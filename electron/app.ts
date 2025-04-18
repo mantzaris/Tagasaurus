@@ -202,8 +202,17 @@ ipcMain.on('save-media-description', async (_evt, p: {
   const blob = Buffer.from(p.embedding.buffer);
   const stmt = await db.prepare(`UPDATE media_files
        SET description = ?, description_embedding = ?
-     WHERE file_hash   = ?`);
+        WHERE file_hash   = ?`);
   await stmt.run([p.description, blob, p.fileHash]);
+
+  const i = sampleMediaFiles.findIndex(m => m.fileHash === p.fileHash);
+  if (i !== -1) {
+    sampleMediaFiles[i] = {
+      ...sampleMediaFiles[i],
+      description:           p.description,
+      descriptionEmbedding:  Array.from(p.embedding)
+    };
+  }
 });
 
 

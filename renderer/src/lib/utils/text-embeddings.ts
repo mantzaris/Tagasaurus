@@ -8,11 +8,14 @@ const MODEL_LOCAL_PATH = 'sentence-transformers/all-MiniLM-L6-v2';
 
 /* singleton */
 let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
-async function getExtractor() {
-  return (
-    extractorPromise ??=
-      pipeline('feature-extraction', MODEL_LOCAL_PATH, { dtype: 'fp32' })
-  );
+
+async function getExtractor(): Promise<FeatureExtractionPipeline> {
+  return extractorPromise ??=
+    pipeline(
+      'feature-extraction',
+      MODEL_LOCAL_PATH,
+      { dtype: 'fp32' }          // fp32 = full‑precision, un‑quantised
+    ) as Promise<FeatureExtractionPipeline>;
 }
 
 /* helper: always returns Float32Array[] */
