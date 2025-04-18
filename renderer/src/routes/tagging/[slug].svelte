@@ -73,6 +73,8 @@ async function nextMediaFile() {
       if (!seenMediaFiles.some(m => m.fileHash === fileHash)) {
          seenMediaFiles.push(mediaFile);
       }
+
+      descriptionText = mediaFile.description;
       // seenMediaFiles.push(mediaFile);
       lastSave = 0;
       if (seenMediaFiles.length > 400) {
@@ -101,6 +103,7 @@ async function prevMediaFile() {
 
     if (currentIndex > 0) {
       mediaFile = seenMediaFiles[currentIndex - 1];
+      descriptionText = mediaFile.description;
       lastSave = 0;
     } else {
       console.info("Current media file is already the first entry; no previous file exists.");

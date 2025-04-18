@@ -1,8 +1,8 @@
-import { pipeline, env, type FeatureExtractionPipeline, type Tensor } from '@xenova/transformers';
+import { pipeline, env, type FeatureExtractionPipeline, type Tensor } from '@huggingface/transformers';
 import { meanPool } from './ml-utils';
 
-env.allowLocalModels = true;               // ← tell the loader “local OK”
-env.localModelPath  = '/assets/models';    // ← root of your mirror
+env.allowLocalModels = true;
+env.localModelPath  = '/assets/models';
 const MODEL_LOCAL_PATH = 'sentence-transformers/all-MiniLM-L6-v2';
 //const MODEL_PATH = '../../../assets/models/sentence-transformers/all-MiniLM-L6-v2';
 
@@ -11,7 +11,7 @@ let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
 async function getExtractor() {
   return (
     extractorPromise ??=
-      pipeline('feature-extraction', MODEL_LOCAL_PATH, { quantized: false })
+      pipeline('feature-extraction', MODEL_LOCAL_PATH, { dtype: 'fp32' })
   );
 }
 
