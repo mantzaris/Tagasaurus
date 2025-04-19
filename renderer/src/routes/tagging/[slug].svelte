@@ -28,31 +28,22 @@ let askDelete = $state(false);
 
 let isProcessing = $state(false);
 
-let descriptionText = $state('');
 
-$effect(() => {
-  if (mediaFile && !dirtyDescription) {
-    // only when you load a new image OR you just saved
-    descriptionText = mediaFile.description ?? '';
-  }
-});
-let lastSave = $state(0);
-const isDirty = (md: MediaFile | undefined, txt: string): boolean => !!md && txt !== md.description;
-let dirtyDescription = $derived(isDirty(mediaFile, descriptionText));
-let canSave = $derived(dirtyDescription && Date.now() - lastSave >= 1000);
+let canSave = $state(true);
 
 onMount(async () => {
   isProcessing = true;
 
   try {
     mediaDir = await getMediaDir();
-
     if(!slug) {
       mediaFile = await getRandomMediaFile(true);
     } else {
-      mediaFile = await getMediaFile(slug);
+      mediaFile = await getMediaFile(slug, true);
     }
-    console.log(mediaFile);
+
+    console.log('mediaFile', $state.snapshot(mediaFile));
+
     if(!mediaFile) {
       window.location.href = "/tagging"
     } else {
@@ -69,19 +60,21 @@ onMount(async () => {
 async function nextMediaFile() {
   try {
     mediaFile = await getRandomMediaFile(true);
-    console.log(mediaFile?.description);
+    console.log('nextMediaFile: mediaFile', $state.snapshot(mediaFile));
+
     if (mediaFile) {
       const { fileHash } = mediaFile; 
       if (!seenMediaFiles.some(m => m.fileHash === fileHash)) {
          seenMediaFiles.push(mediaFile);
       }
 
-      descriptionText = mediaFile.description;
-      // seenMediaFiles.push(mediaFile);
-      lastSave = 0;
+      console.log('nextMediaFile: seenMediaFiles', $state.snapshot(seenMediaFiles));
+
       if (seenMediaFiles.length > 400) {
         seenMediaFiles.shift();
       }
+
+      await removeMediaFileSequential(mediaFile.fileHash);
     } else {
       window.location.href = "/tagging"; //$goto('/tagging');
     }
@@ -105,8 +98,7 @@ async function prevMediaFile() {
 
     if (currentIndex > 0) {
       mediaFile = seenMediaFiles[currentIndex - 1];
-      descriptionText = mediaFile.description;
-      lastSave = 0;
+      console.log('prevMediaFile: mediaFile', $state.snapshot(mediaFile));
     } else {
       console.info("Current media file is already the first entry; no previous file exists.");
     }
@@ -130,7 +122,7 @@ async function confirmDelete() {
   if(mediaFile) {
     //frontend
     seenMediaFiles = seenMediaFiles.filter(file => file.fileHash !== mediaFile?.fileHash);
-    await removeMediaFileSequential(mediaFile.fileHash)
+    await removeMediaFileSequential(mediaFile.fileHash);
     //backend
     window.bridge.deleteMediaFile(mediaFile?.fileHash);
   }
@@ -141,30 +133,38 @@ async function confirmDelete() {
   }
 
   isProcessing = false;
-  lastSave = 0;
   nextMediaFile();
 }
 
 async function saveDescription() {
-  if (!mediaFile || !canSave) return;
+  if (!mediaFile) return;
 
-  mediaFile.description = descriptionText;
+  canSave = false;
+  isProcessing = true;
+  
+  try {
+    const vec32 = (await embedText(mediaFile.description))[0]; //F32 array (384)
 
-  const seen = seenMediaFiles.find((m) => m.fileHash === mediaFile?.fileHash);
-  if (seen) {
-    seen.description = descriptionText;
+    const idx = seenMediaFiles.findIndex(
+      m => m.fileHash === mediaFile?.fileHash
+    );
+
+    if (idx !== -1) {
+      seenMediaFiles[idx].description = mediaFile.description;
+      seenMediaFiles[idx].descriptionEmbedding = Array.from(vec32);
+    }
+
+    window.bridge.saveMediaFileDescription(
+      mediaFile.fileHash,
+      mediaFile.description,
+      vec32
+    );
+
+    await removeMediaFileSequential(mediaFile.fileHash)
+  } finally {
+    setTimeout(() => canSave = true, 500);
+    isProcessing = false;
   }
-
-  lastSave = Date.now();
-
-  const vec32 = (await embedText(descriptionText))[0]; //F32 array (384)
-  console.log(vec32);
-
-  window.bridge.saveMediaFileDescription(
-    mediaFile.fileHash,
-    descriptionText,
-    vec32
-  );
 }
 
 
@@ -270,7 +270,12 @@ function toggleFace(i: number) {
     <Row style="flex: 1;">
       <!-- Left column: description and save button -->
       <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
-        <textarea class="h-75 form-control mb-2" placeholder="description..." bind:value={descriptionText}></textarea>
+        {#if mediaFile}
+          <textarea
+            class="h-75 form-control mb-2"
+            placeholder="description…"
+            bind:value={mediaFile.description}></textarea>
+        {/if}
         <Button onclick={saveDescription} disabled={!canSave || isProcessing} id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill"/></Button>
         <Tooltip target="btn-save" placement="top">Save</Tooltip>
       </Col>

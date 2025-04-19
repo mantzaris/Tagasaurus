@@ -20,6 +20,7 @@ let isMounting: boolean = $state(true);
 let isProcessing = $state(false);
 
 onMount(async () => {
+  console.log("cards mounting")
   mediaDir = await getMediaDir();
   await setCards();
   isMounting = false;
