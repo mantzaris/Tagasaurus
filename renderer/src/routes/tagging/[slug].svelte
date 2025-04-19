@@ -42,12 +42,11 @@ onMount(async () => {
       mediaFile = await getMediaFile(slug, true);
     }
 
-    console.log('mediaFile', $state.snapshot(mediaFile));
-
     if(!mediaFile) {
       window.location.href = "/tagging"
     } else {
       seenMediaFiles.push(mediaFile);
+      await removeMediaFileSequential(mediaFile.fileHash);
     }  
   } catch (error) {
     console.error("Error during media retrieval:", error);
@@ -68,7 +67,7 @@ async function nextMediaFile() {
          seenMediaFiles.push(mediaFile);
       }
 
-      console.log('nextMediaFile: seenMediaFiles', $state.snapshot(seenMediaFiles));
+      // console.log('nextMediaFile: seenMediaFiles', $state.snapshot(seenMediaFiles));
 
       if (seenMediaFiles.length > 400) {
         seenMediaFiles.shift();
@@ -98,7 +97,6 @@ async function prevMediaFile() {
 
     if (currentIndex > 0) {
       mediaFile = seenMediaFiles[currentIndex - 1];
-      console.log('prevMediaFile: mediaFile', $state.snapshot(mediaFile));
     } else {
       console.info("Current media file is already the first entry; no previous file exists.");
     }
@@ -115,7 +113,6 @@ function closeDeleteModal() {
   askDelete = false;
 }
 async function confirmDelete() {
-  // console.log("Deleting file", mediaFile?.fileHash);
   askDelete = false;
   isProcessing = true;
 
