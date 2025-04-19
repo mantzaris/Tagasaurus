@@ -11,11 +11,11 @@ let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
 
 async function getExtractor(): Promise<FeatureExtractionPipeline> {
   return extractorPromise ??=
-    pipeline(
+    pipeline<'feature-extraction'>(
       'feature-extraction',
       MODEL_LOCAL_PATH,
-      { dtype: 'fp32' }          // fp32 = full‑precision, un‑quantised
-    ) as Promise<FeatureExtractionPipeline>;
+      { dtype: 'fp32' }
+    );
 }
 
 /* helper: always returns Float32Array[] */
