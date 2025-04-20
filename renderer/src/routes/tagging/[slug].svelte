@@ -217,7 +217,7 @@ function toggleFace(i: number) {
 
         <Input disabled={isProcessing} type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
-            <option value={option}>{option}</option>
+            <option value={option} class="fs-6">{option}</option>
           {/each}
         </Input>
       </Col>
