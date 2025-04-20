@@ -211,9 +211,9 @@ function toggleFace(i: number) {
   <!-- Layout for extra-small screens -->
   <div class="d-block d-sm-none">
     <!-- Top row: Back and Delete -->
-    <Row class="mb-2 align-items-center">
+    <Row class="mb-1 align-items-center">
       <Col xs="6" class="d-flex justify-content-start">
-        <Button color="primary" size="sm" href="/"><Icon name="house-fill" class="fs-4"/></Button>
+        <Button color="primary" size="sm" href="/"><Icon name="house-fill" class="fs-6"/></Button>
 
         <Input disabled={isProcessing} type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
@@ -222,16 +222,16 @@ function toggleFace(i: number) {
         </Input>
       </Col>
       <Col xs="6" class="d-flex justify-content-end">
-        <Button disabled={isProcessing} onclick={openDeleteModal} id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-4"/></Button>
+        <Button disabled={isProcessing} onclick={openDeleteModal} id="btn-delete-sm" color="danger" size="sm"><Icon name="x-square-fill" class="fs-6"/></Button>
         <Tooltip target="btn-delete-sm" placement="bottom">Delete</Tooltip>
       </Col>
     </Row>
     <!-- Bottom row: Center group -->
     <Row class="mb-2">
       <Col class="d-flex justify-content-center gap-2">
-        <Button disabled={isProcessing} onclick={prevMediaFile} color="primary" size="sm"><Icon name="caret-left-fill" class="fs-4"/></Button>
-        <Button disabled={isProcessing} color="primary" size="sm" on:click={toggleSearch}><Icon name="search" class="fs-4"/></Button>
-        <Button disabled={isProcessing} onclick={nextMediaFile} color="primary" size="sm"><Icon name="caret-right-fill" class="fs-4"/></Button>
+        <Button disabled={isProcessing} onclick={prevMediaFile} color="primary" size="sm"><Icon name="caret-left-fill" class="fs-6"/></Button>
+        <Button disabled={isProcessing} color="primary" size="sm" on:click={toggleSearch}><Icon name="search" class="fs-6"/></Button>
+        <Button disabled={isProcessing} onclick={nextMediaFile} color="primary" size="sm"><Icon name="caret-right-fill" class="fs-6"/></Button>
       </Col>
     </Row>
   </div>
@@ -263,21 +263,34 @@ function toggleFace(i: number) {
 
 
 
-  {#if mode === "edit"}  <!-- Edit Mode: Two columns -->
-    <Row style="flex: 1;">
+  {#if mode === "edit"}  <!-- Edit Mode:description and media view -->
+    <Row  style="flex: 1;">
       <!-- Left column: description and save button -->
-      <Col sm="5" lg="4" class="d-flex flex-column justify-content-center p-3 " >
+      <Col xs="12" class="p-2 d-flex flex-column justify-content-center d-block d-sm-none"> <!-- hide >= sm -->
+        
         {#if mediaFile}
-          <textarea
-            class="h-75 form-control mb-2"
-            placeholder="description…"
-            bind:value={mediaFile.description}></textarea>
+          <textarea class="form-control mb-1 h-75 fs-6" placeholder="description…" bind:value={mediaFile.description}></textarea>
         {/if}
-        <Button onclick={saveDescription} disabled={!canSave || isProcessing} id="btn-save" class="mybtn" color="success" size="lg"><Icon name="save-fill"/></Button>
-        <Tooltip target="btn-save" placement="top">Save</Tooltip>
+
+        <Button id="btn-save-xs" color="success" size="sm" class="mybtn" disabled={!canSave || isProcessing} onclick={saveDescription} >
+          <Icon name="save-fill"/>
+        </Button>
+        <Tooltip target="btn-save-xs" placement="top">Save</Tooltip>
       </Col>
 
-      <Col sm="7" lg="8" class="d-flex flex-column p-3 image-col" >
+      <Col sm="4" lg="4" class="p-3 d-flex flex-column justify-content-center d-none d-sm-flex"> <!-- hide on xs -->
+        
+        {#if mediaFile}
+          <textarea class="form-control mb-2 h-75 fs-5" placeholder="description…" bind:value={mediaFile.description}></textarea>
+        {/if}
+
+        <Button id="btn-save-sm" color="success" size="lg" class="mybtn" disabled={!canSave || isProcessing} onclick={saveDescription}>
+          <Icon name="save-fill"/>
+        </Button>
+        <Tooltip target="btn-save-sm" placement="top">Save</Tooltip>
+      </Col>  
+
+      <Col xs="12" sm="8" lg="8" class="d-flex flex-column p-3 image-col" style="min-height:40vh !important; ">
         
         {#if mediaFile}
           <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)} fileType={mediaFile.fileType}/>  
@@ -287,7 +300,7 @@ function toggleFace(i: number) {
       
       </Col>
     </Row>
-  {:else if mode === "gallery"}
+  {:else if mode === "gallery"} <!-- only media view, no description -->
     <div style="flex: 1;">
       
       {#if mediaFile}
