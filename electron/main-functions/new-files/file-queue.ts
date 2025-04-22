@@ -7,6 +7,7 @@ import { type Database } from "libsql/promise";
 import { readdirp } from "readdirp";
 
 import { defaultDBConfigFileQueue } from "../initialization/init";
+import { validatePath } from "../utils/utils";
 
 
 /**
@@ -25,7 +26,11 @@ export async function addNewPaths(dbFileQueue: Database, paths: string[], tempDi
         const stmt = await dbFileQueue.prepare(`INSERT OR IGNORE INTO ${defaultDBConfigFileQueue.tables.newPaths} (path) VALUES (?)`);
   
         for (const p of paths) {
-            await stmt.run(p);
+
+            const real = await validatePath(p);
+            if (!real) continue; // skip invalid or symlink
+
+            await stmt.run(real);
         }
   
         await dbFileQueue.exec("COMMIT");
@@ -60,6 +65,7 @@ export async function pathsToNewFilePaths(dbFileQueue: Database, tempDir: string
 
       const p = row.path;
       try {
+
         const stats = await fs.stat(p);
   
         if (stats.isDirectory()) {
@@ -139,14 +145,16 @@ export async function copyToTempDir(dbFileQueue: Database, tempDir: string) {
  * if EEXIST occurs, generate a new filename with a short hash suffix and retry
  */
 async function safeCopyFile(source: string, dest: string) {
-    while (true) {
+    let tries = 0;
+    
+    while (tries < 10) {
       try {
         await fs.copyFile(source, dest, constants.COPYFILE_EXCL);
         return;
       } catch (err: any) {
         if (err.code === "EEXIST") {
-          // Generate a new name
           dest = uniqueSuffixName(dest);
+          tries++;
         } else {
           throw err; 
         }

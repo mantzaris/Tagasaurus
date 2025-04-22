@@ -274,13 +274,13 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
   const { tables, columns, indexes, metadata: meta } = config;
 
     // column type depends on precision field
-    const descVecDDL = meta.textEmbeddingPrecision === "f16"
-      ? `F16_BLOB(${meta.textEmbeddingSize})`
-      : `F32_BLOB(${meta.textEmbeddingSize})`;
+    const descVecDDL = meta.textEmbeddingPrecision === "f32"
+      ? `F32_BLOB(${meta.textEmbeddingSize})`
+      : `F16_BLOB(${meta.textEmbeddingSize})`;
 
-    const faceVecDDL = meta.faceEmbeddingPrecision === "f16"
-      ? `F16_BLOB(${meta.faceEmbeddingSize})`
-      : `F32_BLOB(${meta.faceEmbeddingSize})`;
+    const faceVecDDL = meta.faceEmbeddingPrecision === "f32"
+      ? `F32_BLOB(${meta.faceEmbeddingSize})`
+      : `F16_BLOB(${meta.faceEmbeddingSize})`;
 
   try {
     await db.exec(`BEGIN TRANSACTION;`);

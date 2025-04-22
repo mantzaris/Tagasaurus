@@ -139,20 +139,6 @@ app.on("activate", async () => {
 }); //macOS
 
 
-ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
-  console.log("renderer dropped file/folder path:", filePaths);
-
-  try {
-    await addNewPaths(db_fileQueue, filePaths, tempDir);
-    console.log("newPaths processed and copied to tempDir");
-
-    processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
-      console.error("Background processing error:", err)
-    );
-  } catch (error) {
-    console.error("Failed to handle user-dropped paths or process them:", error);
-  }
-});
 
 ipcMain.on("delete-media-hash", async (event, fileHash: string) => {
   sampleMediaFiles = sampleMediaFiles.filter( mf => mf.fileHash != fileHash);
@@ -216,3 +202,45 @@ ipcMain.on('save-media-description', async (_evt, p: {
 });
 
 
+ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
+  console.log("renderer dropped file/folder path:", filePaths);
+
+  try {
+    await addNewPaths(db_fileQueue, filePaths, tempDir);
+    console.log("newPaths processed and copied to tempDir");
+
+    await enqueueIngest(db, tempDir, mediaDir, mainWindow);
+    // processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+    //   console.error("Background processing error:", err)
+    // );
+  } catch (error) {
+    console.error("Failed to handle user-dropped paths or process them:", error);
+  }
+});
+
+let ingestRunning = false;
+let ingestAgain = false;
+
+async function enqueueIngest(
+  db: Database,
+  tempDir: string,
+  mediaDir: string,
+  mainWindow: BrowserWindow
+) {
+  //user dropped files while an ingest is still running
+  if (ingestRunning) {
+    ingestAgain = true;
+    return;
+  }
+
+  ingestRunning = true;
+  try {
+    do {
+      ingestAgain = false; //reset
+      await processTempFiles(db, tempDir, mediaDir, mainWindow);
+      //flag was set to true, loop once more
+    } while (ingestAgain);
+  } finally {
+    ingestRunning = false;
+  }
+}

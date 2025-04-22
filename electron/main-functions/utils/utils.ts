@@ -78,3 +78,38 @@ export function getMediaFrontEndDirBase(mediaDir: string) {
   return baseUrl;
 }
 
+
+/** Regex for characters that are invalid or dangerous in file names            */
+/** (Ctrl chars \x00–\x1F, Windows < > : " | ? *, and ASCII DEL \x7F).          */
+export const BAD_CHARS = /[<>:"|?*\x00-\x1F\x7F]/;
+
+/** Fast, platform‑agnostic path hygiene                                        */
+export async function validatePath(p: string): Promise<string | undefined> {
+  // 1) Normalise & strip trailing separators
+  const normal = path.normalize(p).replace(/[\\\/]+$/, "");
+
+  // 2) Cheap string checks ----------------------------------------------------
+  if (
+    normal.includes("..") ||          // directory traversal fragments
+    BAD_CHARS.test(normal) ||         // control / reserved chars
+    normal.length === 0               // empty after normalise
+  ) {
+    console.warn("Rejecting bad path string:", p);
+    return;
+  }
+
+  // 3) Reject symbolic links --------------------------------------------------
+  try {
+    const st = await fs.lstat(normal);
+    if (st.isSymbolicLink()) {
+      console.warn("Rejecting symlink:", p);
+      return;
+    }
+  } catch (e) {
+    console.warn("Path not readable:", p, e);
+    return;                            // unreadable → treat as invalid
+  }
+
+  // 4) Pass – return the canonical absolute path (realpath resolves junctions)
+  return fs.realpath(normal);
+}
