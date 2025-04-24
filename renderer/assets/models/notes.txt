@@ -79,3 +79,21 @@ An onnx folder with the ONNX model files
 
 
 run download_models.mjs
+
+--- 
+ORT-WASM Binaries (onnx runtime Binaries) need downloading
+# ── Linux / macOS ────────────────────────────────────────────
+# 1. Create the target directory inside your repo
+mkdir -p renderer/assets/ort
+
+# 2. Pick the transformers.js version you ship
+TF_VER="3.5.0"
+
+# 3. Download the four wasm files once
+cdn="https://cdn.jsdelivr.net/npm/@huggingface/transformers@${TF_VER}/dist"
+for f in ort-wasm.wasm ort-wasm-simd.wasm ort-wasm-threaded.wasm ort-wasm-simd-threaded.wasm
+do
+  echo "→ $f"
+  curl -sSL -o "renderer/assets/ort/$f" "$cdn/$f"
+done
+echo "✓ ORT WASM binaries placed in renderer/assets/ort/"

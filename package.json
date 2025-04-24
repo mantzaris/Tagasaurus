@@ -19,6 +19,10 @@
     "directories": {
       "output": "build"
     },
+    "extraResources": [
+      { "from": "renderer/assets/ort",    "to": "assets/ort" },
+      { "from": "renderer/assets/models", "to": "assets/models" }
+    ],
     "asarUnpack": [
       "**/sharp/**",
       "**/ffmpeg-static/**",
@@ -83,8 +87,8 @@
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.27",
     "concurrently": "^8.2.2",
-    "electron": "^28.2.3",
-    "electron-builder": "^24.9.1",
+    "electron": "^35.2.0",
+    "electron-builder": "^26.0.12",
     "prettier": "^3.2.5",
     "prettier-plugin-svelte": "^3.2.1"
   },

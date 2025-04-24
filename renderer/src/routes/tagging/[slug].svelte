@@ -11,6 +11,7 @@ import { getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
 
+const device = getContext<'gpu' | 'wasm'>('gpuDevice') ?? 'wasm';
 
 let { slug } = $params; //hash
 
@@ -33,6 +34,8 @@ let canSave = $state(true);
 
 onMount(async () => {
   isProcessing = true;
+
+  console.log(`text embedding will use of gpu: ${device}`);
 
   try {
     mediaDir = await getMediaDir();
@@ -140,7 +143,9 @@ async function saveDescription() {
   isProcessing = true;
   
   try {
-    const vec32 = (await embedText(mediaFile.description))[0]; //F32 array (384)
+    const vec32 = (await embedText(mediaFile.description, device))[0]; //F32 array (384)
+    // const [vec32] = await embedText(mediaFile.description, device);
+    console.log(vec32);
 
     const idx = seenMediaFiles.findIndex(
       m => m.fileHash === mediaFile?.fileHash

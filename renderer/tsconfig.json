@@ -1,6 +1,7 @@
 {
   "extends": "@tsconfig/svelte/tsconfig.json",
   "compilerOptions": {
+    "types": ["@webgpu/types"], /* gpu types when using navigator */
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",

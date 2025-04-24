@@ -12,6 +12,11 @@ import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 
+app.commandLine.appendSwitch(
+  'enable-features',
+  'Vulkan,DefaultEnableUnsafeWebGPU'
+);
+app.commandLine.appendSwitch('enable-unsafe-webgpu');
 
 const sampleSize = 200;
 let mainWindow: BrowserWindow;
@@ -244,3 +249,7 @@ async function enqueueIngest(
     ingestRunning = false;
   }
 }
+
+
+
+//allowing the gpu
