@@ -9,11 +9,20 @@ const MODEL_LOCAL_PATH = 'sentence-transformers/all-MiniLM-L6-v2';
 //const MODEL_PATH = '../../../assets/models/sentence-transformers/all-MiniLM-L6-v2';
 // (env as any).backends.wasm.wasmPaths = '/assets/ort/';
 
+/* guarantee object chain exists */
+const backends: any = (env as any).backends ?? ((env as any).backends = {});
+backends.webgpu = { disable: true };  
 
 const be: any = (env as any).backends ?? ((env as any).backends = {});
-const wasm    = be.wasm        ?? (be.wasm = {});
-wasm.wasmPaths  = '/assets/ort/';
-wasm.numThreads = navigator.hardwareConcurrency ?? 4;
+be.wasm = {
+  wasmPaths: '/assets/ort/',   // ← points to your local dir
+  proxy:     false,            // ← stops remote dynamic import
+  numThreads: navigator.hardwareConcurrency ?? 4,
+};
+// const be: any = (env as any).backends ?? ((env as any).backends = {});
+// const wasm    = be.wasm        ?? (be.wasm = {});
+// wasm.wasmPaths  = '/assets/ort/';
+// wasm.numThreads = navigator.hardwareConcurrency ?? 4;
 
 
 type Device = 'gpu' | 'wasm';   // we no longer expose 'webgpu'

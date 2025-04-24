@@ -14,12 +14,20 @@ const MODEL_LOCAL_PATH = 'sentence-transformers/all-MiniLM-L6-v2';
 (env as any).backends ??= {};
 (env as any).backends.webgpu = { disable: true };
 
+/* guarantee object chain exists */
+const backends: any = (env as any).backends ?? ((env as any).backends = {});
+backends.webgpu = { disable: true };  
 
 const be: any = (env as any).backends ?? ((env as any).backends = {});
-const wasm    = be.wasm        ?? (be.wasm = {});
-wasm.wasmPaths  = '/assets/ort/';
-wasm.numThreads = navigator.hardwareConcurrency ?? 4; 
+be.wasm = {
+  wasmPaths: '/assets/ort/',   // ← points to your local dir
+  proxy:     false,            // ← stops remote dynamic import
+  numThreads: navigator.hardwareConcurrency ?? 4,
+};
 
+// const wasm    = be.wasm        ?? (be.wasm = {});
+// wasm.wasmPaths  = '/assets/ort/';
+// wasm.numThreads = navigator.hardwareConcurrency ?? 4; 
 
 console.log('Active backend →', env.backends); // 'webgl' or 'wasm'
 
