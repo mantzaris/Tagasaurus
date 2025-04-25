@@ -26,6 +26,7 @@
     "@roxi/routify": "^3.0.0-next.261",
     "@sveltestrap/sveltestrap": "^7.1.0",
     "dexie": "^4.0.11",
+    "onnxruntime-web": "^1.22.0-dev.20250409-89f8206ba4",
     "svelte-loading-spinners": "^0.3.6"
   }
 }

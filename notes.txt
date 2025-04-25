@@ -1,0 +1,16 @@
+Edit the single @font-face rule
+
+renderer/public/assets/bootstrap-icons/font/bootstrap-icons.min.css currently points into a non-existent fonts/ sub-directory:
+
+src:url("fonts/bootstrap-icons.woff2?7141511ac37f13e1a387fb9fc6646256") format("woff2"),
+    url("fonts/bootstrap-icons.woff?7141511ac37f13e1a387fb9fc6646256")  format("woff");
+
+Because the CSS file already lives in the same folder as the two font files, just replace the paths with relative references to the local files you downloaded:
+
+/* bootstrap-icons.min.css  – after edit */
+@font-face{
+  font-display:block;
+  font-family:bootstrap-icons;
+  src:url("./bootstrap-icons.woff2") format("woff2"),
+      url("./bootstrap-icons.woff")  format("woff")
+}

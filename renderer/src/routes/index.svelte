@@ -13,7 +13,7 @@
 </Navbar>
 
 <Container class="mt-4 p-4">
-  
+
   <Row>
     <Col md="6" >
       <Card>

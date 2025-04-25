@@ -20,8 +20,7 @@
       "output": "build"
     },
     "extraResources": [
-      { "from": "renderer/assets/ort",    "to": "assets/ort" },
-      { "from": "renderer/assets/models", "to": "assets/models" }
+      { "from": "renderer/public/assets", "to": "assets" }
     ],
     "asarUnpack": [
       "**/sharp/**",

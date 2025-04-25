@@ -7,3 +7,4 @@ export interface MediaFile {
     descriptionEmbedding: number[] | null; //descriptionEmbedding: Float32Array | null;
   }
   
+  export type DeviceGPU = 'gpu' | 'wasm';

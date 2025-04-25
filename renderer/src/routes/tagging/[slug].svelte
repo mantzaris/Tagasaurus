@@ -4,14 +4,14 @@ import { params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
-import { fillSampleMediaFiles, getCombinedCounts, getMediaFile, getRandomMediaFile, getTotalMediaFileCount, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
-import type { MediaFile } from '$lib/types/general-types';
+import { getMediaFile, getRandomMediaFile, getTotalMediaFileCount, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
+import type { DeviceGPU, MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
 
-const device = getContext<'gpu' | 'wasm'>('gpuDevice') ?? 'wasm';
+const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
 
 let { slug } = $params; //hash
 
@@ -144,7 +144,7 @@ async function saveDescription() {
   
   try {
     const vec32 = (await embedText(mediaFile.description, device))[0]; //F32 array (384)
-    // const [vec32] = await embedText(mediaFile.description, device);
+    //const [vec32] = await embedText(mediaFile.description, device);
     console.log(vec32);
 
     const idx = seenMediaFiles.findIndex(
