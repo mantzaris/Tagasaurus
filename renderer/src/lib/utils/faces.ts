@@ -14,11 +14,13 @@ const IMAGE_PATH = '/assets/images/face.jpg';
 async function detectFaces(): Promise<void> {
   try {
     console.log("\n --------------- \n ---------------\n")
-    console.log('XXXX Loading model and image...');
+    console.log('Loading model and image...');
     
     const {canvas, image} = await imageSetup();
     const {tensor, scale, dx, dy} = preprocessImage(image);
+    console.time("session");
     const session = await onnxruntime.InferenceSession.create(MODEL_PATH);
+    console.timeEnd("session");
     console.log('session input names: ', session.inputNames)
     console.log('session output names: ', session.outputNames)
       
@@ -30,11 +32,6 @@ async function detectFaces(): Promise<void> {
     console.log('outputData = ', outputData);
     
     const { box, kps, best } = getBestBox(outputData, session);
-
-    // if you letter-boxed, map just like the box:
-    const toOrigX = (x:number)=> (x - dx) / scale;
-    const toOrigY = (y:number)=> (y - dy) / scale;
-    const origKps = kps.map((v,i)=> i%2 ? toOrigY(v) : toOrigX(v));
 
     const ctx = canvas.getContext("2d"); 
     /* draw box */
@@ -60,11 +57,11 @@ async function detectFaces(): Promise<void> {
 }
 
 async function imageSetup() {
-  // Create canvas for visualization
+  //create canvas for visualization
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
   
-  // Load the image
+  //load the image
   const image = new Image();
   image.src = IMAGE_PATH;
   
@@ -72,11 +69,11 @@ async function imageSetup() {
     image.onload = () => {
       console.log(`Image loaded: ${image.width}x${image.height}`);
       
-      // Set canvas size to match image
+      //set canvas size to match image
       canvas.width = image.width;
       canvas.height = image.height;
       
-      // Draw original image on canvas
+      //draw original image on canvas
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(image, 0, 0);
@@ -95,6 +92,7 @@ async function imageSetup() {
 
 // Preprocess image for the model match Python cv2.dnn.blobFromImage parameters
 function preprocessImage(img: HTMLImageElement) {
+  console.time("preprocessImage");
   const S = 640;                                            // model side
   const scale = Math.min(S / img.width, S / img.height);    // keep aspect
   const nw = Math.round(img.width  * scale);
@@ -121,11 +119,11 @@ function preprocessImage(img: HTMLImageElement) {
     chw[i + 2*size] = (r - 127.5) / 128; //R (swap!)
   }
   const tensor = new (onnxruntime as any).Tensor('float32', chw, [1, 3, S, S]);
+  console.timeEnd("preprocessImage");
   return { tensor, scale, dx, dy };
 }
 
 
-//               three new args, default to identity if not provided
 function getBestBox(
   out: Record<string, any>,
   sess: any,
@@ -133,6 +131,7 @@ function getBestBox(
   dx = 0,
   dy = 0
 ) {
+  console.time("getBestBox");
   const σ = (x:number)=>1/(1+Math.exp(-x));
   const strides=[8,16,32];
   let best=0, box=[0,0,0,0], kps=[0,0,0,0,0,0,0,0,0,0];
@@ -147,7 +146,8 @@ function getBestBox(
     for(let y=0;y<g;++y)
       for(let x=0;x<g;++x)
         for(let a=0;a<2;++a){
-          const idx=(y*g+x)*2+a, p=σ(scores[idx]);
+          const idx=(y*g+x)*2+a;
+          const p=σ(scores[idx]);
           if(p<=best) continue;
 
           const cx=(x+0.0)*s, cy=(y+0.0)*s,
@@ -171,6 +171,7 @@ function getBestBox(
     (box[0]-dx)/scale, (box[1]-dy)/scale,
     (box[2]-dx)/scale, (box[3]-dy)/scale
   ];
+  console.timeEnd("getBestBox");
   return { box, kps, best };
 }
 
