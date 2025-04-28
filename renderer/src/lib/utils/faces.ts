@@ -8,7 +8,7 @@ import * as onnxruntime from 'onnxruntime-web';
 
 // Configuration
 const MODEL_PATH = '/assets/models/scrfd10Gkps/scrfd_10g_bnkps.onnx';
-const IMAGE_PATH = '/assets/images/face.jpg';
+const IMAGE_PATH = '/assets/images/face400.jpg';
 
 // Main function to run face detection
 async function detectFaces(): Promise<void> {
@@ -31,7 +31,13 @@ async function detectFaces(): Promise<void> {
     const outputData = await session.run(feeds);
     console.log('outputData = ', outputData);
     
-    const { box, kps, best } = getBestBox(outputData, session);
+    // const { box, kps, best } = getBestBox(outputData, session);
+    const { box, kps, best } = getBestBox(
+             outputData,           // model outputs
+             session,              // the session
+             scale, dx, dy,        // ← pass the three mapping values
+             640)                   // side S you used in preprocessImage
+
 
     const ctx = canvas.getContext("2d"); 
     /* draw box */
@@ -93,7 +99,7 @@ async function imageSetup() {
 // Preprocess image for the model match Python cv2.dnn.blobFromImage parameters
 function preprocessImage(img: HTMLImageElement) {
   console.time("preprocessImage");
-  const S = 640;                                            // model side
+  const S = 640; // model side
   const scale = Math.min(S / img.width, S / img.height);    // keep aspect
   const nw = Math.round(img.width  * scale);
   const nh = Math.round(img.height * scale);
@@ -120,7 +126,7 @@ function preprocessImage(img: HTMLImageElement) {
   }
   const tensor = new (onnxruntime as any).Tensor('float32', chw, [1, 3, S, S]);
   console.timeEnd("preprocessImage");
-  return { tensor, scale, dx, dy };
+  return { tensor, scale, dx, dy, side: S }; //return { tensor, scale, dx, dy };
 }
 
 
@@ -129,7 +135,7 @@ function getBestBox(
   sess: any,
   scale = 1,
   dx = 0,
-  dy = 0
+  dy = 0, side=640
 ) {
   console.time("getBestBox");
   const σ = (x:number)=>1/(1+Math.exp(-x));
@@ -142,7 +148,8 @@ function getBestBox(
     const deltas = out[sess.outputNames[i+3]].data as Float32Array;
     const kraw   = out[sess.outputNames[i+6]].data as Float32Array;
 
-    const g=640/s;
+    const g = side / s; //const g=640/s;
+
     for(let y=0;y<g;++y)
       for(let x=0;x<g;++x)
         for(let a=0;a<2;++a){
@@ -167,6 +174,10 @@ function getBestBox(
         }
   }
   // map the box too, keeping one behaviour point
+  // box = [
+  //   (box[0]-dx)/scale, (box[1]-dy)/scale,
+  //   (box[2]-dx)/scale, (box[3]-dy)/scale
+  // ];
   box = [
     (box[0]-dx)/scale, (box[1]-dy)/scale,
     (box[2]-dx)/scale, (box[3]-dy)/scale
