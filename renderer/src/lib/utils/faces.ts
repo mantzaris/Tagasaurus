@@ -56,21 +56,16 @@ const ctx = canvas.getContext("2d");
 if(ctx) {
 
   ctx.strokeStyle = 'yellow';
-  ctx.lineWidth   = 3;
-  ctx.strokeRect(
-    toOrigX(box[0]), toOrigY(box[1]),
-    toOrigX(box[2]) - toOrigX(box[0]),
-    toOrigY(box[3]) - toOrigY(box[1])
-  );
+  ctx.lineWidth   = 4;
 
-  /* draw five cyan dots */
-  ctx.fillStyle = 'cyan';
-  for (let i = 0; i < 5; ++i) {
+  ctx.strokeRect(box[0], box[1], box[2]-box[0], box[3]-box[1]);
+  ctx.fillStyle='cyan';
+  for(let i=0;i<5;i++){
     ctx.beginPath();
-    ctx.arc(origKps[2*i], origKps[2*i+1], 3, 0, Math.PI*2);
+    ctx.arc(kps[2*i], kps[2*i+1], 3, 0, Math.PI*2);
     ctx.fill();
   }
-
+  
 }
 
     
@@ -156,49 +151,55 @@ function preprocessImage(img: HTMLImageElement) {
 }
 
 
-function getBestBox(out: Record<string, any>, sess: any) {
+//               three new args, default to identity if not provided
+function getBestBox(
+  out: Record<string, any>,
+  sess: any,
+  scale = 1,
+  dx = 0,
+  dy = 0
+) {
   const σ = (x:number)=>1/(1+Math.exp(-x));
-  const strides = [8,16,32];
-  let best = 0,
-      box  = [0,0,0,0],
-      kps  = [0,0,0,0,0,0,0,0,0,0];
+  const strides=[8,16,32];
+  let best=0, box=[0,0,0,0], kps=[0,0,0,0,0,0,0,0,0,0];
 
-  for (let i = 0; i < strides.length; ++i) {
-    const s       = strides[i];
-    const scores  = out[sess.outputNames[i     ]].data as Float32Array; // 0/1/2
-    const deltas  = out[sess.outputNames[i + 3]].data as Float32Array; // 3/4/5
-    const kpsRaw  = out[sess.outputNames[i + 6]].data as Float32Array; // 6/7/8  ★
+  for(let i=0;i<strides.length;++i){
+    const s=strides[i];
+    const scores = out[sess.outputNames[i    ]].data as Float32Array;
+    const deltas = out[sess.outputNames[i+3]].data as Float32Array;
+    const kraw   = out[sess.outputNames[i+6]].data as Float32Array;
 
-    const g = 640 / s;
-    for (let y = 0; y < g; ++y)
-      for (let x = 0; x < g; ++x)
-        for (let a = 0; a < 2; ++a) {
-          const idx = (y*g + x)*2 + a;
-          const p   = σ(scores[idx]);
-          if (p <= best) continue;
+    const g=640/s;
+    for(let y=0;y<g;++y)
+      for(let x=0;x<g;++x)
+        for(let a=0;a<2;++a){
+          const idx=(y*g+x)*2+a, p=σ(scores[idx]);
+          if(p<=best) continue;
 
-          const cx = (x + 0.5) * s;
-          const cy = (y + 0.5) * s;
-          const o4  = idx * 4;
-          const o10 = idx * 10;                    // ★  start of 5 landmarks
+          const cx=(x+0.0)*s, cy=(y+0.0)*s,
+                o4=idx*4, o10=idx*10;
+          const l=deltas[o4]*s, t=deltas[o4+1]*s,
+                r=deltas[o4+2]*s, b=deltas[o4+3]*s;
 
-          const l = deltas[o4]   * s,
-                t = deltas[o4+1] * s,
-                r = deltas[o4+2] * s,
-                b = deltas[o4+3] * s;
+          best=p;
+          box=[cx-l, cy-t, cx+r, cy+b];
 
-          best = p;
-          box  = [cx - l, cy - t, cx + r, cy + b];
-
-          /* ---------- new: decode 5 key-points ------------------- */
-          for (let k = 0; k < 5; ++k) {
-            kps[2*k]   = cx + kpsRaw[o10 + 2*k  ] * s;   // x
-            kps[2*k+1] = cy + kpsRaw[o10 + 2*k+1] * s;   // y
+          for(let k=0;k<5;++k){
+            const px = cx + kraw[o10+2*k  ]*s;
+            const py = cy + kraw[o10+2*k+1]*s;
+            kps[2*k]   = (px - dx) / scale;   // ★ map here
+            kps[2*k+1] = (py - dy) / scale;   // ★
           }
         }
   }
+  // map the box too, keeping one behaviour point
+  box = [
+    (box[0]-dx)/scale, (box[1]-dy)/scale,
+    (box[2]-dx)/scale, (box[3]-dy)/scale
+  ];
   return { box, kps, best };
 }
+
 
 
 
