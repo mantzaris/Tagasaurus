@@ -5,10 +5,12 @@
 
 
 import * as onnxruntime from 'onnxruntime-web';
+import * as tf from '@tensorflow/tfjs';
+import nudged from 'nudged';
 
 // Configuration
 const MODEL_PATH = '/assets/models/scrfd10Gkps/scrfd_10g_bnkps.onnx';
-const IMAGE_PATH = '/assets/images/face1000.jpg';
+const IMAGE_PATH = '/assets/images/face.jpg';
 
 // Main function to run face detection
 async function detectFaces(): Promise<void> {
@@ -43,12 +45,10 @@ async function detectFaces(): Promise<void> {
     const areaMax    = maxAreaPct * image.width * image.height;
     
     if (best < minScore || area < areaMin || area > areaMax) {
-      console.warn(
-        `rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`
-      );
-      return;   // skip draw / crop / ArcFace
+      console.warn(`rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`);
+      return; //skip draw/crop/ArcFace
     }
-      
+    
     const { boxBigger, kpsBigger } = scaleFaceBox( image, box, kps );
 
     
@@ -56,10 +56,149 @@ async function detectFaces(): Promise<void> {
     drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
 
 
+    //------------------------------
+
+    //build source landmark list (detected points)
+    const srcPts = [
+      {x: kpsBigger[0], y: kpsBigger[1]},   // left eye
+      {x: kpsBigger[2], y: kpsBigger[3]},   // right eye
+      {x: kpsBigger[4], y: kpsBigger[5]},   // nose
+      {x: kpsBigger[6], y: kpsBigger[7]},   // mouth-L
+      {x: kpsBigger[8], y: kpsBigger[9]}    // mouth-R
+    ];
+
+    //InsightFace 112×112 canonical template
+    const dstPts = [
+      {x:38.2946, y:51.6963},
+      {x:73.5318, y:51.5014},
+      {x:56.0252, y:71.7366},
+      {x:41.5493, y:92.3655},
+      {x:70.7299, y:92.2041}
+    ];
+
+    //similarity (Translate-Scale-Rotate)  one-object API
+    const tfm = nudged.estimators.TSR(srcPts, dstPts);     
+
+    //to 3×3 DOM matrix {a,b,c,d,e,f}
+    const m = nudged.transform.toMatrix(tfm);              
+
+    //warp to 112×112
+    const canvas112 = document.createElement('canvas');
+    canvas112.width = canvas112.height = 112;
+    const ctx112 = canvas112.getContext('2d')!;
+    ctx112.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+    ctx112.drawImage(image, 0, 0);          // image from imageSetup()
+
+
+    ctx112.setTransform(1, 0, 0, 1, 0, 0);     // reset to identity
+    
+    const warped = srcPts.map(pt => applyMatrix(pt, m));
+
+    ctx112.fillStyle = 'magenta';
+warped.forEach(p => ctx112.fillRect(p.x - 1, p.y - 1, 3, 3));
+
+let err = 0;
+for (let i = 0; i < 5; ++i) {
+  const dx = warped[i].x - dstPts[i].x;
+  const dy = warped[i].y - dstPts[i].y;
+  err += Math.hypot(dx, dy);
+}
+console.log('mean landmark error =', (err / 5).toFixed(2), 'px');
+
+    
+    document.body.appendChild(canvas112);
+
+
+
   } catch (error) {
     console.error('Error in face detection:', error);
   }
 }
+
+function applyMatrix(p:{x:number,y:number},
+  m:{a:number,b:number,c:number,d:number,e:number,f:number}) {
+return {
+x: m.a * p.x + m.c * p.y + m.e,
+y: m.b * p.x + m.d * p.y + m.f
+};
+}
+
+
+
+
+function align112(image: HTMLImageElement, kps: number[]): HTMLCanvasElement {
+
+  //landmark template as 5×2 matrix
+  const dst = tf.tensor2d([
+  38.2946, 51.6963,
+  73.5318, 51.5014,
+  56.0252, 71.7366,
+  41.5493, 92.3655,
+  70.7299, 92.2041
+  ], [5,2]);
+
+  //source landmarks 5×2 matrix
+  const src = tf.tensor2d(kps, [5,2]);
+
+  //estimate similarity (Umeyama, Procrustes)
+  const {s, R, t} = umeyama(src, dst);   // implement or use tiny-umeyama npm
+
+  // 3×3 affine matrix
+  const M = tf.concat([
+    tf.mul(s, R),                       // 2×2
+    tf.reshape(t, [2,1])                // translation
+  ], 1).concat(tf.tensor([[0,0,1]]), 0);  // bottom row
+
+  //warp the image onto 112×112 canvas
+  const out = document.createElement('canvas');
+  out.width = out.height = 112;
+  const ctx = out.getContext('2d')!;
+  
+  //@ts-ignore
+  ctx.setTransform(//@ts-ignore
+    M.arraySync()[0][0], M.arraySync()[1][0],//@ts-ignore
+    M.arraySync()[0][1], M.arraySync()[1][1],//@ts-ignore
+    M.arraySync()[0][2], M.arraySync()[1][2]
+  );
+
+  ctx.drawImage(image, 0, 0);
+  return out;
+}
+
+
+export function umeyama(src: tf.Tensor2D, dst: tf.Tensor2D) {
+  const u = tf.mean(src, 0);                    // centroids
+  const v = tf.mean(dst, 0);
+  const srcZ = src.sub(u);                      // zero-mean
+  const dstZ = dst.sub(v);
+
+  
+  const Σ = tf.matMul(dstZ.transpose(), srcZ).div(src.shape[0]); // 2×2
+  //@ts-ignore
+  const {u:U, s:S, v:V} = tf.linalg.svd(Σ);     // Σ = U·diag(S)·Vᵀ
+  let R = tf.matMul(U, V, false, false);        // rotation
+  // det-correction to avoid reflection
+  //@ts-ignore
+  const det = tf.linalg.det(R).arraySync() as number;
+  if (det < 0) {
+    const diag = tf.tensor2d([[1,0],[0,-1]]);
+    R = tf.matMul(U, tf.matMul(diag,V));
+  }
+  const var_src = tf.mean(srcZ.square());       // variance
+  const s = tf.sum(S).div(var_src);             // isotropic scale
+  const t = v.sub(tf.mul(s, tf.matMul(R, u.reshape([2,1])).reshape([2])));
+
+  return {R, s, t};                             // tf.Tensors
+}
+
+
+
+
+
+
+
+
+
 
 function drawBoxKps(canvas: HTMLCanvasElement, box: number[], kps: number[], boxColor: string = 'yellow', landmarkColor: string = 'red') {
   const ctx = canvas.getContext("2d"); 
