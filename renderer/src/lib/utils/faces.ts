@@ -8,7 +8,6 @@
 
 
 import * as onnxruntime from 'onnxruntime-web';
-
 import nudged from 'nudged';
 
 // Configuration
@@ -24,20 +23,20 @@ async function detectFaces(): Promise<void> {
     const {canvas, image} = await imageSetup();
     const {tensor, scale, dx, dy} = preprocessImage(image);
     console.time("session");
-    const session = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
+    const detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
     console.timeEnd("session");
     
     // Run inference
     const feeds: Record<string, any> = {};
-    feeds[session.inputNames[0]] = tensor;    
-    const modelOutputs = await session.run(feeds);
+    feeds[detectSession.inputNames[0]] = tensor;    
+    const modelOutputs = await detectSession.run(feeds);
     console.log('outputData = ', modelOutputs);
     
     // const { box, kps, best } = getBestBox(outputData, session);
     const { box, kps, best } = getBestBox(
-             modelOutputs, session,
+             modelOutputs, detectSession,
              scale, dx, dy, //3 mapping values
-             640)
+             640);
 
     console.log(`best box = ${best}`);
 
@@ -64,27 +63,31 @@ async function detectFaces(): Promise<void> {
 
     const embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
 
-    // inside detectFaces, after you have canvas112
-    const inputTensor = canvasToTensor(canvas112);
-    const feedsEmbedded: Record<string, any> = {};
-    feedsEmbedded[embedSession.inputNames[0]] = inputTensor;
-
-    const output = await embedSession.run(feedsEmbedded);
-    const emb    = output[embedSession.outputNames[0]].data as Float32Array;
-
-    // L2-normalise
-    let norm = 0;
-    for (let i = 0; i < emb.length; ++i) norm += emb[i]*emb[i];
-    norm = Math.sqrt(norm);
-    for (let i = 0; i < emb.length; ++i) emb[i] /= norm;
-
-    console.log('embedding (first 8 dims) =', emb.slice(0,8));
-    console.log(emb.length)
-
+    const emb = await getEmbedding(canvas112, embedSession);
+    console.log(emb.slice(0,8));
 
   } catch (error) {
     console.error('Error in face detection:', error);
   }
+}
+
+
+//canvas112->L2-normalised 512-D embedding
+async function getEmbedding(cnv: HTMLCanvasElement, session: any): Promise<Float32Array> {
+  const tensor = canvasToTensor(cnv);          // your existing helper
+  const feeds: Record<string, any> = {};
+  feeds[session.inputNames[0]] = tensor;
+
+  const out = await session.run(feeds);
+  const emb = out[session.outputNames[0]].data as Float32Array;
+
+  // L2-normalise
+  let norm = 0;
+  for (let i = 0; i < emb.length; ++i) norm += emb[i]*emb[i];
+  norm = Math.sqrt(norm);
+  for (let i = 0; i < emb.length; ++i) emb[i] /= norm;
+
+  return emb;
 }
 
 

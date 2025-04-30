@@ -60,7 +60,7 @@ export const defaultDBConfig: DBConfig = {
     textEmbeddingSize: 384,
     textEmbeddingPrecision: "f32",
     faceEmbeddingAlgorithm: "FaceNet",
-    faceEmbeddingSize: 128,
+    faceEmbeddingSize: 512,
     faceEmbeddingPrecision: "f32"
   }
 };
