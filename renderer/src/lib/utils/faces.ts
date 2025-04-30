@@ -3,13 +3,16 @@
 // ort-wasm-simd.mjs              ort-wasm-simd.wasm
 //ort-wasm-simd-threaded.mjs     ort-wasm-simd-threaded.wasm   (or the non-SIMD versions)
 
+//(buffalo l model) https://github.com/deepinsight/insightface/releases/tag/v0.7
+//scrfd 10G kps model sha256sum, 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
+//w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
+
 
 import * as onnxruntime from 'onnxruntime-web';
-import * as tf from '@tensorflow/tfjs';
 import nudged from 'nudged';
 
 // Configuration
-const MODEL_PATH = '/assets/models/scrfd10Gkps/scrfd_10g_bnkps.onnx';
+const MODEL_PATH = '/assets/models/buffalo_l/det_10g.onnx';//scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
 const IMAGE_PATH = '/assets/images/face.jpg';
 
 // Main function to run face detection
@@ -55,148 +58,70 @@ async function detectFaces(): Promise<void> {
     drawBoxKps(canvas, box, kps);
     drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
 
-
-    //------------------------------
-
-    //build source landmark list (detected points)
-    const srcPts = [
-      {x: kpsBigger[0], y: kpsBigger[1]},   // left eye
-      {x: kpsBigger[2], y: kpsBigger[3]},   // right eye
-      {x: kpsBigger[4], y: kpsBigger[5]},   // nose
-      {x: kpsBigger[6], y: kpsBigger[7]},   // mouth-L
-      {x: kpsBigger[8], y: kpsBigger[9]}    // mouth-R
-    ];
-
-    //InsightFace 112×112 canonical template
-    const dstPts = [
-      {x:38.2946, y:51.6963},
-      {x:73.5318, y:51.5014},
-      {x:56.0252, y:71.7366},
-      {x:41.5493, y:92.3655},
-      {x:70.7299, y:92.2041}
-    ];
-
-    //similarity (Translate-Scale-Rotate)  one-object API
-    const tfm = nudged.estimators.TSR(srcPts, dstPts);     
-
-    //to 3×3 DOM matrix {a,b,c,d,e,f}
-    const m = nudged.transform.toMatrix(tfm);              
-
-    //warp to 112×112
-    const canvas112 = document.createElement('canvas');
-    canvas112.width = canvas112.height = 112;
-    const ctx112 = canvas112.getContext('2d')!;
-    ctx112.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
-    ctx112.drawImage(image, 0, 0);          // image from imageSetup()
-
-
-    ctx112.setTransform(1, 0, 0, 1, 0, 0);     // reset to identity
-    
-    const warped = srcPts.map(pt => applyMatrix(pt, m));
-
-    ctx112.fillStyle = 'magenta';
-warped.forEach(p => ctx112.fillRect(p.x - 1, p.y - 1, 3, 3));
-
-let err = 0;
-for (let i = 0; i < 5; ++i) {
-  const dx = warped[i].x - dstPts[i].x;
-  const dy = warped[i].y - dstPts[i].y;
-  err += Math.hypot(dx, dy);
-}
-console.log('mean landmark error =', (err / 5).toFixed(2), 'px');
-
-    
-    document.body.appendChild(canvas112);
-
-
+    //arcface 112------------------------------
+    make112Face(kpsBigger, image);
 
   } catch (error) {
     console.error('Error in face detection:', error);
   }
 }
 
-function applyMatrix(p:{x:number,y:number},
-  m:{a:number,b:number,c:number,d:number,e:number,f:number}) {
-return {
-x: m.a * p.x + m.c * p.y + m.e,
-y: m.b * p.x + m.d * p.y + m.f
-};
-}
 
-
-
-
-function align112(image: HTMLImageElement, kps: number[]): HTMLCanvasElement {
-
-  //landmark template as 5×2 matrix
-  const dst = tf.tensor2d([
-  38.2946, 51.6963,
-  73.5318, 51.5014,
-  56.0252, 71.7366,
-  41.5493, 92.3655,
-  70.7299, 92.2041
-  ], [5,2]);
-
-  //source landmarks 5×2 matrix
-  const src = tf.tensor2d(kps, [5,2]);
-
-  //estimate similarity (Umeyama, Procrustes)
-  const {s, R, t} = umeyama(src, dst);   // implement or use tiny-umeyama npm
-
-  // 3×3 affine matrix
-  const M = tf.concat([
-    tf.mul(s, R),                       // 2×2
-    tf.reshape(t, [2,1])                // translation
-  ], 1).concat(tf.tensor([[0,0,1]]), 0);  // bottom row
-
-  //warp the image onto 112×112 canvas
-  const out = document.createElement('canvas');
-  out.width = out.height = 112;
-  const ctx = out.getContext('2d')!;
-  
-  //@ts-ignore
-  ctx.setTransform(//@ts-ignore
-    M.arraySync()[0][0], M.arraySync()[1][0],//@ts-ignore
-    M.arraySync()[0][1], M.arraySync()[1][1],//@ts-ignore
-    M.arraySync()[0][2], M.arraySync()[1][2]
-  );
-
-  ctx.drawImage(image, 0, 0);
-  return out;
-}
-
-
-export function umeyama(src: tf.Tensor2D, dst: tf.Tensor2D) {
-  const u = tf.mean(src, 0);                    // centroids
-  const v = tf.mean(dst, 0);
-  const srcZ = src.sub(u);                      // zero-mean
-  const dstZ = dst.sub(v);
-
-  
-  const Σ = tf.matMul(dstZ.transpose(), srcZ).div(src.shape[0]); // 2×2
-  //@ts-ignore
-  const {u:U, s:S, v:V} = tf.linalg.svd(Σ);     // Σ = U·diag(S)·Vᵀ
-  let R = tf.matMul(U, V, false, false);        // rotation
-  // det-correction to avoid reflection
-  //@ts-ignore
-  const det = tf.linalg.det(R).arraySync() as number;
-  if (det < 0) {
-    const diag = tf.tensor2d([[1,0],[0,-1]]);
-    R = tf.matMul(U, tf.matMul(diag,V));
+function make112Face(kpsBigger: number[], image: HTMLImageElement) {
+  function applyMatrix(p:{x:number,y:number}, m:{a:number,b:number,c:number,d:number,e:number,f:number}) {
+    return {
+      x: m.a * p.x + m.c * p.y + m.e,
+      y: m.b * p.x + m.d * p.y + m.f
+    };
   }
-  const var_src = tf.mean(srcZ.square());       // variance
-  const s = tf.sum(S).div(var_src);             // isotropic scale
-  const t = v.sub(tf.mul(s, tf.matMul(R, u.reshape([2,1])).reshape([2])));
+  //build source landmark list (detected points)
+  const srcPts = [
+    {x: kpsBigger[0], y: kpsBigger[1]},   // left eye
+    {x: kpsBigger[2], y: kpsBigger[3]},   // right eye
+    {x: kpsBigger[4], y: kpsBigger[5]},   // nose
+    {x: kpsBigger[6], y: kpsBigger[7]},   // mouth-L
+    {x: kpsBigger[8], y: kpsBigger[9]}    // mouth-R
+  ];
 
-  return {R, s, t};                             // tf.Tensors
+  //InsightFace 112×112 canonical template
+  const dstPts = [
+    {x:38.2946, y:51.6963},
+    {x:73.5318, y:51.5014},
+    {x:56.0252, y:71.7366},
+    {x:41.5493, y:92.3655},
+    {x:70.7299, y:92.2041}
+  ];
+  
+  //similarity (Translate-Scale-Rotate)  one-object API
+  const tfm = nudged.estimators.TSR(srcPts, dstPts);     
+  
+  //to 3×3 DOM matrix {a,b,c,d,e,f}
+  const m = nudged.transform.toMatrix(tfm);              
+  
+  //warp to 112×112
+  const canvas112 = document.createElement('canvas');
+  canvas112.width = canvas112.height = 112;
+  const ctx112 = canvas112.getContext('2d')!;
+  ctx112.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+  ctx112.drawImage(image, 0, 0);          // image from imageSetup()
+  ctx112.setTransform(1, 0, 0, 1, 0, 0);     // reset to identity
+  
+  const warped = srcPts.map(pt => applyMatrix(pt, m));
+
+  ctx112.fillStyle = 'magenta';
+  warped.forEach(p => ctx112.fillRect(p.x - 1, p.y - 1, 3, 3));
+
+  let err = 0;
+  for (let i = 0; i < 5; ++i) {
+    const dx = warped[i].x - dstPts[i].x;
+    const dy = warped[i].y - dstPts[i].y;
+    err += Math.hypot(dx, dy);
+  }
+
+  console.log('mean landmark error =', (err / 5).toFixed(2), 'px');
+      
+  document.body.appendChild(canvas112);  
 }
-
-
-
-
-
-
-
 
 
 
@@ -223,12 +148,12 @@ function scaleFaceBox(img: HTMLImageElement,
   box: number[], kps: number[]) {
 
   let [x1,y1,x2,y2] = box;
-  const m = 0.15, w = x2-x1, h = y2-y1;
+  const margin = 0.15, w = x2-x1, h = y2-y1;
 
-  x1 = Math.max(0, x1 - w*m);
-  y1 = Math.max(0, y1 - h*m);
-  x2 = Math.min(img.width , x2 + w*m);
-  y2 = Math.min(img.height, y2 + h*m);
+  x1 = Math.max(0, x1 - w*margin);
+  y1 = Math.max(0, y1 - h*margin);
+  x2 = Math.min(img.width , x2 + w*margin);
+  y2 = Math.min(img.height, y2 + h*margin);
 
   const kNew = kps.slice();//copies
   
