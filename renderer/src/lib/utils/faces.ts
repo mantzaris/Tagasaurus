@@ -1,4 +1,3 @@
-// SCRFD Face Detection Implementation with Proper Anchor Generation and Coordinate Transformation
 // TODO: production link to extra resources:
 // ort-wasm-simd.mjs              ort-wasm-simd.wasm
 //ort-wasm-simd-threaded.mjs     ort-wasm-simd-threaded.wasm   (or the non-SIMD versions)
@@ -9,10 +8,12 @@
 
 
 import * as onnxruntime from 'onnxruntime-web';
+
 import nudged from 'nudged';
 
 // Configuration
-const MODEL_PATH = '/assets/models/buffalo_l/det_10g.onnx';//scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
+const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx';//scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
+const MODEL_PATH_EMBEDDING = '/assets/models/buffalo_l/w600k_r50.onnx';
 const IMAGE_PATH = '/assets/images/face.jpg';
 
 // Main function to run face detection
@@ -23,7 +24,7 @@ async function detectFaces(): Promise<void> {
     const {canvas, image} = await imageSetup();
     const {tensor, scale, dx, dy} = preprocessImage(image);
     console.time("session");
-    const session = await onnxruntime.InferenceSession.create(MODEL_PATH);
+    const session = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
     console.timeEnd("session");
     
     // Run inference
@@ -59,11 +60,48 @@ async function detectFaces(): Promise<void> {
     drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
 
     //arcface 112------------------------------
-    make112Face(kpsBigger, image);
+    const canvas112 = make112Face(kpsBigger, image);
+
+    const embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
+
+    // inside detectFaces, after you have canvas112
+    const inputTensor = canvasToTensor(canvas112);
+    const feedsEmbedded: Record<string, any> = {};
+    feedsEmbedded[embedSession.inputNames[0]] = inputTensor;
+
+    const output = await embedSession.run(feedsEmbedded);
+    const emb    = output[embedSession.outputNames[0]].data as Float32Array;
+
+    // L2-normalise
+    let norm = 0;
+    for (let i = 0; i < emb.length; ++i) norm += emb[i]*emb[i];
+    norm = Math.sqrt(norm);
+    for (let i = 0; i < emb.length; ++i) emb[i] /= norm;
+
+    console.log('embedding (first 8 dims) =', emb.slice(0,8));
+    console.log(emb.length)
+
 
   } catch (error) {
     console.error('Error in face detection:', error);
   }
+}
+
+
+function canvasToTensor(cnv: HTMLCanvasElement) {
+  const W = 112, H = 112, size = W * H;
+  const imgData = cnv.getContext('2d')!.getImageData(0,0,W,H).data;
+  const arr = new Float32Array(3 * size);
+  for (let i = 0; i < size; ++i) {
+    const r = imgData[i*4    ];
+    const g = imgData[i*4 + 1];
+    const b = imgData[i*4 + 2];
+    // InsightFace expects BGR, (v-127.5)/128
+    arr[i]          = (b - 127.5) / 128;
+    arr[i +   size] = (g - 127.5) / 128;
+    arr[i + 2*size] = (r - 127.5) / 128;
+  }
+  return new (onnxruntime as any).Tensor('float32', arr, [1,3,H,W]);
 }
 
 
@@ -120,7 +158,8 @@ function make112Face(kpsBigger: number[], image: HTMLImageElement) {
 
   console.log('mean landmark error =', (err / 5).toFixed(2), 'px');
       
-  document.body.appendChild(canvas112);  
+  document.body.appendChild(canvas112);
+  return canvas112;
 }
 
 
