@@ -8,59 +8,99 @@ import * as onnxruntime from 'onnxruntime-web';
 
 // Configuration
 const MODEL_PATH = '/assets/models/scrfd10Gkps/scrfd_10g_bnkps.onnx';
-const IMAGE_PATH = '/assets/images/face400.jpg';
+const IMAGE_PATH = '/assets/images/face1000.jpg';
 
 // Main function to run face detection
 async function detectFaces(): Promise<void> {
   try {
     console.log("\n --------------- \n ---------------\n")
-    console.log('Loading model and image...');
     
     const {canvas, image} = await imageSetup();
     const {tensor, scale, dx, dy} = preprocessImage(image);
     console.time("session");
     const session = await onnxruntime.InferenceSession.create(MODEL_PATH);
     console.timeEnd("session");
-    console.log('session input names: ', session.inputNames)
-    console.log('session output names: ', session.outputNames)
-      
+    
     // Run inference
     const feeds: Record<string, any> = {};
-    feeds[session.inputNames[0]] = tensor;
-    
-    const outputData = await session.run(feeds);
-    console.log('outputData = ', outputData);
+    feeds[session.inputNames[0]] = tensor;    
+    const modelOutputs = await session.run(feeds);
+    console.log('outputData = ', modelOutputs);
     
     // const { box, kps, best } = getBestBox(outputData, session);
     const { box, kps, best } = getBestBox(
-             outputData,           // model outputs
-             session,              // the session
-             scale, dx, dy,        // ← pass the three mapping values
-             640)                   // side S you used in preprocessImage
+             modelOutputs, session,
+             scale, dx, dy, //3 mapping values
+             640)
 
+    console.log(`best box = ${best}`);
 
-    const ctx = canvas.getContext("2d"); 
-    /* draw box */
-    if(ctx) {
-
-      ctx.strokeStyle = 'yellow';
-      ctx.lineWidth   = 4;
-
-      ctx.strokeRect(box[0], box[1], box[2]-box[0], box[3]-box[1]);
-      ctx.fillStyle='cyan';
-      for(let i=0;i<5;i++){
-        ctx.beginPath();
-        ctx.arc(kps[2*i], kps[2*i+1], 3, 0, Math.PI*2);
-        ctx.fill();
-      }
-      
+    const minScore   = 0.55; // empirical
+    const minAreaPct = 0.05; // 5 % of frame
+    const maxAreaPct = 0.8;
+    const area       = (box[2]-box[0]) * (box[3]-box[1]);
+    const areaMin    = minAreaPct * image.width * image.height;
+    const areaMax    = maxAreaPct * image.width * image.height;
+    
+    if (best < minScore || area < areaMin || area > areaMax) {
+      console.warn(
+        `rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`
+      );
+      return;   // skip draw / crop / ArcFace
     }
+      
+    const { boxBigger, kpsBigger } = scaleFaceBox( image, box, kps );
 
     
+    drawBoxKps(canvas, box, kps);
+    drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
+
+
   } catch (error) {
     console.error('Error in face detection:', error);
   }
 }
+
+function drawBoxKps(canvas: HTMLCanvasElement, box: number[], kps: number[], boxColor: string = 'yellow', landmarkColor: string = 'red') {
+  const ctx = canvas.getContext("2d"); 
+
+  if(ctx) {
+
+    ctx.strokeStyle = boxColor;
+    ctx.lineWidth   = 4;
+
+    ctx.strokeRect(box[0], box[1], box[2]-box[0], box[3]-box[1]);
+    ctx.fillStyle = landmarkColor;
+    for(let i=0;i<5;i++){
+      ctx.beginPath();
+      ctx.arc(kps[2*i], kps[2*i+1], 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+    
+  }
+}
+
+function scaleFaceBox(img: HTMLImageElement,
+  box: number[], kps: number[]) {
+
+  let [x1,y1,x2,y2] = box;
+  const m = 0.15, w = x2-x1, h = y2-y1;
+
+  x1 = Math.max(0, x1 - w*m);
+  y1 = Math.max(0, y1 - h*m);
+  x2 = Math.min(img.width , x2 + w*m);
+  y2 = Math.min(img.height, y2 + h*m);
+
+  const kNew = kps.slice();//copies
+  
+  for (let i=0;i<5;++i){
+    kNew[2*i]   = Math.min(Math.max(kNew[2*i]  , x1), x2);
+    kNew[2*i+1] = Math.min(Math.max(kNew[2*i+1], y1), y2);
+  }
+
+  return { boxBigger:[x1,y1,x2,y2], kpsBigger:kNew };
+}
+
 
 async function imageSetup() {
   //create canvas for visualization
@@ -173,11 +213,7 @@ function getBestBox(
           }
         }
   }
-  // map the box too, keeping one behaviour point
-  // box = [
-  //   (box[0]-dx)/scale, (box[1]-dy)/scale,
-  //   (box[2]-dx)/scale, (box[3]-dy)/scale
-  // ];
+
   box = [
     (box[0]-dx)/scale, (box[1]-dy)/scale,
     (box[2]-dx)/scale, (box[3]-dy)/scale
@@ -192,3 +228,8 @@ function getBestBox(
 detectFaces().catch(error => {
   console.error('Error in face detection:', error);
 });
+
+
+
+// console.log('session input names: ', session.inputNames)
+// console.log('session output names: ', session.outputNames)
