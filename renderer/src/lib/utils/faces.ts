@@ -4,26 +4,41 @@
 
 //(buffalo l model) https://github.com/deepinsight/insightface/releases/tag/v0.7
 //scrfd 10G kps model sha256sum, 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
-//w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
-
+//ArcFace-R50 w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
 
 import * as onnxruntime from 'onnxruntime-web';
 import nudged from 'nudged';
 
-// Configuration
-const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx';//scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
+//configuration
+const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx'; //also scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
 const MODEL_PATH_EMBEDDING = '/assets/models/buffalo_l/w600k_r50.onnx';
 const IMAGE_PATH = '/assets/images/faces3.jpg';
 
-interface FaceDet {
+interface FaceDetections {
   score : number;
   box   : number[]; //[x1,y1,x2,y2] in original image pixels
   kps   : number[]; //10 values (x0,y0,…,x4,y4) (5 points of landmarks)
 }
 
+let detectSession;
+let embedSession;
 
-// Main function to run face detection
+export async function facesSetUp() {
+  try {
+    detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
+    embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+
+
+
+
 async function detectFaces(): Promise<void> {
+  return;
   try {
     console.log("\n --------------- \n ---------------\n")
     
@@ -102,11 +117,11 @@ async function detectFaces(): Promise<void> {
 
 
 
-function getFaces(out  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDet[] {
+function getFaces(out  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
 
   const σ = (x:number)=>1/(1+Math.exp(-x));
   const strides=[8,16,32];
-  const faces: FaceDet[] = [];
+  const faces: FaceDetections[] = [];
 
   for (let i=0;i<strides.length;++i) {
     const s=strides[i];
@@ -142,7 +157,7 @@ function getFaces(out  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, s
   }
   /* ----  very small NMS just to merge twins  ---- */
   faces.sort((a,b)=>b.score-a.score);
-  const result:FaceDet[]=[];
+  const result:FaceDetections[]=[];
   const iou = (a:number[],b:number[])=>{
     const x1=Math.max(a[0],b[0]), y1=Math.max(a[1],b[1]);
     const x2=Math.min(a[2],b[2]), y2=Math.min(a[3],b[3]);
@@ -292,39 +307,6 @@ function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 }
 
 
-async function imageSetup() {
-  //create canvas for visualization
-  const canvas = document.createElement('canvas');
-  document.body.appendChild(canvas);
-  
-  //load the image
-  const image = new Image();
-  image.src = IMAGE_PATH;
-  
-  await new Promise<void>((resolve) => {
-    image.onload = () => {
-      console.log(`Image loaded: ${image.width}x${image.height}`);
-      
-      //set canvas size to match image
-      canvas.width = image.width;
-      canvas.height = image.height;
-      
-      //draw original image on canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(image, 0, 0);
-      }
-      
-      resolve();
-    };
-    image.onerror = () => {
-      console.error('Failed to load image');
-      resolve();
-    };
-  });
-
-  return {canvas, image};
-}
 
 // Preprocess image for the model match Python cv2.dnn.blobFromImage parameters
 function preprocessImage(img: HTMLImageElement) {
@@ -413,6 +395,40 @@ function getBestBox(
 }
 
 
+
+async function imageSetup() {
+  //create canvas for visualization
+  const canvas = document.createElement('canvas');
+  document.body.appendChild(canvas);
+  
+  //load the image
+  const image = new Image();
+  image.src = IMAGE_PATH;
+  
+  await new Promise<void>((resolve) => {
+    image.onload = () => {
+      console.log(`Image loaded: ${image.width}x${image.height}`);
+      
+      //set canvas size to match image
+      canvas.width = image.width;
+      canvas.height = image.height;
+      
+      //draw original image on canvas
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(image, 0, 0);
+      }
+      
+      resolve();
+    };
+    image.onerror = () => {
+      console.error('Failed to load image');
+      resolve();
+    };
+  });
+
+  return {canvas, image};
+}
 
 // Auto-run detection when script is loaded
 detectFaces().catch(error => {

@@ -1,16 +1,8 @@
 
 <script lang="ts">
  
-    // import { Container } from '@sveltestrap/sveltestrap';
-    import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand, Icon } from '@sveltestrap/sveltestrap';
-
-    import '$lib/utils/faces';
-  import { onMount } from 'svelte';
-
-    onMount(async () => {
-      // await detectFaces();
-    })
-
+  // import { Container } from '@sveltestrap/sveltestrap';
+  import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand, Icon } from '@sveltestrap/sveltestrap';
     
   </script>
   

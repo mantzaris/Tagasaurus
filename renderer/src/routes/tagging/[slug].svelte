@@ -10,6 +10,8 @@ import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
+import {facesSetUp} from '$lib/utils/faces';
+
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
 
@@ -24,6 +26,7 @@ let openSearch = $state(false);
 
 let searchInputId = $state(1);
 let accordionOpen = $state(true);
+let searchAllowFaces = $state(false);
 
 let askDelete = $state(false);
 
@@ -50,11 +53,14 @@ onMount(async () => {
     } else {
       seenMediaFiles.push(mediaFile);
       await removeMediaFileSequential(mediaFile.fileHash);
-    }  
+    }
   } catch (error) {
     console.error("Error during media retrieval:", error);
     window.location.href = "/tagging"; //$goto('/tagging');
   }
+  
+  await facesSetUp(); //~0.6seconds
+  
 
   isProcessing = false;
 });
@@ -169,13 +175,6 @@ async function saveDescription() {
   }
 }
 
-
-const toggleSearch = () => {
-  openSearch = !openSearch
-};
-const toggleSearchAccordion = (...args: any[]) => {
-  console.log('toggle', ...args);
-};
 let faces = $state([
 { id: 1, src: 'https://picsum.photos/100/100?random=1', selected: false },
 { id: 2, src: 'https://picsum.photos/300/100?random=2', selected: false },
@@ -189,6 +188,32 @@ let faces = $state([
 { id: 10, src: 'https://picsum.photos/500/300?random=11', selected: false },
 { id: 11, src: 'https://picsum.photos/100/100?random=11', selected: false }
 ]);
+
+const toggleSearch = async () => {
+  openSearch = !openSearch
+
+  if(openSearch && (mediaFile?.fileType.startsWith('image/') || mediaFile?.fileType.startsWith('video/')) ) {
+    
+    if(mediaFile?.fileType.startsWith('image/')) {
+      const img = document.getElementById('viewing-image-id') as HTMLImageElement;
+      await img.decode();
+      const cv = document.createElement('canvas');
+      cv.width  = img.naturalWidth;
+      cv.height = img.naturalHeight;
+      cv.getContext('2d')!.drawImage(img, 0, 0);
+      const rgba = cv.getContext('2d')!
+               .getImageData(0, 0, cv.width, cv.height).data;
+
+      console.log('RGBA: ', rgba);
+    }
+    
+    console.log('process face thumbnails')
+  }
+};
+const toggleSearchAccordion = (...args: any[]) => {
+  console.log('toggle', ...args);
+};
+
 function toggleFace(i: number) {
   faces[i] = {
     ...faces[i],
@@ -333,26 +358,30 @@ function toggleFace(i: number) {
         >
           <Input type="search" placeholder="enter text..." />
         </AccordionItem>
-        <AccordionItem
-          header="Current Faces"
-          on:toggle={(e) => {
-            searchInputId = 2;
-            accordionOpen = e.detail;
-          }}
-        >
-          <div class="image-container">
-            {#each faces as face, i}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div
-                class="image-item"
-                onclick={() => toggleFace(i)}
-              >
-                <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
-              </div>
-            {/each}
-          </div>
-        </AccordionItem>
+
+        {#if searchAllowFaces}
+          <AccordionItem
+            header="Current Faces"
+            on:toggle={(e) => {
+              searchInputId = 2;
+              accordionOpen = e.detail;
+            }}
+          >
+            <div class="image-container">
+              {#each faces as face, i}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div
+                  class="image-item"
+                  onclick={() => toggleFace(i)}
+                >
+                  <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
+                </div>
+              {/each}
+            </div>
+          </AccordionItem>
+        {/if}
+        
       </Accordion>
 
       <Container fluid class="h-100" >

@@ -59,7 +59,7 @@ export const defaultDBConfig: DBConfig = {
     textEmbeddingAlgorithm: "sentence-transformers/all-MiniLM-L6-v2",
     textEmbeddingSize: 384,
     textEmbeddingPrecision: "f32",
-    faceEmbeddingAlgorithm: "FaceNet",
+    faceEmbeddingAlgorithm: "ArcFace-R50_w600k_r50.onnx",
     faceEmbeddingSize: 512,
     faceEmbeddingPrecision: "f32"
   }

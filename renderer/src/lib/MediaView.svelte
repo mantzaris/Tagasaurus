@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { CardImg } from "@sveltestrap/sveltestrap";
 
   let { imageUrl = '', fileType }: {imageUrl: string, fileType: string} = $props();
 </script>
@@ -16,10 +15,10 @@
   <div id="viewing">
     <div id="viewing-container">
       <!-- svelte-ignore a11y_img_redundant_alt -->
-      <img id="viewing-image-id" src={imageUrl} alt="Gallery Image" />
+      <img id="viewing-image-id" class="" src={imageUrl} alt="Gallery Image" />
       <!-- <CardImg top src={imageUrl} alt={fileType} class="p-2"/> -->
     </div>
-  </div>  
+  </div>
 {:else if fileType.startsWith('video/')}
   <div id="viewing">
     <div id="viewing-container">
