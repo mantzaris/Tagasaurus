@@ -7,7 +7,7 @@ import { getContext, onMount } from 'svelte';
 import { getMediaFile, getRandomMediaFile, getTotalMediaFileCount, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
 import type { DeviceGPU, MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
-import { boxToThumb, getMediaFilePath } from '$lib/utils/utils';
+import { snapshotVideo, boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
 import {facesSetUp, detectFacesInImage, embedFace} from '$lib/utils/faces';
@@ -192,9 +192,10 @@ const toggleSearch = async () => {
   }
 };
 
-async function searchFaceThumbnails() {
-
+async function searchFaceThumbnails() { // TODO: video and gif
+  console.log('foo')
   if(mediaFile?.fileType.startsWith('image/')) {
+    console.log('bar')
       const img = document.getElementById('viewing-image-id') as HTMLImageElement;
       const detections = await detectFacesInImage(img);
 
@@ -206,6 +207,23 @@ async function searchFaceThumbnails() {
         selected: false }));
       
       console.log('faces: ', faces); //continue here
+  }
+
+  if (mediaFile?.fileType.startsWith('video/')) {
+    console.log('baz')
+    const vid = document.getElementById('viewing-video-id') as HTMLVideoElement;
+
+    // make sure we have at least one decoded frame
+    if (vid.readyState < 2) await vid.play();         // kick decode
+    const img = await snapshotVideo(vid);
+
+    const detections = await detectFacesInImage(img);
+    faces = detections.map(d => ({
+      ...d,
+      src: boxToThumb(img, d.box),
+      selected: false
+    }));
+    searchAllowFaces = faces.length > 0;
   }
     
   console.log('process face thumbnails');
