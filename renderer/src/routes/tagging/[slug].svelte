@@ -7,10 +7,10 @@ import { getContext, onMount } from 'svelte';
 import { getMediaFile, getRandomMediaFile, getTotalMediaFileCount, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
 import type { DeviceGPU, MediaFile } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
-import { getMediaFilePath } from '$lib/utils/utils';
+import { boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
-import {facesSetUp} from '$lib/utils/faces';
+import {facesSetUp, detectFacesInImage, embedFace} from '$lib/utils/faces';
 
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
@@ -27,6 +27,7 @@ let openSearch = $state(false);
 let searchInputId = $state(1);
 let accordionOpen = $state(true);
 let searchAllowFaces = $state(false);
+let faces:any = $state([]); //{ id: 1, src: 'https://picsum.photos/andom=1', selected: false },
 
 let askDelete = $state(false);
 
@@ -175,19 +176,6 @@ async function saveDescription() {
   }
 }
 
-let faces = $state([
-{ id: 1, src: 'https://picsum.photos/100/100?random=1', selected: false },
-{ id: 2, src: 'https://picsum.photos/300/100?random=2', selected: false },
-{ id: 3, src: 'https://picsum.photos/100/100?random=3', selected: false },
-{ id: 4, src: 'https://picsum.photos/100/300?random=3', selected: false },
-{ id: 5, src: 'https://picsum.photos/100/100?random=5', selected: false },
-{ id: 6, src: 'https://picsum.photos/200/150?random=4', selected: false },
-{ id: 7, src: 'https://picsum.photos/100/100?random=7', selected: false },
-{ id: 8, src: 'https://picsum.photos/100/100?random=8', selected: false },
-{ id: 9, src: 'https://picsum.photos/100/100?random=9', selected: false },
-{ id: 10, src: 'https://picsum.photos/500/300?random=11', selected: false },
-{ id: 11, src: 'https://picsum.photos/100/100?random=11', selected: false }
-]);
 
 const toggleSearch = async () => {
   openSearch = !openSearch
@@ -196,18 +184,19 @@ const toggleSearch = async () => {
     
     if(mediaFile?.fileType.startsWith('image/')) {
       const img = document.getElementById('viewing-image-id') as HTMLImageElement;
-      await img.decode();
-      const cv = document.createElement('canvas');
-      cv.width  = img.naturalWidth;
-      cv.height = img.naturalHeight;
-      cv.getContext('2d')!.drawImage(img, 0, 0);
-      const rgba = cv.getContext('2d')!
-               .getImageData(0, 0, cv.width, cv.height).data;
+      const detections = await detectFacesInImage(img);
 
-      console.log('RGBA: ', rgba);
+      if(detections.length > 0) searchAllowFaces = true;
+
+      const faces = detections.map(detection => ({ 
+        ...detection,
+        src      : boxToThumb(img, detection.box),
+        selected: false }));
+      
+      console.log('faces: ', faces); //continue here
     }
     
-    console.log('process face thumbnails')
+    console.log('process face thumbnails');
   }
 };
 const toggleSearchAccordion = (...args: any[]) => {
@@ -368,16 +357,16 @@ function toggleFace(i: number) {
             }}
           >
             <div class="image-container">
-              {#each faces as face, i}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div
-                  class="image-item"
-                  onclick={() => toggleFace(i)}
-                >
-                  <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
-                </div>
-              {/each}
+              {#key faces}
+                {#each faces as face, i}
+                  HELLO
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div class="image-item" onclick={() => toggleFace(i)}>
+                    <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
+                  </div>
+                {/each}
+              {/key}              
             </div>
           </AccordionItem>
         {/if}
@@ -472,3 +461,13 @@ function toggleFace(i: number) {
   </Figure> -->
 <!-- <Image fluid alt="This is a fluid Image" src={face.src} class="tt"/> -->
 <!-- </div> -->
+
+<!-- 
+const imgEl = document.getElementById('viewing-image-id') as HTMLImageElement;
+const bmp  = await createImageBitmap(imgEl);      // or Blob / ArrayBuffer
+const off  = new OffscreenCanvas(bmp.width, bmp.height);
+const ctx  = off.getContext('2d')!;
+ctx.drawImage(bmp, 0, 0);
+const { data } = ctx.getImageData(0, 0, bmp.width, bmp.height);
+
+// await img. -->

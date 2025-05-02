@@ -6,6 +6,7 @@
 //scrfd 10G kps model sha256sum, 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
 //ArcFace-R50 w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
 
+//TODO: use OffscreenCanvas instead of DOM canvas
 import * as onnxruntime from 'onnxruntime-web';
 import nudged from 'nudged';
 
@@ -14,105 +15,64 @@ const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx'; //also scr
 const MODEL_PATH_EMBEDDING = '/assets/models/buffalo_l/w600k_r50.onnx';
 const IMAGE_PATH = '/assets/images/faces3.jpg';
 
+//InsightFace 112×112 canonical template
+const CANONICAL_112 = [
+  {x:38.2946, y:51.6963},
+  {x:73.5318, y:51.5014},
+  {x:56.0252, y:71.7366},
+  {x:41.5493, y:92.3655},
+  {x:70.7299, y:92.2041}
+];
+
 interface FaceDetections {
   score : number;
   box   : number[]; //[x1,y1,x2,y2] in original image pixels
   kps   : number[]; //10 values (x0,y0,…,x4,y4) (5 points of landmarks)
 }
 
-let detectSession;
-let embedSession;
+let detectSession: any;
+let embedSession: any;
+
+let lastImg   : HTMLImageElement | null = null;   // keep pixels around
+let lastFaces : FaceDetections[] = [];                   // result of getFaces()
 
 export async function facesSetUp() {
   try {
     detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
     embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
+    lastImg = null;
+    lastFaces = [];
     return true;
   } catch {
     return false;
   }
 }
 
+export async function detectFacesInImage(
+  imgEl: HTMLImageElement    // you already have it in the Svelte page
+): Promise<{id:number; box:number[]; kps:number[]}[]> {
 
+  lastImg = imgEl; //keep for embed step
+  const {tensor, scale, dx, dy, side} = preprocessImage(imgEl);
 
+  const feeds: Record<string, any> = {};
+  feeds[detectSession.inputNames[0]] = tensor;
+  const out = await detectSession.run(feeds);
 
+  lastFaces = getFaces(out, detectSession, scale, dx, dy, side);
 
-async function detectFaces(): Promise<void> {
-  return;
-  try {
-    console.log("\n --------------- \n ---------------\n")
-    
-    const {canvas, image} = await imageSetup();
-    const {tensor, scale, dx, dy} = preprocessImage(image);
-    console.time("session");
-    const detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
-    console.timeEnd("session");
-    
-    // Run inference
-    const feeds: Record<string, any> = {};
-    feeds[detectSession.inputNames[0]] = tensor;    
-    const modelOutputs = await detectSession.run(feeds);
-    console.log('outputData = ', modelOutputs);
-    
-    // const { box, kps, best } = getBestBox(outputData, session);
-    const { box, kps, best } = getBestBox(
-             modelOutputs, detectSession,
-             scale, dx, dy, //3 mapping values
-             640);
+  // map to a lighter object for the UI
+  return lastFaces.map((f,i) => ({ id: i, box: f.box, kps: f.kps }));
+}
 
-    console.log(`best box = ${best}`);
+export async function embedFace(id: number): Promise<Float32Array|null> {
+  if (!lastImg || !lastFaces[id]) return null;
 
-    const minScore   = 0.55; // empirical
-    const minAreaPct = 0.005; // 5 % of frame
-    const maxAreaPct = 0.8;
-    const area       = (box[2]-box[0]) * (box[3]-box[1]);
-    const areaMin    = minAreaPct * image.width * image.height;
-    const areaMax    = maxAreaPct * image.width * image.height;
-    
-    if (best < minScore || area < areaMin || area > areaMax) {
-      console.warn(`rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`);
-      return; //skip draw/crop/ArcFace
-    }
-    
-    const { boxBigger, kpsBigger } = scaleFaceBox( image, box, kps );
+  const { boxBigger, kpsBigger } =
+        scaleFaceBox(lastImg, lastFaces[id].box, lastFaces[id].kps);
 
-    
-    drawBoxKps(canvas, box, kps);
-    drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
-
-    //arcface 112------------------------------
-    const canvas112 = make112Face(kpsBigger, image);
-
-    const embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
-
-    const emb = await getEmbedding(canvas112, embedSession);
-    console.log(emb.slice(0,8));
-
-
-    //----------->
-    const faces = getFaces(modelOutputs, detectSession, scale, dx, dy, 640);
-
-    for (const [idx, det] of faces.entries()) {
-
-      // const minArea = 0.05 * image.width * image.height;
-      // const maxArea = 0.8  * image.width * image.height;
-      // if (det.score < 0.55) return;                      // low conf
-      // const a = (det.box[2]-det.box[0])*(det.box[3]-det.box[1]);
-      // if (a < minArea || a > maxArea) return;            // too small / large
-
-      const {boxBigger, kpsBigger} = scaleFaceBox(image, det.box, det.kps);
-      drawBoxKps(canvas, det.box, det.kps);
-      drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
-
-      const canvas112 = make112Face(kpsBigger, image);
-      const emb = await getEmbedding(canvas112, embedSession);
-      console.log(`face #${idx} emb[0..7]=`, emb.slice(0, 8));
-    }
-
-
-  } catch (error) {
-    console.error('Error in face detection:', error);
-  }
+  const cv112 = make112Face(kpsBigger, lastImg);
+  return await getEmbedding(cv112, embedSession);     // <- sequential
 }
 
 
@@ -208,64 +168,107 @@ function canvasToTensor(cnv: HTMLCanvasElement) {
 }
 
 
-function make112Face(kpsBigger: number[], image: HTMLImageElement) {
-  function applyMatrix(p:{x:number,y:number}, m:{a:number,b:number,c:number,d:number,e:number,f:number}) {
-    return {
-      x: m.a * p.x + m.c * p.y + m.e,
-      y: m.b * p.x + m.d * p.y + m.f
-    };
-  }
+function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElement {
   //build source landmark list (detected points)
   const srcPts = [
-    {x: kpsBigger[0], y: kpsBigger[1]},   // left eye
-    {x: kpsBigger[2], y: kpsBigger[3]},   // right eye
-    {x: kpsBigger[4], y: kpsBigger[5]},   // nose
-    {x: kpsBigger[6], y: kpsBigger[7]},   // mouth-L
-    {x: kpsBigger[8], y: kpsBigger[9]}    // mouth-R
-  ];
-
-  //InsightFace 112×112 canonical template
-  const dstPts = [
-    {x:38.2946, y:51.6963},
-    {x:73.5318, y:51.5014},
-    {x:56.0252, y:71.7366},
-    {x:41.5493, y:92.3655},
-    {x:70.7299, y:92.2041}
+    {x: kps10[0], y: kps10[1]},   // left eye
+    {x: kps10[2], y: kps10[3]},   // right eye
+    {x: kps10[4], y: kps10[5]},   // nose
+    {x: kps10[6], y: kps10[7]},   // mouth-L
+    {x: kps10[8], y: kps10[9]}    // mouth-R
   ];
   
   //similarity (Translate-Scale-Rotate)  one-object API
-  const tfm = nudged.estimators.TSR(srcPts, dstPts);     
+  const tfm = nudged.estimators.TSR(srcPts, CANONICAL_112);     
   
   //to 3×3 DOM matrix {a,b,c,d,e,f}
   const m = nudged.transform.toMatrix(tfm);              
   
-  //warp to 112×112
-  const canvas112 = document.createElement('canvas');
-  canvas112.width = canvas112.height = 112;
-  const ctx112 = canvas112.getContext('2d')!;
-  ctx112.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
-  ctx112.drawImage(image, 0, 0);          // image from imageSetup()
-  ctx112.setTransform(1, 0, 0, 1, 0, 0);     // reset to identity
-  
-  const warped = srcPts.map(pt => applyMatrix(pt, m));
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d')!;
+  ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+  ctx.drawImage(image, 0, 0);
 
-  ctx112.fillStyle = 'magenta';
-  warped.forEach(p => ctx112.fillRect(p.x - 1, p.y - 1, 3, 3));
-
-  let err = 0;
-  for (let i = 0; i < 5; ++i) {
-    const dx = warped[i].x - dstPts[i].x;
-    const dy = warped[i].y - dstPts[i].y;
-    err += Math.hypot(dx, dy);
-  }
-
-  console.log('mean landmark error =', (err / 5).toFixed(2), 'px');
-      
-  document.body.appendChild(canvas112);
-  return canvas112;
+  return cv;
 }
 
+async function detectFaces(): Promise<void> {
+  return;
+  try {
+    console.log("\n --------------- \n ---------------\n")
+    
+    const {canvas, image} = await imageSetup();
+    const {tensor, scale, dx, dy} = preprocessImage(image);
+    console.time("session");
+    const detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
+    console.timeEnd("session");
+    
+    // Run inference
+    const feeds: Record<string, any> = {};
+    feeds[detectSession.inputNames[0]] = tensor;    
+    const modelOutputs = await detectSession.run(feeds);
+    console.log('outputData = ', modelOutputs);
+    
+    // const { box, kps, best } = getBestBox(outputData, session);
+    const { box, kps, best } = getBestBox(
+             modelOutputs, detectSession,
+             scale, dx, dy, //3 mapping values
+             640);
 
+    console.log(`best box = ${best}`);
+
+    const minScore   = 0.55; // empirical
+    const minAreaPct = 0.005; // 5 % of frame
+    const maxAreaPct = 0.8;
+    const area       = (box[2]-box[0]) * (box[3]-box[1]);
+    const areaMin    = minAreaPct * image.width * image.height;
+    const areaMax    = maxAreaPct * image.width * image.height;
+    
+    if (best < minScore || area < areaMin || area > areaMax) {
+      console.warn(`rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`);
+      return; //skip draw/crop/ArcFace
+    }
+    
+    const { boxBigger, kpsBigger } = scaleFaceBox( image, box, kps );
+
+    
+    drawBoxKps(canvas, box, kps);
+    drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
+
+    //arcface 112------------------------------
+    const canvas112 = make112Face(kpsBigger, image);
+
+    const embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
+
+    const emb = await getEmbedding(canvas112, embedSession);
+    console.log(emb.slice(0,8));
+
+
+    //----------->
+    const faces = getFaces(modelOutputs, detectSession, scale, dx, dy, 640);
+
+    for (const [idx, det] of faces.entries()) {
+
+      // const minArea = 0.05 * image.width * image.height;
+      // const maxArea = 0.8  * image.width * image.height;
+      // if (det.score < 0.55) return;                      // low conf
+      // const a = (det.box[2]-det.box[0])*(det.box[3]-det.box[1]);
+      // if (a < minArea || a > maxArea) return;            // too small / large
+
+      const {boxBigger, kpsBigger} = scaleFaceBox(image, det.box, det.kps);
+      drawBoxKps(canvas, det.box, det.kps);
+      drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
+
+      const canvas112 = make112Face(kpsBigger, image);
+      const emb = await getEmbedding(canvas112, embedSession);
+      console.log(`face #${idx} emb[0..7]=`, emb.slice(0, 8));
+    }
+
+
+  } catch (error) {
+    console.error('Error in face detection:', error);
+  }
+}
 
 function drawBoxKps(canvas: HTMLCanvasElement, box: number[], kps: number[], boxColor: string = 'yellow', landmarkColor: string = 'red') {
   const ctx = canvas.getContext("2d"); 
@@ -309,8 +312,9 @@ function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 
 
 // Preprocess image for the model match Python cv2.dnn.blobFromImage parameters
+//TODO: createImageBitmap + OffscreenCanvas tob e non-blocking
 function preprocessImage(img: HTMLImageElement) {
-  console.time("preprocessImage");
+
   const S = 640; // model side
   const scale = Math.min(S / img.width, S / img.height);    // keep aspect
   const nw = Math.round(img.width  * scale);
@@ -336,8 +340,8 @@ function preprocessImage(img: HTMLImageElement) {
     chw[i +   size] = (g - 127.5) / 128; //G
     chw[i + 2*size] = (r - 127.5) / 128; //R (swap!)
   }
+
   const tensor = new (onnxruntime as any).Tensor('float32', chw, [1, 3, S, S]);
-  console.timeEnd("preprocessImage");
   return { tensor, scale, dx, dy, side: S }; //return { tensor, scale, dx, dy };
 }
 

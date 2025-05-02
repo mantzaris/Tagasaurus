@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, ipcMain } from "electron";
+import { contextBridge, ipcRenderer, ipcMain, webUtils } from "electron";
 import { MediaFile } from "./types/dbConfig";
 
 export const CONTEXT_BRIDGE = {
@@ -20,6 +20,8 @@ export const CONTEXT_BRIDGE = {
   sendDroppedPaths: (paths: string[]) => {
     ipcRenderer.send('user-dropped-paths', paths);
   },
+
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   deleteMediaFile: (fileHash: string) => {
     ipcRenderer.send('delete-media-hash', fileHash);

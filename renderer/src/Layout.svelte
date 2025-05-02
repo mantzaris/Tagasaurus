@@ -34,19 +34,16 @@ function handleDragOver(event: DragEvent) {
 }
 
 function handleDrop(event: DragEvent) {
-  event.preventDefault();
+    event.preventDefault();
 
-  //convert the dropped FileList to an array of absolute paths
-  const paths: string[] = [];
-  for (const item of event.dataTransfer?.files ?? []) {
-    const filePath = (item as any).path; //Electron 'path' property
-    paths.push(filePath);
+    const paths = Array.from(event.dataTransfer?.files ?? [])
+      // call the helper we expose from preload (see next section)
+      .map(file => window.bridge.getPathForFile(file))
+      .filter(Boolean);          // strips empty strings / directories
+
+    window.bridge.sendDroppedPaths(paths);
+    isOpen = true;
   }
-  
-  //send the entire array of paths to the main process (handles directories too)
-  window.bridge.sendDroppedPaths(paths);
-  isOpen = true
-}
 
 </script>
 

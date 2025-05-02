@@ -18,3 +18,13 @@ export function getMediaFilePath(mediaDir: string, fileHash: string): string {
     
     return `${FILE_SCHEME}${mediaDir}${subPath}/${fileHash}`;
 }
+
+
+export function boxToThumb(img: HTMLImageElement, box: number[]): string {
+  const [x1, y1, x2, y2] = box;
+  const w = x2 - x1, h = y2 - y1;
+  const cv = document.createElement('canvas');
+  cv.width = w;  cv.height = h;
+  cv.getContext('2d')!.drawImage(img, x1, y1, w, h, 0, 0, w, h);
+  return cv.toDataURL('image/jpeg', 0.85);   // ≈ 2–4 KB
+}
