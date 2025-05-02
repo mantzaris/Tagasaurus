@@ -188,7 +188,7 @@ const toggleSearch = async () => {
 
       if(detections.length > 0) searchAllowFaces = true;
 
-      const faces = detections.map(detection => ({ 
+      faces = detections.map(detection => ({ 
         ...detection,
         src      : boxToThumb(img, detection.box),
         selected: false }));
@@ -357,16 +357,13 @@ function toggleFace(i: number) {
             }}
           >
             <div class="image-container">
-              {#key faces}
-                {#each faces as face, i}
-                  HELLO
-                  <!-- svelte-ignore a11y_click_events_have_key_events -->
-                  <!-- svelte-ignore a11y_no_static_element_interactions -->
-                  <div class="image-item" onclick={() => toggleFace(i)}>
-                    <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
-                  </div>
-                {/each}
-              {/key}              
+              {#each faces as face, i}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="image-item" onclick={() => toggleFace(i)}>
+                  <Image class=" {face.selected ? 'border border-primary border-3' : ''}" thumbnail alt="Face Thumbnail" src={face.src} style="max-height: 15vh;"/>
+                </div>
+              {/each}
             </div>
           </AccordionItem>
         {/if}

@@ -43,7 +43,7 @@ function handleDrop(event: DragEvent) {
 
     window.bridge.sendDroppedPaths(paths);
     isOpen = true;
-  }
+}
 
 </script>
 
