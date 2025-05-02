@@ -187,15 +187,19 @@ const toggleSearch = async () => {
   if (searchProcessing) return;
   openSearch = !openSearch;
 
-  if(faces.length == 0 && openSearch && (mediaFile?.fileType.startsWith('image/') || mediaFile?.fileType.startsWith('video/')) ) {
+  if(faces.length == 0 && openSearch && mediaFile?.fileType.startsWith('image/')) {
+    await searchFaceThumbnails();
+  }
+
+  if(openSearch && mediaFile?.fileType.startsWith('video/')) {
     await searchFaceThumbnails();    
   }
 };
 
 async function searchFaceThumbnails() { // TODO: video and gif
-  console.log('foo')
+  
   if(mediaFile?.fileType.startsWith('image/')) {
-    console.log('bar')
+
       const img = document.getElementById('viewing-image-id') as HTMLImageElement;
       const detections = await detectFacesInImage(img);
 
@@ -210,7 +214,7 @@ async function searchFaceThumbnails() { // TODO: video and gif
   }
 
   if (mediaFile?.fileType.startsWith('video/')) {
-    console.log('baz')
+    
     const vid = document.getElementById('viewing-video-id') as HTMLVideoElement;
 
     // make sure we have at least one decoded frame
@@ -272,7 +276,7 @@ async function search() {
     
     console.log('face embeddings:', faceEmbeddings.length);
     console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0,8)));
-    /* …do the expensive work (API call, embedding, etc.)… */
+    /* do the expensive work (API call, embedding, etc.) */
 
     isProcessing = false;
     searchProcessing = false;
