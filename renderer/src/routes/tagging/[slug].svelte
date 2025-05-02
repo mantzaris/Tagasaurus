@@ -196,7 +196,7 @@ const toggleSearch = async () => {
   }
 };
 
-async function searchFaceThumbnails() { // TODO: video and gif
+async function searchFaceThumbnails() {
   
   if(mediaFile?.fileType.startsWith('image/')) {
 
