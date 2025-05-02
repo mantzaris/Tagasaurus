@@ -28,12 +28,12 @@ let searchInputId = $state(1);
 let accordionOpen = $state(true);
 let searchAllowFaces = $state(false);
 let faces:any = $state([]); //{ id: 1, src: 'https://picsum.photos/andom=1', selected: false },
+let searchProcessing = $state(false);
+let searchText = $state('');
 
 let askDelete = $state(false);
 
 let isProcessing = $state(false);
-
-
 let canSave = $state(true);
 
 onMount(async () => {
@@ -67,6 +67,9 @@ onMount(async () => {
 });
 
 async function nextMediaFile() {
+  faces = [];
+  searchAllowFaces = false;
+
   try {
     mediaFile = await getRandomMediaFile(true);
     console.log('nextMediaFile: mediaFile', $state.snapshot(mediaFile));
@@ -94,6 +97,9 @@ async function nextMediaFile() {
 }
 
 async function prevMediaFile() {
+  faces = [];
+  searchAllowFaces = false;
+
   try {
     if (!mediaFile) {
       console.warn("No current media file is set.");
@@ -178,9 +184,10 @@ async function saveDescription() {
 
 
 const toggleSearch = async () => {
+  if (searchProcessing) return;
   openSearch = !openSearch
 
-  if(openSearch && (mediaFile?.fileType.startsWith('image/') || mediaFile?.fileType.startsWith('video/')) ) {
+  if(faces.length == 0 && openSearch && (mediaFile?.fileType.startsWith('image/') || mediaFile?.fileType.startsWith('video/')) ) {
     
     if(mediaFile?.fileType.startsWith('image/')) {
       const img = document.getElementById('viewing-image-id') as HTMLImageElement;
@@ -210,6 +217,51 @@ function toggleFace(i: number) {
   };
   faces = [...faces];
 }
+
+async function search() {
+
+  const text = searchText.trim();
+  console.log('search text = ', text);
+  if (text.length == 0 && faces.length == 0) return;
+
+  try {
+    isProcessing = true;
+    searchProcessing = true;
+
+    const faceInds: number[] = [];
+    let faceEmbeddings: Float32Array[] = [];
+    let textEmbedding: Float32Array = new Float32Array(0);
+
+    for (const [i, face] of faces.entries()) {
+      if (face.selected) faceInds.push(i);
+    }
+
+    if(faceInds.length > 0) {      
+      for (const id of faceInds) {
+        const emb = await embedFace(id);
+        if (emb) faceEmbeddings.push(emb);
+      }
+    }
+
+    if(text.length > 0) {
+      textEmbedding = (await embedText(text, device))[0];
+    }
+    
+    console.log('face embeddings:', faceEmbeddings.length);
+    console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0,8)));
+    /* …do the expensive work (API call, embedding, etc.)… */
+
+    isProcessing = false;
+    searchProcessing = false;
+  } catch {
+    isProcessing = false;
+    searchProcessing = false;
+  } finally {
+    isProcessing = false;
+    searchProcessing = false;
+  }
+}
+
 </script>
 
 <div>
@@ -331,7 +383,7 @@ function toggleFace(i: number) {
     </div>
   {/if}
 
-  <Modal isOpen={openSearch} toggle={toggleSearch} scrollable size={"xl"}>
+  <Modal isOpen={openSearch} toggle={toggleSearch} backdrop={searchProcessing ? 'static' : true} keyboard={!searchProcessing} scrollable size={"xl"}>
     <!-- <ModalHeader toggle={toggleSearch}>Modal title</ModalHeader> -->
     
     <ModalBody>
@@ -345,11 +397,11 @@ function toggleFace(i: number) {
             accordionOpen = e.detail;
           }}
         >
-          <Input type="search" placeholder="enter text..." />
+          <Input bind:value={searchText} type="search" placeholder="enter text..." />
         </AccordionItem>
 
         {#if searchAllowFaces}
-          <AccordionItem
+          <AccordionItem 
             header="Current Faces"
             on:toggle={(e) => {
               searchInputId = 2;
@@ -382,7 +434,7 @@ function toggleFace(i: number) {
       
     </ModalBody>
     <ModalFooter >
-      <Button disabled={isProcessing} color="primary" on:click={toggleSearch} class="me-4"><Icon name="search" class="fs-3 "/></Button>
+      <Button disabled={isProcessing} color="primary" on:click={search} class="me-4"><Icon name="search" class="fs-3"/></Button>
       <Button disabled={isProcessing} color="secondary" on:click={toggleSearch} class="ms-4 me-2"><Icon name="x-square-fill" class="fs-3"/></Button>
     </ModalFooter>
   </Modal>
