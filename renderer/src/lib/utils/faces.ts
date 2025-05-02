@@ -6,14 +6,14 @@
 //scrfd 10G kps model sha256sum, 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
 //ArcFace-R50 w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
 
-//TODO: use OffscreenCanvas instead of DOM canvas
+//TODO: use OffscreenCanvas instead of DOM canvas (faster less memory and goes on worker)
+
 import * as onnxruntime from 'onnxruntime-web';
 import nudged from 'nudged';
 
 //configuration
 const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx'; //also scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
 const MODEL_PATH_EMBEDDING = '/assets/models/buffalo_l/w600k_r50.onnx';
-const IMAGE_PATH = '/assets/images/faces3.jpg';
 
 //InsightFace 112×112 canonical template
 const CANONICAL_112 = [
@@ -48,18 +48,16 @@ export async function facesSetUp() {
   }
 }
 
-export async function detectFacesInImage(
-  imgEl: HTMLImageElement    // you already have it in the Svelte page
-): Promise<{id:number; box:number[]; kps:number[]}[]> {
+export async function detectFacesInImage(imgEl: HTMLImageElement): Promise<{id:number; box:number[]; kps:number[]}[]> {
 
   lastImg = imgEl; //keep for embed step
   const {tensor, scale, dx, dy, side} = preprocessImage(imgEl);
 
   const feeds: Record<string, any> = {};
   feeds[detectSession.inputNames[0]] = tensor;
-  const out = await detectSession.run(feeds);
+  const detectionOut = await detectSession.run(feeds);
 
-  lastFaces = getFaces(out, detectSession, scale, dx, dy, side);
+  lastFaces = getFaces(detectionOut, detectSession, scale, dx, dy, side);
 
   // map to a lighter object for the UI
   return lastFaces.map((f,i) => ({ id: i, box: f.box, kps: f.kps }));
@@ -77,7 +75,7 @@ export async function embedFace(id: number): Promise<Float32Array|null> {
 
 
 
-function getFaces(out  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
+function getFaces(detectionOut  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
 
   const σ = (x:number)=>1/(1+Math.exp(-x));
   const strides=[8,16,32];
@@ -85,9 +83,9 @@ function getFaces(out  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, s
 
   for (let i=0;i<strides.length;++i) {
     const s=strides[i];
-    const scores = out[sess.outputNames[i]].data  as Float32Array;
-    const deltas = out[sess.outputNames[i+3]].data as Float32Array;
-    const kraw   = out[sess.outputNames[i+6]].data as Float32Array;
+    const scores = detectionOut[sess.outputNames[i]].data  as Float32Array;
+    const deltas = detectionOut[sess.outputNames[i+3]].data as Float32Array;
+    const kraw   = detectionOut[sess.outputNames[i+6]].data as Float32Array;
     const g = side / s;
 
     for (let y=0;y<g;++y)
@@ -134,7 +132,7 @@ function getFaces(out  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, s
 
 //canvas112->L2-normalised 512-D embedding
 async function getEmbedding(cnv: HTMLCanvasElement, session: any): Promise<Float32Array> {
-  const tensor = canvasToTensor(cnv);          // your existing helper
+  const tensor = canvasToTensor(cnv);
   const feeds: Record<string, any> = {};
   feeds[session.inputNames[0]] = tensor;
 
@@ -192,103 +190,6 @@ function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElemen
   return cv;
 }
 
-async function detectFaces(): Promise<void> {
-  return;
-  try {
-    console.log("\n --------------- \n ---------------\n")
-    
-    const {canvas, image} = await imageSetup();
-    const {tensor, scale, dx, dy} = preprocessImage(image);
-    console.time("session");
-    const detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
-    console.timeEnd("session");
-    
-    // Run inference
-    const feeds: Record<string, any> = {};
-    feeds[detectSession.inputNames[0]] = tensor;    
-    const modelOutputs = await detectSession.run(feeds);
-    console.log('outputData = ', modelOutputs);
-    
-    // const { box, kps, best } = getBestBox(outputData, session);
-    const { box, kps, best } = getBestBox(
-             modelOutputs, detectSession,
-             scale, dx, dy, //3 mapping values
-             640);
-
-    console.log(`best box = ${best}`);
-
-    const minScore   = 0.55; // empirical
-    const minAreaPct = 0.005; // 5 % of frame
-    const maxAreaPct = 0.8;
-    const area       = (box[2]-box[0]) * (box[3]-box[1]);
-    const areaMin    = minAreaPct * image.width * image.height;
-    const areaMax    = maxAreaPct * image.width * image.height;
-    
-    if (best < minScore || area < areaMin || area > areaMax) {
-      console.warn(`rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`);
-      return; //skip draw/crop/ArcFace
-    }
-    
-    const { boxBigger, kpsBigger } = scaleFaceBox( image, box, kps );
-
-    
-    drawBoxKps(canvas, box, kps);
-    drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
-
-    //arcface 112------------------------------
-    const canvas112 = make112Face(kpsBigger, image);
-
-    const embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
-
-    const emb = await getEmbedding(canvas112, embedSession);
-    console.log(emb.slice(0,8));
-
-
-    //----------->
-    const faces = getFaces(modelOutputs, detectSession, scale, dx, dy, 640);
-
-    for (const [idx, det] of faces.entries()) {
-
-      // const minArea = 0.05 * image.width * image.height;
-      // const maxArea = 0.8  * image.width * image.height;
-      // if (det.score < 0.55) return;                      // low conf
-      // const a = (det.box[2]-det.box[0])*(det.box[3]-det.box[1]);
-      // if (a < minArea || a > maxArea) return;            // too small / large
-
-      const {boxBigger, kpsBigger} = scaleFaceBox(image, det.box, det.kps);
-      drawBoxKps(canvas, det.box, det.kps);
-      drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
-
-      const canvas112 = make112Face(kpsBigger, image);
-      const emb = await getEmbedding(canvas112, embedSession);
-      console.log(`face #${idx} emb[0..7]=`, emb.slice(0, 8));
-    }
-
-
-  } catch (error) {
-    console.error('Error in face detection:', error);
-  }
-}
-
-function drawBoxKps(canvas: HTMLCanvasElement, box: number[], kps: number[], boxColor: string = 'yellow', landmarkColor: string = 'red') {
-  const ctx = canvas.getContext("2d"); 
-
-  if(ctx) {
-
-    ctx.strokeStyle = boxColor;
-    ctx.lineWidth   = 4;
-
-    ctx.strokeRect(box[0], box[1], box[2]-box[0], box[3]-box[1]);
-    ctx.fillStyle = landmarkColor;
-    for(let i=0;i<5;i++){
-      ctx.beginPath();
-      ctx.arc(kps[2*i], kps[2*i+1], 3, 0, Math.PI*2);
-      ctx.fill();
-    }
-    
-  }
-}
-
 function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 
   let [x1,y1,x2,y2] = box;
@@ -308,7 +209,6 @@ function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 
   return { boxBigger:[x1,y1,x2,y2], kpsBigger:kNew };
 }
-
 
 
 // Preprocess image for the model match Python cv2.dnn.blobFromImage parameters
@@ -346,98 +246,194 @@ function preprocessImage(img: HTMLImageElement) {
 }
 
 
-function getBestBox(
-  out: Record<string, any>,
-  sess: any,
-  scale = 1,
-  dx = 0,
-  dy = 0, side=640
-) {
-  console.time("getBestBox");
-  const σ = (x:number)=>1/(1+Math.exp(-x));
-  const strides=[8,16,32];
-  let best=0, box=[0,0,0,0], kps=[0,0,0,0,0,0,0,0,0,0];
-
-  for(let i=0;i<strides.length;++i){
-    const s=strides[i];
-    const scores = out[sess.outputNames[i    ]].data as Float32Array;
-    const deltas = out[sess.outputNames[i+3]].data as Float32Array;
-    const kraw   = out[sess.outputNames[i+6]].data as Float32Array;
-
-    const g = side / s; //const g=640/s;
-
-    for(let y=0;y<g;++y)
-      for(let x=0;x<g;++x)
-        for(let a=0;a<2;++a){
-          const idx=(y*g+x)*2+a;
-          const p=σ(scores[idx]);
-          if(p<=best) continue;
-
-          const cx=(x+0.0)*s, cy=(y+0.0)*s,
-                o4=idx*4, o10=idx*10;
-          const l=deltas[o4]*s, t=deltas[o4+1]*s,
-                r=deltas[o4+2]*s, b=deltas[o4+3]*s;
-
-          best=p;
-          box=[cx-l, cy-t, cx+r, cy+b];
-
-          for(let k=0;k<5;++k){
-            const px = cx + kraw[o10+2*k  ]*s;
-            const py = cy + kraw[o10+2*k+1]*s;
-            kps[2*k]   = (px - dx) / scale;   // map here
-            kps[2*k+1] = (py - dy) / scale;   //
-          }
-        }
-  }
-
-  box = [
-    (box[0]-dx)/scale, (box[1]-dy)/scale,
-    (box[2]-dx)/scale, (box[3]-dy)/scale
-  ];
-  console.timeEnd("getBestBox");
-  return { box, kps, best };
-}
 
 
 
-async function imageSetup() {
-  //create canvas for visualization
-  const canvas = document.createElement('canvas');
-  document.body.appendChild(canvas);
+
+// const IMAGE_PATH = '/assets/images/faces3.jpg';
+
+// async function detectFaces(): Promise<void> {
+//   return;
+//   // try {
+//   //   console.log("\n --------------- \n ---------------\n")
+    
+//     // const {canvas, image} = await imageSetup();
+//     // const {tensor, scale, dx, dy} = preprocessImage(image);
+//   //   console.time("session");
+//   //   const detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
+//   //   console.timeEnd("session");
+    
+//   //   // Run inference
+//   //   const feeds: Record<string, any> = {};
+//   //   feeds[detectSession.inputNames[0]] = tensor;    
+//   //   const modelOutputs = await detectSession.run(feeds);
+//   //   console.log('outputData = ', modelOutputs);
+    
+//   //   // const { box, kps, best } = getBestBox(outputData, session);
+//   //   const { box, kps, best } = getBestBox(
+//   //            modelOutputs, detectSession,
+//   //            scale, dx, dy, //3 mapping values
+//   //            640);
+
+//   //   console.log(`best box = ${best}`);
+
+//   //   const minScore   = 0.55; // empirical
+//   //   const minAreaPct = 0.005; // 5 % of frame
+//   //   const maxAreaPct = 0.8;
+//   //   const area       = (box[2]-box[0]) * (box[3]-box[1]);
+//   //   const areaMin    = minAreaPct * image.width * image.height;
+//   //   const areaMax    = maxAreaPct * image.width * image.height;
+    
+//   //   if (best < minScore || area < areaMin || area > areaMax) {
+//   //     console.warn(`rejected - score=${best.toFixed(3)}, area=${(area / (image.width*image.height)*100).toFixed(2)} %`);
+//   //     return; //skip draw/crop/ArcFace
+//   //   }
+    
+//   //   const { boxBigger, kpsBigger } = scaleFaceBox( image, box, kps );
+
+    
+//   //   drawBoxKps(canvas, box, kps);
+//   //   drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
+
+//   //   //arcface 112------------------------------
+//   //   const canvas112 = make112Face(kpsBigger, image);
+
+//   //   const embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
+
+//   //   const emb = await getEmbedding(canvas112, embedSession);
+//   //   console.log(emb.slice(0,8));
+
+
+//   //   //----------->
+//   //   const faces = getFaces(modelOutputs, detectSession, scale, dx, dy, 640);
+
+//   //   for (const [idx, det] of faces.entries()) {
+
+//   //     // const minArea = 0.05 * image.width * image.height;
+//   //     // const maxArea = 0.8  * image.width * image.height;
+//   //     // if (det.score < 0.55) return;                      // low conf
+//   //     // const a = (det.box[2]-det.box[0])*(det.box[3]-det.box[1]);
+//   //     // if (a < minArea || a > maxArea) return;            // too small / large
+
+//   //     const {boxBigger, kpsBigger} = scaleFaceBox(image, det.box, det.kps);
+//   //     drawBoxKps(canvas, det.box, det.kps);
+//   //     drawBoxKps(canvas, boxBigger, kpsBigger, 'green', 'purple');
+
+//   //     const canvas112 = make112Face(kpsBigger, image);
+//   //     const emb = await getEmbedding(canvas112, embedSession);
+//   //     console.log(`face #${idx} emb[0..7]=`, emb.slice(0, 8));
+//   //   }
+
+
+//   // } catch (error) {
+//   //   console.error('Error in face detection:', error);
+//   // }
+// }
+
+// function drawBoxKps(canvas: HTMLCanvasElement, box: number[], kps: number[], boxColor: string = 'yellow', landmarkColor: string = 'red') {
+//   // const ctx = canvas.getContext("2d"); 
+
+//   // if(ctx) {
+
+//   //   ctx.strokeStyle = boxColor;
+//   //   ctx.lineWidth   = 4;
+
+//   //   ctx.strokeRect(box[0], box[1], box[2]-box[0], box[3]-box[1]);
+//   //   ctx.fillStyle = landmarkColor;
+//   //   for(let i=0;i<5;i++){
+//   //     ctx.beginPath();
+//   //     ctx.arc(kps[2*i], kps[2*i+1], 3, 0, Math.PI*2);
+//   //     ctx.fill();
+//   //   }
+    
+//   // }
+// }
+
+
+// function getBestBox(out: Record<string, any>, sess: any, scale = 1, dx = 0, dy = 0, side=640) {
+//   console.time("getBestBox");
+//   const σ = (x:number)=>1/(1+Math.exp(-x));
+//   const strides=[8,16,32];
+//   let best=0, box=[0,0,0,0], kps=[0,0,0,0,0,0,0,0,0,0];
+
+//   for(let i=0;i<strides.length;++i){
+//     const s=strides[i];
+//     const scores = out[sess.outputNames[i    ]].data as Float32Array;
+//     const deltas = out[sess.outputNames[i+3]].data as Float32Array;
+//     const kraw   = out[sess.outputNames[i+6]].data as Float32Array;
+
+//     const g = side / s; //const g=640/s;
+
+//     for(let y=0;y<g;++y)
+//       for(let x=0;x<g;++x)
+//         for(let a=0;a<2;++a){
+//           const idx=(y*g+x)*2+a;
+//           const p=σ(scores[idx]);
+//           if(p<=best) continue;
+
+//           const cx=(x+0.0)*s, cy=(y+0.0)*s,
+//                 o4=idx*4, o10=idx*10;
+//           const l=deltas[o4]*s, t=deltas[o4+1]*s,
+//                 r=deltas[o4+2]*s, b=deltas[o4+3]*s;
+
+//           best=p;
+//           box=[cx-l, cy-t, cx+r, cy+b];
+
+//           for(let k=0;k<5;++k){
+//             const px = cx + kraw[o10+2*k  ]*s;
+//             const py = cy + kraw[o10+2*k+1]*s;
+//             kps[2*k]   = (px - dx) / scale;   // map here
+//             kps[2*k+1] = (py - dy) / scale;   //
+//           }
+//         }
+//   }
+
+//   box = [
+//     (box[0]-dx)/scale, (box[1]-dy)/scale,
+//     (box[2]-dx)/scale, (box[3]-dy)/scale
+//   ];
+//   console.timeEnd("getBestBox");
+//   return { box, kps, best };
+// }
+
+// async function imageSetup() {
+//   //create canvas for visualization
+//   const canvas = document.createElement('canvas');
+//   document.body.appendChild(canvas);
   
-  //load the image
-  const image = new Image();
-  image.src = IMAGE_PATH;
+//   //load the image
+//   const image = new Image();
+//   image.src = IMAGE_PATH;
   
-  await new Promise<void>((resolve) => {
-    image.onload = () => {
-      console.log(`Image loaded: ${image.width}x${image.height}`);
+//   await new Promise<void>((resolve) => {
+//     image.onload = () => {
+//       console.log(`Image loaded: ${image.width}x${image.height}`);
       
-      //set canvas size to match image
-      canvas.width = image.width;
-      canvas.height = image.height;
+//       //set canvas size to match image
+//       canvas.width = image.width;
+//       canvas.height = image.height;
       
-      //draw original image on canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(image, 0, 0);
-      }
+//       //draw original image on canvas
+//       const ctx = canvas.getContext('2d');
+//       if (ctx) {
+//         ctx.drawImage(image, 0, 0);
+//       }
       
-      resolve();
-    };
-    image.onerror = () => {
-      console.error('Failed to load image');
-      resolve();
-    };
-  });
+//       resolve();
+//     };
+//     image.onerror = () => {
+//       console.error('Failed to load image');
+//       resolve();
+//     };
+//   });
 
-  return {canvas, image};
-}
+//   return {canvas, image};
+// }
 
 // Auto-run detection when script is loaded
-detectFaces().catch(error => {
-  console.error('Error in face detection:', error);
-});
+// detectFaces().catch(error => {
+//   console.error('Error in face detection:', error);
+// });
 
 
 

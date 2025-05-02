@@ -185,29 +185,34 @@ async function saveDescription() {
 
 const toggleSearch = async () => {
   if (searchProcessing) return;
-  openSearch = !openSearch
+  openSearch = !openSearch;
 
   if(faces.length == 0 && openSearch && (mediaFile?.fileType.startsWith('image/') || mediaFile?.fileType.startsWith('video/')) ) {
-    
-    if(mediaFile?.fileType.startsWith('image/')) {
+    await searchFaceThumbnails();    
+  }
+};
+
+async function searchFaceThumbnails() {
+
+  if(mediaFile?.fileType.startsWith('image/')) {
       const img = document.getElementById('viewing-image-id') as HTMLImageElement;
       const detections = await detectFacesInImage(img);
 
       if(detections.length > 0) searchAllowFaces = true;
 
-      faces = detections.map(detection => ({ 
+      faces = detections.map(detection => ({
         ...detection,
         src      : boxToThumb(img, detection.box),
         selected: false }));
       
       console.log('faces: ', faces); //continue here
-    }
-    
-    console.log('process face thumbnails');
   }
-};
+    
+  console.log('process face thumbnails');
+}
+
 const toggleSearchAccordion = (...args: any[]) => {
-  console.log('toggle', ...args);
+  // console.log('toggle', ...args);  
 };
 
 function toggleFace(i: number) {
@@ -219,10 +224,10 @@ function toggleFace(i: number) {
 }
 
 async function search() {
-
+  console.log('search')
   const text = searchText.trim();
-  console.log('search text = ', text);
-  if (text.length == 0 && faces.length == 0) return;
+  const selectedCount = faces.filter((f: { selected: boolean }) => f.selected).length;
+  if (text.length == 0 && selectedCount == 0) return;
 
   try {
     isProcessing = true;
@@ -236,7 +241,7 @@ async function search() {
       if (face.selected) faceInds.push(i);
     }
 
-    if(faceInds.length > 0) {      
+    if(faceInds.length > 0) {
       for (const id of faceInds) {
         const emb = await embedFace(id);
         if (emb) faceEmbeddings.push(emb);
