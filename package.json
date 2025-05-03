@@ -20,7 +20,10 @@
       "output": "build"
     },
     "extraResources": [
-      { "from": "renderer/public/assets", "to": "assets" }
+      {
+        "from": "renderer/public/assets",
+        "to": "assets"
+      }
     ],
     "asarUnpack": [
       "**/sharp/**",
@@ -102,6 +105,8 @@
     "fs-extra": "^11.3.0",
     "libsql": "^0.5.3",
     "load-esm": "^1.0.2",
+    "nudged": "^2.1.1",
+    "onnxruntime-node": "^1.21.1",
     "readdirp": "^4.1.2",
     "sharp": "^0.34.0"
   }

@@ -9,7 +9,7 @@ import { defaultDBConfig } from "../initialization/init";
 import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
 import { convertMediaFile, isAllowedFileType } from "../utils/media-conversion";
 import { MediaFile } from "../../types/dbConfig";
-
+import { faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
 
 
 
@@ -34,6 +34,9 @@ export async function processTempFiles(
   mediaDir: string,
   mainWindow: BrowserWindow
 ): Promise<void> {
+
+  await faceSetupOnce();
+
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
   const { mediaFiles } = tables;
@@ -111,6 +114,18 @@ export async function processTempFiles(
         }
       }
 
+      //FACE EMBEDDINGS
+      if (inferredFileType.startsWith('image/')) {
+        const embs = await processFacesOnImage(tempFilePath);   // <- see below
+        console.log(`saved ${embs}`);
+        // embs.forEach((emb, idx) => {
+        //   console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
+        //               Array.from(emb.slice(0, 8)));
+        // });
+        // TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
+      }
+      //
+
       await db.exec("BEGIN TRANSACTION;");
 
       //move file to the correct subdirectory
@@ -123,7 +138,7 @@ export async function processTempFiles(
       await fs.promises.rename(tempFilePath, finalPath); //attempt to move
 
       //insert row with empty description and null embedding (or "")
-      //'filename' store the user’s original name
+      //'filename' store the user's original name
       await insertStmt.run(
         hash,            //fileHash
         tempFile,        //filename (the original user name, or store something else)
@@ -135,10 +150,10 @@ export async function processTempFiles(
       //if succeeded commit
       await db.exec("COMMIT;");
 
-      const insertedFile = await fetchStmt.get<MediaFile>(hash);
+      const insertedFile = await fetchStmt.get<MediaFile>(hash);//TODO: needed?
 
       if (insertedFile) {
-        mainWindow.webContents.send("new-media", insertedFile);
+        mainWindow.webContents.send("new-media", insertedFile);//TODO: needed?
       }
 
     } catch (err) {

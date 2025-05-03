@@ -93,7 +93,7 @@ function getFaces(detectionOut  : Record<string, any>, sess : any, scale=1, dx=0
         for (let a=0;a<2;++a) {
           const idx=(y*g+x)*2+a;
           const p = σ(scores[idx]);
-          if (p < confTh) continue; //keep only good boxes
+          if (p < confTh) continue; //keep only good boxes!
 
           const cx=(x+0)*s, cy=(y+0)*s;
           const o4 = idx*4, o10 = idx*10;
