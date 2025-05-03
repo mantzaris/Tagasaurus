@@ -8,7 +8,7 @@ import * as fs    from 'fs/promises';
 
 const MODELS_DIR  = path.join(__dirname, '..', '..', '..', '..', 'models', 'buffalo_l');
 const OUT_DIR    = '/home/resort/Pictures/temp1';           // make sure it exists!
-
+const PAD_FACE = true; 
 
 let scrfdSess: ort.InferenceSession;
 let arcSess  : ort.InferenceSession;
@@ -52,10 +52,10 @@ function nonMaxSup(faces: FaceDet[], thr = 0.3): FaceDet[] {
     const out: FaceDet[] = [];
     faces.forEach(f => { if (out.every(o => iou(f.box,o.box) < thr)) out.push(f); });
     return out;
-  }
+}
   
   /** parse SCRFD outputs exactly like your renderer version              */
-  function getFaces(
+function getFaces(
     det: Record<string, any>,
     sess: ort.InferenceSession,
     scale: number,
@@ -104,10 +104,10 @@ function nonMaxSup(faces: FaceDet[], thr = 0.3): FaceDet[] {
           }
     }
     return nonMaxSup(faces);
-  }
+}
   
   /** sharp-based preprocessing   -> 640×640 Float32 CHW tensor            */
-  async function preprocessNode(filePath: string) {
+async function preprocessNode(filePath: string) {
     const SIDE = 640;
   
     const imgSharp = sharp(filePath).rotate();               // EXIF-aware
@@ -149,59 +149,83 @@ function nonMaxSup(faces: FaceDet[], thr = 0.3): FaceDet[] {
   
     const tensor = new ort.Tensor('float32', f32, [1,3,SIDE,SIDE]);
     return { tensor, scale, dx:0, dy:0, side:SIDE, width: meta.width, height: meta.height };
-  }
+}
   
-  /* ------------------------------------------------------------------ */
-  /* 3.  PUBLIC entry: detect & crop faces                               */
-  /* ------------------------------------------------------------------ */
-  
-  export async function processFacesOnImage(filePath: string) {
-  
+/* ------------------------------------------------------------------ */
+/* 3.  PUBLIC entry: detect & crop faces                               */
+/* ------------------------------------------------------------------ */
+
+export async function processFacesOnImage(filePath: string) {
+
     await faceSetupOnce();
-  
+
     const { tensor, scale, dx, dy, side, width, height } =
-          await preprocessNode(filePath);
-  
+            await preprocessNode(filePath);
+
     const feeds: Record<string, ort.Tensor> = {};
     feeds[scrfdSess.inputNames[0]] = tensor;
     const detOut = await scrfdSess.run(feeds);
-  
+
     const faces = getFaces(detOut, scrfdSess, scale, dx, dy, side);
-  
+
     if (faces.length === 0) return 0;
-  
+
     await fs.mkdir(OUT_DIR, { recursive: true });
     const fileStem = path.parse(filePath).name;
-  
+
     let idx = 0;
-    for (const f of faces) {
-  
-      // integer-ise & clamp to image bounds
-      const [x1,y1,x2,y2] = f.box.map(Math.round);
-      const box = {
-        left  : Math.max(0, x1),
-        top   : Math.max(0, y1),
-        width : Math.max(1, x2-x1),
-        height: Math.max(1, y2-y1)
-      };
-  
-      const outPng = path.join(OUT_DIR, `${fileStem}_face${idx}.png`);
-  
-      await sharp(filePath)
-        .extract(box)
-        .resize(112,112)          // keep - for now no alignment
+    for (const face of faces) {
+        //const [x1,y1,x2,y2] = f.box.map(Math.round);// integer-ise & clamp to image bounds
+        const { boxBigger, kpsBigger } = PAD_FACE
+            ? scaleFaceBox({ width, height }, face.box, face.kps, 0.18)
+            : { boxBigger: face.box, kpsBigger: face.kps };
+
+
+        // const { boxBigger } =
+        //   scaleFaceBox({ width, height }, face.box, face.kps, 0.18);
+
+        const [x1, y1, x2, y2] = boxBigger.map(Math.round);
+
+        await sharp(filePath)
+        .extract({
+            left  : Math.max(0, x1),
+            top   : Math.max(0, y1),
+            width : Math.max(1, x2 - x1),
+            height: Math.max(1, y2 - y1)
+        })
+        .resize(112, 112)        // still square-resize for now
         .png()
-        .toFile(outPng);
-  
-      ++idx;
+        .toFile(path.join(OUT_DIR, `${fileStem}_face${idx}.png`));
+
+        ++idx;
     }
-  
+
     return faces.length;          // let caller know how many we saved
-  }
+}
   
 
 
+export function scaleFaceBox(
+    img: { width:number; height:number },
+    box: number[],
+    kps: number[],
+    margin = 0.15
+) {
+    let [x1,y1,x2,y2] = box;
+    const w = x2 - x1, h = y2 - y1;
 
+    x1 = Math.max(0, x1 - w*margin);
+    y1 = Math.max(0, y1 - h*margin);
+    x2 = Math.min(img.width , x2 + w*margin);
+    y2 = Math.min(img.height, y2 + h*margin);
+
+    const kNew = kps.slice();
+    for (let i=0;i<5;++i){
+        kNew[2*i]   = Math.min(Math.max(kNew[2*i]  , x1), x2);
+        kNew[2*i+1] = Math.min(Math.max(kNew[2*i+1], y1), y2);
+    }
+    return { boxBigger:[x1,y1,x2,y2], kpsBigger:kNew };
+}
 
 
 
