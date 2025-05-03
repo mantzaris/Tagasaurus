@@ -117,11 +117,10 @@ export async function processTempFiles(
       //FACE EMBEDDINGS
       if (inferredFileType.startsWith('image/')) {
         const embs = await processFacesOnImage(tempFilePath);   // <- see below
-        console.log(`saved ${embs}`);
-        // embs.forEach((emb, idx) => {
-        //   console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
-        //               Array.from(emb.slice(0, 8)));
-        // });
+        embs.forEach((emb, idx) => {
+          console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
+                      Array.from(emb.slice(0, 8)));
+        });
         // TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
       }
       //

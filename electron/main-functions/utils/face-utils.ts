@@ -1,9 +1,9 @@
 import * as ort   from 'onnxruntime-node';
 import nudged     from 'nudged';
 import * as path  from 'path';
-import * as fs    from 'fs/promises';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+// import * as fs    from 'fs/promises';
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
@@ -28,9 +28,9 @@ const CANONICAL_112: Point[] = [
   {x:70.7299, y:92.2041}
 ];
 
-
 const SIGM = (x:number) => 1/(1+Math.exp(-x));
 const STRIDES = [8, 16, 32];
+
 
 export async function faceSetupOnce(): Promise<void> {
     if (scrfdSess && arcSess) return;
@@ -139,7 +139,11 @@ async function preprocessNode(filePath: string) {
     }
   
     const tensor = new ort.Tensor('float32', f32, [1,3,SIDE,SIDE]);
-    return { tensor, scale, dx:0, dy:0, side:SIDE, width: w, height: h };
+    // return { tensor, scale, dx:0, dy:0, side:SIDE, width: w, height: h };
+
+    const rw = (rot % 180 === 90) ? h : w;
+    const rh = (rot % 180 === 90) ? w : h;
+    return { tensor, scale, dx:0, dy:0, side:SIDE, width: rw, height: rh };
 }
 
 
@@ -153,7 +157,7 @@ async function preprocessNode(filePath: string) {
  * @param SIDE   side of the square canvas (default 640)
  * @param rotDeg clockwise rotation in degrees (0 / 90 / 180 / 270)
  */
-function ffmpegScalePadRaw(
+async function ffmpegScalePadRaw(
   file   : string,
   nw     : number,
   nh     : number,
@@ -200,7 +204,7 @@ function ffmpegScalePadRaw(
 
 
 //PUBLIC entry function for embeddings
-export async function processFacesOnImage(filePath: string) {
+export async function processFacesOnImage(filePath: string): Promise<Float32Array[]> {
 
     await faceSetupOnce();
 
@@ -213,12 +217,14 @@ export async function processFacesOnImage(filePath: string) {
 
     const faces = getFaces(detOut, scrfdSess, scale, dx, dy, side);
 
-    if (faces.length === 0) return 0; //no faces return
+    if (faces.length === 0) return []; //no faces return
 
     // await fs.mkdir(OUT_DIR, { recursive: true });
     // const fileStem = path.parse(filePath).name;
 
+    const embeddings: Float32Array[] = [];
     let idx = 0;
+
     for (const face of faces) {
         
         const { boxBigger, kpsBigger } =
@@ -259,6 +265,7 @@ export async function processFacesOnImage(filePath: string) {
         const embOut = await arcSess!.run({ [arcSess!.inputNames[0]]: tensor112 });
         const emb    = embOut[arcSess!.outputNames[0]].data as Float32Array;
         l2Normalize(emb);
+        embeddings.push(emb);
 
         // console.log(`face ${idx} emb[0..4] →`, Array.from(emb.slice(0,5)));
         // const norm = Math.sqrt(emb.reduce((s,x) => s + x*x, 0));
@@ -266,7 +273,7 @@ export async function processFacesOnImage(filePath: string) {
         ++idx;
     }
 
-    return faces.length;          // let caller know how many we saved
+    return embeddings;     
 }
   
 
