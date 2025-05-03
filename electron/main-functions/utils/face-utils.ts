@@ -3,7 +3,10 @@ import sharp      from 'sharp';//TODO: image-js fo no Libvips dependency
 import nudged     from 'nudged';
 import * as path  from 'path';
 import * as fs    from 'fs/promises';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
 
+ffmpeg.setFfmpegPath(ffmpegPath || "");
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
 
 const MODELS_DIR  = path.join(__dirname, '..', '..', '..', '..', 'models', 'buffalo_l');
@@ -111,7 +114,7 @@ function getFaces(
 async function preprocessNode(filePath: string) {
     const SIDE = 640;
   
-    const imgSharp = sharp(filePath).rotate();               // EXIF-aware
+    const imgSharp = sharp(filePath).rotate(); //TODO: no sharp              // EXIF-aware
     const meta      = await imgSharp.metadata();
     if (!meta.width || !meta.height) throw new Error('Cannot read image dims');
   
@@ -119,18 +122,7 @@ async function preprocessNode(filePath: string) {
     const nw    = Math.round(meta.width  * scale);
     const nh    = Math.round(meta.height * scale);
   
-    // resize, letter-box left-top (black pad right/bottom)
-    const paddedRGB = await imgSharp
-      .resize(nw, nh)
-      .extend({
-        top:    0,
-        left:   0,
-        bottom: SIDE - nh,
-        right:  SIDE - nw,
-        background: { r:0, g:0, b:0 }
-      })
-      .raw()
-      .toBuffer();
+    const paddedRGB = await ffmpegScalePadRaw(filePath, nw, nh, SIDE);
   
     /* ----------------------------------------------------- */
     /* build BGR Float32 CHW tensor with InsightFace scaling */
@@ -151,7 +143,38 @@ async function preprocessNode(filePath: string) {
     const tensor = new ort.Tensor('float32', f32, [1,3,SIDE,SIDE]);
     return { tensor, scale, dx:0, dy:0, side:SIDE, width: meta.width, height: meta.height };
 }
-  
+
+
+/**
+ * Produce a 640 × 640 RGB24 buffer with letter-boxing
+ */
+function ffmpegScalePadRaw(
+  file   : string,
+  nw     : number,
+  nh     : number,
+  SIDE   = 640
+): Promise<Buffer> {
+
+  // build the exact filter chain you had: scale → pad → rgb24
+  const vf = [
+    `scale=${nw}:${nh}:flags=lanczos+accurate_rnd+full_chroma_inp`,     // high-quality resize
+    `pad=${SIDE}:${SIDE}:0:0:black`,       // pad right/bottom with black
+    'format=rgb24'                         // return raw RGB24
+  ].join(',');
+
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    ffmpeg(file)
+      .outputOptions('-vf', vf, '-vframes', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24')
+      .on('error', reject)
+      .on('end', () => resolve(Buffer.concat(chunks)))
+      .pipe()                        // stdout → Node stream
+      .on('data', chunk => chunks.push(chunk));
+  });
+}
+
+
+
 /* ------------------------------------------------------------------ */
 /* 3.  PUBLIC entry: detect & crop faces                               */
 /* ------------------------------------------------------------------ */
@@ -200,14 +223,25 @@ export async function processFacesOnImage(filePath: string) {
             i % 2 === 0 ? v - leftInt : v - topInt);
 
 
-        await sharp(filePath)
-            .extract({ left: leftInt,
-                    top : topInt,
-                    width : sideInt,
-                    height: sideInt })
-            .resize(112,112)          // now square, zero distortion
-            .png()
-            .toFile(path.join(OUT_DIR, `${fileStem}_face${idx++}.png`));
+        await ffmpegCrop112(
+             filePath,
+            path.join(OUT_DIR, `${fileStem}_face${idx}.png`),
+             leftInt,
+             topInt,
+             sideInt
+           );        
+        
+        
+        const raw112    = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
+        const tensor112 = rgb24ToTensor112(raw112);
+        console.log(`face ${idx} tensor dims →`, tensor112.dims);  // should log [1,3,112,112]
+
+        const embOut = await arcSess!.run({ [arcSess!.inputNames[0]]: tensor112 });
+        const emb    = embOut[arcSess!.outputNames[0]].data as Float32Array;
+        l2Normalize(emb);
+        console.log(`face ${idx} emb[0..4] →`, Array.from(emb.slice(0,5)));
+        const norm = Math.sqrt(emb.reduce((s,x) => s + x*x, 0));
+        console.log(`face ${idx} L2 →`, norm.toFixed(3));
 
         ++idx;
     }
@@ -240,8 +274,74 @@ export function scaleFaceBox(
 }
 
 
+function ffmpegCrop112(
+  src : string,
+  dst : string,
+  left: number,
+  top : number,
+  side: number
+): Promise<void> {
+
+  const vf = `crop=${side}:${side}:${left}:${top},scale=112:112:flags=lanczos`;
+
+  return new Promise((res, rej) => {
+    ffmpeg(src)
+      .outputOptions(
+        '-vf',      vf,
+        '-frames:v','1',   // exactly one frame
+        '-c:v',     'png', // encode with PNG codec
+        '-pix_fmt', 'rgb24'
+      )
+      .save(dst)
+      .on('error', rej)
+      .on('end',   () => res());
+  });
+}
 
 
+function ffmpegCrop112Raw(
+  src : string,
+  left: number,
+  top : number,
+  side: number
+): Promise<Buffer> {
+
+  const vf = `crop=${side}:${side}:${left}:${top},scale=112:112:flags=lanczos`;
+
+  return new Promise((res, rej) => {
+    const chunks: Buffer[] = [];
+    ffmpeg(src)
+      .outputOptions(
+        '-vf',       vf,
+        '-frames:v', '1',
+        '-f',        'rawvideo',
+        '-pix_fmt',  'rgb24'
+      )
+      .on('error', rej)
+      .on('end', () => res(Buffer.concat(chunks)))
+      .pipe()
+      .on('data', c => chunks.push(c));
+  });
+}
 
 
+function rgb24ToTensor112(buf: Buffer): ort.Tensor {
+  const size = 112 * 112;
+  const f32  = new Float32Array(3 * size);
+  for (let i = 0; i < size; ++i) {
+    const r = buf[i*3    ];
+    const g = buf[i*3 + 1];
+    const b = buf[i*3 + 2];
+    f32[i]          = (b - 127.5) / 128;   // B
+    f32[i +   size] = (g - 127.5) / 128;   // G
+    f32[i + 2*size] = (r - 127.5) / 128;   // R
+  }
+  return new ort.Tensor('float32', f32, [1, 3, 112, 112]);
+}
 
+function l2Normalize(v: Float32Array) {
+  let sum = 0;
+  for (let i = 0; i < v.length; ++i) sum += v[i] * v[i];
+  const inv = 1 / Math.sqrt(sum || 1);
+  for (let i = 0; i < v.length; ++i) v[i] *= inv;
+}
