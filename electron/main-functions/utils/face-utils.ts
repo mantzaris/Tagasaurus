@@ -1,5 +1,4 @@
 import * as ort   from 'onnxruntime-node';
-import sharp      from 'sharp';//TODO: image-js fo no Libvips dependency
 import nudged     from 'nudged';
 import * as path  from 'path';
 import * as fs    from 'fs/promises';
@@ -114,15 +113,14 @@ function getFaces(
 async function preprocessNode(filePath: string) {
     const SIDE = 640;
   
-    const imgSharp = sharp(filePath).rotate(); //TODO: no sharp              // EXIF-aware
-    const meta      = await imgSharp.metadata();
-    if (!meta.width || !meta.height) throw new Error('Cannot read image dims');
-  
-    const scale = Math.min(SIDE/meta.width, SIDE/meta.height);
-    const nw    = Math.round(meta.width  * scale);
-    const nh    = Math.round(meta.height * scale);
-  
-    const paddedRGB = await ffmpegScalePadRaw(filePath, nw, nh, SIDE);
+    const { w, h, rot } = await ffprobeDims(filePath);
+
+    const scale = Math.min(SIDE / w, SIDE / h);
+    const nw    = Math.round(w * scale);
+    const nh    = Math.round(h * scale);
+    
+    // pass rot (0, 90, 180, 270) to the helper
+    const paddedRGB = await ffmpegScalePadRaw(filePath, nw, nh, SIDE, rot);
   
     /* ----------------------------------------------------- */
     /* build BGR Float32 CHW tensor with InsightFace scaling */
@@ -141,37 +139,68 @@ async function preprocessNode(filePath: string) {
     }
   
     const tensor = new ort.Tensor('float32', f32, [1,3,SIDE,SIDE]);
-    return { tensor, scale, dx:0, dy:0, side:SIDE, width: meta.width, height: meta.height };
+    return { tensor, scale, dx:0, dy:0, side:SIDE, width: w, height: h };
 }
 
 
 /**
- * Produce a 640 × 640 RGB24 buffer with letter-boxing
+ * Resize to nw×nh, letter-box to SIDE×SIDE, optional EXIF rotation,
+ * return one raw rgb24 frame.
+ *
+ * @param file   absolute path of the source image
+ * @param nw     resized width  (already computed)
+ * @param nh     resized height (already computed)
+ * @param SIDE   side of the square canvas (default 640)
+ * @param rotDeg clockwise rotation in degrees (0 / 90 / 180 / 270)
  */
 function ffmpegScalePadRaw(
   file   : string,
   nw     : number,
   nh     : number,
-  SIDE   = 640
+  SIDE   = 640,
+  rotDeg : number = 0
 ): Promise<Buffer> {
 
-  // build the exact filter chain you had: scale → pad → rgb24
-  const vf = [
-    `scale=${nw}:${nh}:flags=lanczos+accurate_rnd+full_chroma_inp`,     // high-quality resize
-    `pad=${SIDE}:${SIDE}:0:0:black`,       // pad right/bottom with black
-    'format=rgb24'                         // return raw RGB24
-  ].join(',');
+  /* -------- build filter chain ---------------------------------- */
+
+  const filters: string[] = [];
+
+  // 1) handle rotation if needed  (ffprobe's 'rotate' is clockwise)
+  switch (rotDeg % 360) {
+    case 90:  filters.push('transpose=1'); break;   // CW
+    case 180: filters.push('transpose=1,transpose=1'); break;
+    case 270: filters.push('transpose=2'); break;   // CCW
+    default:  /* 0 → no filter */ ;
+  }
+  
+
+  // 2) resize, pad, and convert to rgb24
+  filters.push(
+    `scale=${nw}:${nh}:flags=lanczos+accurate_rnd+full_chroma_inp`,
+    `pad=${SIDE}:${SIDE}:0:0:black`,
+    'format=rgb24'
+  );
+
+  const vf = filters.join(',');
+
+  /* -------- run FFmpeg ------------------------------------------ */
 
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     ffmpeg(file)
-      .outputOptions('-vf', vf, '-vframes', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24')
+      .outputOptions(
+        '-vf',        vf,
+        '-vframes',   '1',
+        '-f',         'rawvideo',
+        '-pix_fmt',   'rgb24'
+      )
       .on('error', reject)
       .on('end', () => resolve(Buffer.concat(chunks)))
-      .pipe()                        // stdout → Node stream
+      .pipe()
       .on('data', chunk => chunks.push(chunk));
   });
 }
+
 
 
 
@@ -424,3 +453,19 @@ function mathInverse(m:number[][]){
   ];
 }
 
+
+
+/** read dimensions + rotation once via ffprobe (no Sharp) */
+function ffprobeDims(file: string): Promise<{ w: number; h: number; rot: number }> {
+  return new Promise((res, rej) => {
+    ffmpeg.ffprobe(file, (err, meta) => {
+      if (err) return rej(err);
+      const stream =
+        meta.streams.find(s => s.codec_type === 'video' || s.codec_type === 'image');
+      if (!stream?.width || !stream?.height)
+        return rej(new Error('ffprobe: no dimensions'));
+      const rot = +(stream.tags?.rotate ?? 0);   // EXIF orientation
+      res({ w: stream.width, h: stream.height, rot });
+    });
+  });
+}
