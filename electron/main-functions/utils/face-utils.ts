@@ -232,7 +232,9 @@ export async function processFacesOnImage(filePath: string) {
            );        
         
         
-        const raw112    = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
+        // const raw112    = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
+        const raw112 = await ffmpegAligned112Raw(filePath, kpsLocal);
+
         const tensor112 = rgb24ToTensor112(raw112);
         console.log(`face ${idx} tensor dims →`, tensor112.dims);  // should log [1,3,112,112]
 
@@ -345,3 +347,80 @@ function l2Normalize(v: Float32Array) {
   const inv = 1 / Math.sqrt(sum || 1);
   for (let i = 0; i < v.length; ++i) v[i] *= inv;
 }
+
+
+
+//--------------------------
+
+/**
+ * Build an FFmpeg perspective filter that maps the 112×112
+ * canonical template onto the source image via 5-point similarity.
+ */
+function ffmpegAligned112Raw(
+  src : string,
+  kps : number[]          // 10 numbers, full-image coords
+): Promise<Buffer> {
+
+  // 1. canonical InsightFace template -------------------------
+  const CAN112 = [
+    {x:38.2946, y:51.6963},
+    {x:73.5318, y:51.5014},
+    {x:56.0252, y:71.7366},
+    {x:41.5493, y:92.3655},
+    {x:70.7299, y:92.2041}
+  ];
+
+  // 2. landmarks detected on current face ---------------------
+  const srcPts = [0,2,4,6,8].map(i => ({x:kps[i], y:kps[i+1]}));
+
+  // 3. similarity transform using nudged ----------------------
+  const tfm = nudged.estimators.TSR(srcPts, CAN112);      // src → dst
+  const M = nudged.transform.toMatrix(tfm);               // a,b,c,d,e,f
+
+  // 4. convert to 3×3 matrix and invert (FFmpeg needs dst→src)
+  const A = [ [M.a,M.c,M.e],
+              [M.b,M.d,M.f],
+              [0 ,  0 , 1 ] ];
+  const inv = mathInverse(A);  // use a tiny 3×3 inverse helper
+
+  // 5. sample coordinates of output corners back in input img
+  const map = (x:number,y:number) => {
+    const u = inv[0][0]*x + inv[0][1]*y + inv[0][2];
+    const v = inv[1][0]*x + inv[1][1]*y + inv[1][2];
+    const w = inv[2][0]*x + inv[2][1]*y + inv[2][2];
+    return [u/w, v/w];
+  };
+  const [x0,y0] = map(0,0);
+  const [x1,y1] = map(111,0);
+  const [x2,y2] = map(111,111);
+  const [x3,y3] = map(0,111);
+
+  const vf = `perspective=` +
+             `x0=${x0}:y0=${y0}:x1=${x1}:y1=${y1}:` +
+             `x2=${x2}:y2=${y2}:x3=${x3}:y3=${y3},` +
+             `scale=112:112:flags=lanczos`;
+
+  // 6. run FFmpeg and return raw rgb24 bytes ------------------
+  return new Promise((res,rej)=>{
+    const chunks:Buffer[]=[];
+    ffmpeg(src)
+      .outputOptions('-vf',vf,'-frames:v','1','-f','rawvideo','-pix_fmt','rgb24')
+      .on('error',rej)
+      .on('end',()=>res(Buffer.concat(chunks)))
+      .pipe()
+      .on('data',c=>chunks.push(c));
+  });
+}
+
+/* very small 3×3 inverse; paste near your helpers */
+function mathInverse(m:number[][]){
+  const [a,b,c] = m[0], [d,e,f] = m[1], [g,h,i] = m[2];
+  const det = a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g);
+  const invDet = 1/det;
+  return [
+    [(e*i-f*h)*invDet, (c*h-b*i)*invDet, (b*f-c*e)*invDet],
+    [(f*g-d*i)*invDet, (a*i-c*g)*invDet, (c*d-a*f)*invDet],
+    [(d*h-e*g)*invDet, (b*g-a*h)*invDet, (a*e-b*d)*invDet]
+  ];
+}
+
