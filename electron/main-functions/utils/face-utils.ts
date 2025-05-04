@@ -3,7 +3,11 @@ import nudged     from 'nudged';
 import * as path  from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
-// import * as fs    from 'fs/promises';
+import * as fs    from 'fs/promises';
+
+import { GifReader } from 'omggif';
+import WebP from 'node-webpmux';
+
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
@@ -111,7 +115,6 @@ function getFaces(
 }
   
 
-//sharp-based preprocessing   -> 640×640 Float32 CHW tensor
 async function preprocessNode(filePath: string) {
     const SIDE = 640;
   
@@ -407,52 +410,47 @@ function ffprobeDims(file: string): Promise<{ w: number; h: number; rot: number 
 
 
 
-// function ffmpegCrop112Raw(
-//   src : string,
-//   left: number,
-//   top : number,
-//   side: number
-// ): Promise<Buffer> {
+//--------------------------
+//GIF STUFF
+export async function analyseAnimated(file: string, mime: string) {
+  let total = 1;
 
-//   const vf = `crop=${side}:${side}:${left}:${top},scale=112:112:flags=lanczos`;
+  if (mime === 'image/gif') {
+    total = await countGifFrames(file);
+  } else if (mime === 'image/webp') {
+    total = await countWebPFrames(file);
+  } else {
+    throw new Error(`analyseAnimated: unsupported mime ${mime}`);
+  }
 
-//   return new Promise((res, rej) => {
-//     const chunks: Buffer[] = [];
-//     ffmpeg(src)
-//       .outputOptions(
-//         '-vf',       vf,
-//         '-frames:v', '1',
-//         '-f',        'rawvideo',
-//         '-pix_fmt',  'rgb24'
-//       )
-//       .on('error', rej)
-//       .on('end', () => res(Buffer.concat(chunks)))
-//       .pipe()
-//       .on('data', c => chunks.push(c));
-//   });
-// }
+  const picks = chooseFrames(total);
+  console.log(`animated: ${total} frames → sample`, picks);
+  return { total, frames: picks };
+}
 
+function chooseFrames(total: number): number[] {
+  const maxFrames = 150;
+  const wanted    = Math.min(maxFrames, Math.max(1, Math.ceil(total / 20)));
 
-// function ffmpegCrop112(
-//   src : string,
-//   dst : string,
-//   left: number,
-//   top : number,
-//   side: number
-// ): Promise<void> {
+  const step = total / wanted;        // float
+  const picks: number[] = [];
+  for (let i = 0; i < wanted; ++i) picks.push(Math.floor(i * step));
 
-//   const vf = `crop=${side}:${side}:${left}:${top},scale=112:112:flags=lanczos`;
+  // Ensure last frame is included
+  if (picks[picks.length - 1] !== total - 1) picks.push(total - 1);
 
-//   return new Promise((res, rej) => {
-//     ffmpeg(src)
-//       .outputOptions(
-//         '-vf',      vf,
-//         '-frames:v','1',   // exactly one frame
-//         '-c:v',     'png', // encode with PNG codec
-//         '-pix_fmt', 'rgb24'
-//       )
-//       .save(dst)
-//       .on('error', rej)
-//       .on('end',   () => res());
-//   });
-// }
+  return picks;
+}
+
+export async function countWebPFrames(path: string) {
+  const img = new WebP.Image();
+  await img.load(path);
+  return img.frameCount;                     // 0 ⇒ not animated
+}
+
+export async function countGifFrames(path: string) {
+  const buf = await fs.readFile(path);
+  const reader = new GifReader(buf);
+  return reader.numFrames();                 // integer frame count
+}
+

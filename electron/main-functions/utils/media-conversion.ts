@@ -2,8 +2,10 @@ import * as path from "path";
 import { randomBytes } from "crypto";
 
 import sharp from 'sharp';
-import ffmpeg from 'fluent-ffmpeg';
+import ffmpeg, { FfprobeData } from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import isAnimated from 'is-animated';
+import { readFile } from 'node:fs/promises';
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
@@ -247,92 +249,19 @@ export function convertAnimatedToGif(
     });
 }
   
-async function detectAnimation(filePath: string) {
-    //first attempt with sharp, faster but less reliable, can produce false negatives
-    try {
-      const metadata = await sharp(filePath).metadata();
-      return (metadata.pages ?? 1) > 1;
-    } catch (sharpError) {
-      console.warn("sharp error reading metadata, falling back to ffprobe:", sharpError);
-    }
-  
-    //then a fallback to ffprobe, slower, but more reliable, has to spawn process
-    try {
-      return await isAnimatedImageFFmpeg(filePath);
-    } catch (ffmpegError) {
-      console.error("Failed to run ffprobe:", ffmpegError);
-      return false;
-    }
+
+
+
+export async function detectAnimation(filePath: string): Promise<boolean> {
+  console.log("foo")
+  const buf = await readFile(filePath);     // Buffer
+  return isAnimated(buf);
 }
+
   
-export async function isAnimatedImageFFmpeg(filePath: string): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      ffmpeg.ffprobe(filePath, (err, metadata) => {
-        if (err) {
-          return reject(err);
-        }
-  
-        let totalFrames = 0;
-        metadata.streams.forEach((stream) => {
-          if (stream.nb_frames) {
-            totalFrames += parseInt(stream.nb_frames, 10);
-          }
-        });
-        //totalFrames > 1, treat it as animated
-        resolve(totalFrames > 1);
-      });
-    });
-}
+
   
   
-  //reliable but slower needing ffmpeg each time
-  // async function detectAnimation(filePath: string): Promise<boolean> {
-  //   try {
-  //     return await isAnimatedImageFFmpeg(filePath);
-  //   } catch (err) {
-  //     console.error("Failed to run ffprobe:", err);
-  //     return false;
-  //   }
-  // }
-  
-  // export async function isAnimatedImageFFmpeg(filePath: string): Promise<boolean> {
-  //   return new Promise((resolve, reject) => {
-  //     ffmpeg.ffprobe(filePath, (err, metadata) => {
-  //       if (err) {
-  //         return reject(err);
-  //       }
-  
-  //       let totalFrames = 0;
-  //       metadata.streams.forEach((stream) => {
-  //         if (stream.nb_frames) {
-  //           totalFrames += parseInt(stream.nb_frames, 10);
-  //         }
-  //       });
-  
-  //       // If totalFrames > 1 => definitely animated
-  //       if (totalFrames > 1) {
-  //         return resolve(true);
-  //       }
-  
-  //       // Otherwise, do a quick fallback check for "video" streams with durations
-  //       const videoStreams = metadata.streams.filter(
-  //         (s) => s.codec_type === 'video' || s.codec_type === 'data'
-  //       );
-  
-  //       const mightBeAnimated = videoStreams.some((stream) => {
-  //         if (
-  //           stream.duration &&
-  //           !['mjpeg', 'png', 'bmp', 'tiff'].includes(stream.codec_name)
-  //         ) {
-  //           return true;
-  //         }
-  //         return false;
-  //       });
-  
-  //       resolve(mightBeAnimated);
-  //     });
-  //   });
-  // }
   
 
 
