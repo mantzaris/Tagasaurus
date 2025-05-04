@@ -87,17 +87,22 @@ export const defaultDBConfigFileQueue: DBConfigFileQueue = {
 
 
 export async function initTagaFolders() {
+  console.log('--01-a');
     const { tagaDir, mediaDir, tempDir, dataDir, created } = await checkTagasaurusDirectories();
+    console.log('--01-b');
     console.log("TagasaurusFiles Directory:", tagaDir);
     
     if(created) {
-      copyInitMediaToTemp(tempDir).catch((error) => {
+      console.log('--01-c');
+      await copyInitMediaToTemp(tempDir).catch((error) => {
           console.error("Error copying init media to TempFiles:", error);
       });
+      console.log('--01-d');
     }
 
     if (created) {
       try {
+        console.log('--01-e');
         await setupDB(dataDir, defaultDBConfig);
       } catch (error) {
         console.error("Error creating DB:", error);
@@ -106,7 +111,9 @@ export async function initTagaFolders() {
     
     if (created) {
       try {
+        console.log('--01-f');
         await setupFileQueueDB(dataDir, defaultDBConfigFileQueue);
+        console.log('--01-g');
       } catch (error) {
         console.error("Error creating file queue DB:", error);
       }
@@ -261,6 +268,7 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
     } catch (error) {
         console.error("Failed to copy init-media:", error);
     }
+    console.log('--01-c-a');
 }
 
 
@@ -412,35 +420,36 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
 }
 
 
-async function setupFileQueueDB(dbDir: string, config: DBConfigFileQueue = defaultDBConfigFileQueue): Promise<void> {
-  const dbPath = join(dbDir, config.dbName);
-  const db = new Database(dbPath);
-
-  const { tables, columns } = config;
+async function setupFileQueueDB(
+  dbDir: string,
+  cfg: DBConfigFileQueue = defaultDBConfigFileQueue,
+): Promise<void> {
+  const dbPath = join(dbDir, cfg.dbName);
+  const db     = new Database(dbPath);
+  const { tables, columns } = cfg;
 
   try {
-    await db.exec(`BEGIN TRANSACTION;`);
-
+    await db.exec('BEGIN TRANSACTION;');
     await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.newPaths} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.newPaths.path} TEXT UNIQUE
       );
     `);
-
     await db.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.newFilePaths} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.newFilePaths.path} TEXT UNIQUE
       );
     `);
-
-    await db.exec(`COMMIT;`);
-  } catch (error) {
-    console.error("Error setting up file queue DB:", error);
-    await db.exec(`ROLLBACK;`);
+    await db.exec('COMMIT;');
+  } catch (err) {
+    console.error('Error setting up file queue DB:', err);
+    await db.exec('ROLLBACK;');
   } finally {
-    await db.close();
+    console.log('--01-f-c-a');
+    // db.close();
+    console.log('--01-f-d');
   }
 }
 

@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
+import { once } from "node:events"; 
 import electronReload from "electron-reload";
+
 import { join } from "path";
 
 import Database from "libsql/promise";
@@ -32,9 +34,11 @@ let sampleMediaFiles: MediaFile[];
 
 //single initialization point
 async function initialize() {
+  console.log('--01');
   await initTagaFolders();
-  
+  console.log('--02');
   const dirs = await checkTagasaurusDirectories();
+  console.log('--03');
   tagaDir = dirs.tagaDir;
   mediaDir = dirs.mediaDir;
   tempDir = dirs.tempDir;
@@ -43,14 +47,14 @@ async function initialize() {
   //init databases
   dbPath = join(dataDir, defaultDBConfig.dbName);
   dbPath_fileQueue = join(dataDir, defaultDBConfigFileQueue.dbName);
-  
+  console.log('--04');
   db = new Database(dbPath);
   db_fileQueue = new Database(dbPath_fileQueue);
   await db.exec(`
     PRAGMA synchronous = FULL;
     PRAGMA foreign_keys = ON;
   `);
-  
+  console.log('--05');
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }
 
@@ -109,14 +113,15 @@ async function main() {
 
 
 app.once("ready", async () => {
+  console.log('ready**')
   try {
+    console.log('ready')
     await initialize(); //initialize directories and DBs
-
-    await main(); //create the BrowserWindow
-
     processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
       console.error("Background processing error:", err)
     );
+    console.log('ready 2')
+    await main(); //create the BrowserWindow
 
     sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
   } catch (error) {
@@ -124,24 +129,26 @@ app.once("ready", async () => {
   }
 });
 app.on("activate", async () => {
+  console.log('activate**')
   if (BrowserWindow.getAllWindows().length === 0) {
     try {
-      await main();
-    
       if (!db) {
         await initialize();
       }
-  
+      console.log('active')
       processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
         console.error("Background processing error:", err)
       );
-
+      console.log('active 2')
+      await main();
+    
       sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
     } catch (error) {
       console.error("error during application activate = ", error);
     }
   }
 }); //macOS
+
 
 
 
@@ -232,6 +239,7 @@ async function enqueueIngest(
   mediaDir: string,
   mainWindow: BrowserWindow
 ) {
+  console.log("enqueue ingeest")
   //user dropped files while an ingest is still running
   if (ingestRunning) {
     ingestAgain = true;

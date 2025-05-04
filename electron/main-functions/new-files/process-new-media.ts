@@ -7,7 +7,7 @@ import { type Database } from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
 
 import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
-import { convertMediaFile, detectAnimation, isAllowedFileType } from "../utils/media-conversion";
+import { convertMediaFile,  isAllowedFileType } from "../utils/media-conversion"; //detectAnimation
 import { MediaFile } from "../../types/dbConfig";
 import { analyseAnimated, faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
 
@@ -35,7 +35,9 @@ export async function processTempFiles(
   mainWindow: BrowserWindow
 ): Promise<void> {
 
+  console.log('before face setup once')
   await faceSetupOnce();
+  console.log('after face setup once')
 
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
@@ -79,6 +81,7 @@ export async function processTempFiles(
 
   const dir = await fs.promises.opendir(tempDir);
   for await (const dirent of dir) {
+    console.log(`dirent = ${dirent}`)
     if (!dirent.isFile()) continue;  
     let tempFile = dirent.name;
     let tempFilePath = path.join(tempDir, tempFile);
@@ -117,28 +120,28 @@ export async function processTempFiles(
       }
       console.log('---------05')
       //FACE EMBEDDINGS
-      if (inferredFileType.startsWith('image/')) {        
-        console.log('---------06');
-        const isAnimated = await detectAnimation(tempFilePath);
-        console.log(`isAnimated = ${isAnimated}`);
-        if (isAnimated) {
-          console.log('---------07  animated image');
-          try {
-            await analyseAnimated(tempFilePath, inferredFileType);           // ← await it
-          } catch (err) {
-            console.error('analyseAnimated failed:', err);
-          }
-          return;                                         // stop further handling
-        } else {
-          console.log('---------08')
-          const embs = await processFacesOnImage(tempFilePath);   // <- see below
-          embs.forEach((emb, idx) => {
-            console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
-                        Array.from(emb.slice(0, 8)));
-          });
-        }
+      // if (inferredFileType.startsWith('image/')) {        
+      //   console.log('---------06');
+      //   const isAnimated = await detectAnimation(tempFilePath);
+      //   console.log(`isAnimated = ${isAnimated}`);
+      //   if (isAnimated) {
+      //     console.log('---------07  animated image');
+      //     try {
+      //       await analyseAnimated(tempFilePath, inferredFileType);           // ← await it
+      //     } catch (err) {
+      //       console.error('analyseAnimated failed:', err);
+      //     }
+      //     return;                                         // stop further handling
+      //   } else {
+      //     console.log('---------08')
+      //     const embs = await processFacesOnImage(tempFilePath);   // <- see below
+      //     embs.forEach((emb, idx) => {
+      //       console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
+      //                   Array.from(emb.slice(0, 8)));
+      //     });
+      //   }
         
-      }
+      // }
       // TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
       //TODO: fail here should be handled not just transaction failure
 

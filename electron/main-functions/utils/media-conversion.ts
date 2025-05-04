@@ -228,35 +228,93 @@ async function convertToPngViaFfmpeg(inputPath: string, outputPath: string): Pro
 /**
  * convert animated image to animated GIF with ffmpeg
  */
-export function convertAnimatedToGif(
-    inputPath: string,
-    outputPath: string
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      ffmpeg(inputPath)
-        .outputOptions([
-          '-an',
-          '-filter_complex',
-          '[0:v] split [a][b];' +
-            '[a] palettegen=stats_mode=single [p];' +
-            '[b][p] paletteuse=dither=bayer:bayer_scale=5',
-          '-loop 0'
-        ])
-        .output(outputPath)
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .run();
-    });
-}
+// export function convertAnimatedToGif(
+//     inputPath: string,
+//     outputPath: string
+//   ): Promise<void> {
+//     return new Promise((resolve, reject) => {
+//       ffmpeg(inputPath)
+//         .outputOptions([
+//           '-an',
+//           '-filter_complex',
+//           '[0:v] split [a][b];' +
+//             '[a] palettegen=stats_mode=single [p];' +
+//             '[b][p] paletteuse=dither=bayer:bayer_scale=5',
+//           '-loop 0'
+//         ])
+//         .output(outputPath)
+//         .on('end', () => resolve())
+//         .on('error', (err) => reject(err))
+//         .run();
+//     });
+// }
   
+//TODO: CHANGE BACK
 
 
-
-export async function detectAnimation(filePath: string): Promise<boolean> {
-  console.log("foo")
-  const buf = await readFile(filePath);     // Buffer
-  return isAnimated(buf);
+export function convertAnimatedToGif(
+  inputPath: string,
+  outputPath: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .outputOptions([
+        '-an',
+        '-filter_complex',
+        '[0:v] split [a][b];' +
+          '[a] palettegen=stats_mode=single [p];' +
+          '[b][p] paletteuse=dither=bayer:bayer_scale=5',
+        '-loop 0'
+      ])
+      .output(outputPath)
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
+      .run();
+  });
 }
+
+async function detectAnimation(filePath: string) {
+  //first attempt with sharp, faster but less reliable, can produce false negatives
+  try {
+    const metadata = await sharp(filePath).metadata();
+    return (metadata.pages ?? 1) > 1;
+  } catch (sharpError) {
+    console.warn("sharp error reading metadata, falling back to ffprobe:", sharpError);
+  }
+
+  //then a fallback to ffprobe, slower, but more reliable, has to spawn process
+  try {
+    return await isAnimatedImageFFmpeg(filePath);
+  } catch (ffmpegError) {
+    console.error("Failed to run ffprobe:", ffmpegError);
+    return false;
+  }
+}
+
+export async function isAnimatedImageFFmpeg(filePath: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        return reject(err);
+      }
+
+      let totalFrames = 0;
+      metadata.streams.forEach((stream) => {
+        if (stream.nb_frames) {
+          totalFrames += parseInt(stream.nb_frames, 10);
+        }
+      });
+      //totalFrames > 1, treat it as animated
+      resolve(totalFrames > 1);
+    });
+  });
+}
+
+// export async function detectAnimation(filePath: string): Promise<boolean> {
+//   console.log("foo")
+//   const buf = await readFile(filePath);     // Buffer
+//   return isAnimated(buf);
+// }
 
   
 
