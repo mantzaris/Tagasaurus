@@ -6,7 +6,7 @@ import { join } from "path";
 
 import Database from "libsql/promise";
 
-import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFolders, checkTagasaurusDirectories } from "./main-functions/initialization/init";
+import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFoldersAndDBSetups, checkTagasaurusDirectories } from "./main-functions/initialization/init";
 import { processTempFiles } from "./main-functions/new-files/process-new-media";
 import { addNewPaths } from "./main-functions/new-files/file-queue";
 import { getRandomEntries } from "./main-functions/db-operations/random-entries";
@@ -34,27 +34,31 @@ let sampleMediaFiles: MediaFile[];
 
 //single initialization point
 async function initialize() {
-  console.log('--01');
-  await initTagaFolders();
-  console.log('--02');
+  console.log('--00');
   const dirs = await checkTagasaurusDirectories();
-  console.log('--03');
   tagaDir = dirs.tagaDir;
   mediaDir = dirs.mediaDir;
   tempDir = dirs.tempDir;
   dataDir = dirs.dataDir;
-  
+  const created = dirs.created;
+  console.log('--00a');
   //init databases
   dbPath = join(dataDir, defaultDBConfig.dbName);
   dbPath_fileQueue = join(dataDir, defaultDBConfigFileQueue.dbName);
-  console.log('--04');
+  console.log('--00b');
   db = new Database(dbPath);
   db_fileQueue = new Database(dbPath_fileQueue);
   await db.exec(`
     PRAGMA synchronous = FULL;
     PRAGMA foreign_keys = ON;
   `);
-  console.log('--05');
+  console.log('--01');
+  await initTagaFoldersAndDBSetups(db, db_fileQueue, created);
+  console.log('--02');
+  console.log('--03');
+
+
+  console.log('--04');
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }
 
@@ -117,11 +121,14 @@ app.once("ready", async () => {
   try {
     console.log('ready')
     await initialize(); //initialize directories and DBs
+    await main(); //create the BrowserWindow
+    
+    console.log('ready2')
     processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
       console.error("Background processing error:", err)
     );
     console.log('ready 2')
-    await main(); //create the BrowserWindow
+    
 
     sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
   } catch (error) {

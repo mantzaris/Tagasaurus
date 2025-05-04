@@ -86,12 +86,12 @@ export const defaultDBConfigFileQueue: DBConfigFileQueue = {
 }
 
 
-export async function initTagaFolders() {
+export async function initTagaFoldersAndDBSetups(db: Database, db_fileQueue: Database, created: boolean) {
   console.log('--01-a');
-    const { tagaDir, mediaDir, tempDir, dataDir, created } = await checkTagasaurusDirectories();
+    const { tagaDir, mediaDir, tempDir, dataDir } = await checkTagasaurusDirectories();
     console.log('--01-b');
     console.log("TagasaurusFiles Directory:", tagaDir);
-    
+    console.log(`created = ${created}`)
     if(created) {
       console.log('--01-c');
       await copyInitMediaToTemp(tempDir).catch((error) => {
@@ -103,7 +103,8 @@ export async function initTagaFolders() {
     if (created) {
       try {
         console.log('--01-e');
-        await setupDB(dataDir, defaultDBConfig);
+        await setupDB(db, defaultDBConfig);
+        console.log('--01-e-end');
       } catch (error) {
         console.error("Error creating DB:", error);
       }
@@ -112,7 +113,7 @@ export async function initTagaFolders() {
     if (created) {
       try {
         console.log('--01-f');
-        await setupFileQueueDB(dataDir, defaultDBConfigFileQueue);
+        await setupFileQueueDB(db_fileQueue, defaultDBConfigFileQueue);
         console.log('--01-g');
       } catch (error) {
         console.error("Error creating file queue DB:", error);
@@ -268,14 +269,13 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
     } catch (error) {
         console.error("Failed to copy init-media:", error);
     }
-    console.log('--01-c-a');
+    console.log('copyInitMediaToTemp --01-c-a');
 }
 
 
 // DB INIT
-async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promise<void> {
-  const dbPath = join(dbDir, config.dbName);
-  const db = new Database(dbPath);
+async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promise<void> {
+  console.log('db setup 01')
   await db.exec(`PRAGMA journal_mode = WAL;`);
   await db.exec('PRAGMA foreign_keys = ON');
 
@@ -291,6 +291,7 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
       : `F16_BLOB(${meta.faceEmbeddingSize})`;
 
   try {
+    console.log('db setup 02')
     await db.exec(`BEGIN TRANSACTION;`);
 
     await db.exec(`
@@ -411,46 +412,40 @@ async function setupDB(dbDir: string, config: DBConfig = defaultDBConfig): Promi
     await fixMediaFilesRowCountIfZero(db, config);
 
     await db.exec(`COMMIT;`);
+    console.log('db setup 02 end')
   } catch (error) {
     console.error("Error setting up database:", error);
     await db.exec(`ROLLBACK;`);
-  } finally {
-    await db.close();
   }
 }
 
 
 async function setupFileQueueDB(
-  dbDir: string,
+  db_fileQueue: Database,
   cfg: DBConfigFileQueue = defaultDBConfigFileQueue,
 ): Promise<void> {
-  const dbPath = join(dbDir, cfg.dbName);
-  const db     = new Database(dbPath);
   const { tables, columns } = cfg;
-
+  console.log('setupFileQueueDB 01')
   try {
-    await db.exec('BEGIN TRANSACTION;');
-    await db.exec(`
+    await db_fileQueue.exec('BEGIN TRANSACTION;');
+    await db_fileQueue.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.newPaths} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.newPaths.path} TEXT UNIQUE
       );
     `);
-    await db.exec(`
+    await db_fileQueue.exec(`
       CREATE TABLE IF NOT EXISTS ${tables.newFilePaths} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.newFilePaths.path} TEXT UNIQUE
       );
     `);
-    await db.exec('COMMIT;');
+    await db_fileQueue.exec('COMMIT;');
   } catch (err) {
     console.error('Error setting up file queue DB:', err);
-    await db.exec('ROLLBACK;');
-  } finally {
-    console.log('--01-f-c-a');
-    // db.close();
-    console.log('--01-f-d');
+    await db_fileQueue.exec('ROLLBACK;');
   }
+  console.log('setupFileQueueDB 02')
 }
 
 

@@ -81,7 +81,7 @@ export async function processTempFiles(
 
   const dir = await fs.promises.opendir(tempDir);
   for await (const dirent of dir) {
-    console.log(`dirent = ${dirent}`)
+    console.log(`dirent = ${JSON.stringify(dirent)}`)
     if (!dirent.isFile()) continue;  
     let tempFile = dirent.name;
     let tempFilePath = path.join(tempDir, tempFile);
