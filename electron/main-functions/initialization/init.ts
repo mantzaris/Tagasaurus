@@ -87,24 +87,18 @@ export const defaultDBConfigFileQueue: DBConfigFileQueue = {
 
 
 export async function initTagaFoldersAndDBSetups(db: Database, db_fileQueue: Database, created: boolean) {
-  console.log('--01-a');
+    
     const { tagaDir, mediaDir, tempDir, dataDir } = await checkTagasaurusDirectories();
-    console.log('--01-b');
-    console.log("TagasaurusFiles Directory:", tagaDir);
-    console.log(`created = ${created}`)
+    
     if(created) {
-      console.log('--01-c');
       await copyInitMediaToTemp(tempDir).catch((error) => {
           console.error("Error copying init media to TempFiles:", error);
       });
-      console.log('--01-d');
     }
 
     if (created) {
       try {
-        console.log('--01-e');
         await setupDB(db, defaultDBConfig);
-        console.log('--01-e-end');
       } catch (error) {
         console.error("Error creating DB:", error);
       }
@@ -112,14 +106,11 @@ export async function initTagaFoldersAndDBSetups(db: Database, db_fileQueue: Dat
     
     if (created) {
       try {
-        console.log('--01-f');
         await setupFileQueueDB(db_fileQueue, defaultDBConfigFileQueue);
-        console.log('--01-g');
       } catch (error) {
         console.error("Error creating file queue DB:", error);
       }
     }
-
 }
 
 
@@ -269,13 +260,11 @@ async function copyInitMediaToTemp(dest: string): Promise<void> {
     } catch (error) {
         console.error("Failed to copy init-media:", error);
     }
-    console.log('copyInitMediaToTemp --01-c-a');
 }
 
 
 // DB INIT
 async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promise<void> {
-  console.log('db setup 01')
   await db.exec(`PRAGMA journal_mode = WAL;`);
   await db.exec('PRAGMA foreign_keys = ON');
 
@@ -291,7 +280,6 @@ async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promis
       : `F16_BLOB(${meta.faceEmbeddingSize})`;
 
   try {
-    console.log('db setup 02')
     await db.exec(`BEGIN TRANSACTION;`);
 
     await db.exec(`
@@ -412,11 +400,11 @@ async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promis
     await fixMediaFilesRowCountIfZero(db, config);
 
     await db.exec(`COMMIT;`);
-    console.log('db setup 02 end')
   } catch (error) {
     console.error("Error setting up database:", error);
     await db.exec(`ROLLBACK;`);
   }
+
 }
 
 
@@ -425,7 +413,6 @@ async function setupFileQueueDB(
   cfg: DBConfigFileQueue = defaultDBConfigFileQueue,
 ): Promise<void> {
   const { tables, columns } = cfg;
-  console.log('setupFileQueueDB 01')
   try {
     await db_fileQueue.exec('BEGIN TRANSACTION;');
     await db_fileQueue.exec(`
@@ -445,7 +432,7 @@ async function setupFileQueueDB(
     console.error('Error setting up file queue DB:', err);
     await db_fileQueue.exec('ROLLBACK;');
   }
-  console.log('setupFileQueueDB 02')
+
 }
 
 

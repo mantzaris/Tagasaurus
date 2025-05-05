@@ -26,6 +26,7 @@ let tagaDir: string;
 let mediaDir: string;
 let tempDir: string;
 let dataDir: string;
+let created: boolean;
 let db: Database;
 let db_fileQueue: Database;
 let dbPath: string;
@@ -34,31 +35,25 @@ let sampleMediaFiles: MediaFile[];
 
 //single initialization point
 async function initialize() {
-  console.log('--00');
-  const dirs = await checkTagasaurusDirectories();
+  const dirs = await checkTagasaurusDirectories(); //TODO: catch error
   tagaDir = dirs.tagaDir;
   mediaDir = dirs.mediaDir;
   tempDir = dirs.tempDir;
   dataDir = dirs.dataDir;
-  const created = dirs.created;
-  console.log('--00a');
+  created = dirs.created;
+  
   //init databases
   dbPath = join(dataDir, defaultDBConfig.dbName);
   dbPath_fileQueue = join(dataDir, defaultDBConfigFileQueue.dbName);
-  console.log('--00b');
   db = new Database(dbPath);
   db_fileQueue = new Database(dbPath_fileQueue);
   await db.exec(`
     PRAGMA synchronous = FULL;
     PRAGMA foreign_keys = ON;
   `);
-  console.log('--01');
+  
   await initTagaFoldersAndDBSetups(db, db_fileQueue, created);
-  console.log('--02');
-  console.log('--03');
 
-
-  console.log('--04');
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }
 
@@ -117,22 +112,25 @@ async function main() {
 
 
 app.once("ready", async () => {
-  console.log('ready**')
   try {
-    console.log('ready')
     await initialize(); //initialize directories and DBs
     await main(); //create the BrowserWindow
-    
-    console.log('ready2')
-    processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
-      console.error("Background processing error:", err)
-    );
-    console.log('ready 2')
-    
 
+    if(created) {
+      // await processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+      //   console.error("Background processing error:", err)
+      // );
+      await enqueueIngest(db, tempDir, mediaDir, mainWindow);
+    } else {
+      // processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+      //   console.error("Background processing error:", err)
+      // );
+      enqueueIngest(db, tempDir, mediaDir, mainWindow);
+    }
+    
     sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
   } catch (error) {
-    console.error("error on the app startup! :", error)
+    console.error("error on the app startup! :", error);
   }
 });
 app.on("activate", async () => {
@@ -142,11 +140,18 @@ app.on("activate", async () => {
       if (!db) {
         await initialize();
       }
-      console.log('active')
-      processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
-        console.error("Background processing error:", err)
-      );
-      console.log('active 2')
+      if(created) {
+        // await processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+        //   console.error("Background processing error:", err)
+        // );
+        await enqueueIngest(db, tempDir, mediaDir, mainWindow);
+      } else {
+        // processTempFiles(db, tempDir, mediaDir, mainWindow).catch(err => 
+        //   console.error("Background processing error:", err)
+        // );
+        enqueueIngest(db, tempDir, mediaDir, mainWindow);
+      }
+      
       await main();
     
       sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
@@ -246,7 +251,6 @@ async function enqueueIngest(
   mediaDir: string,
   mainWindow: BrowserWindow
 ) {
-  console.log("enqueue ingeest")
   //user dropped files while an ingest is still running
   if (ingestRunning) {
     ingestAgain = true;
@@ -264,7 +268,5 @@ async function enqueueIngest(
     ingestRunning = false;
   }
 }
-
-
 
 //allowing the gpu
