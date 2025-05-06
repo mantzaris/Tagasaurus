@@ -74,10 +74,8 @@ export async function processTempFiles(
     WHERE file_hash = ?
   `);
 
-  //const files = await fs.promises.readdir(tempDir); //list files needing processing
-  //for (const file of files) {
-    //let tempFile = file;
-    //let tempFilePath = path.join(tempDir, tempFile);
+  
+  console.log("beginning process-new-media.ts");
 
   const dir = await fs.promises.opendir(tempDir);
   for await (const dirent of dir) {
@@ -98,19 +96,22 @@ export async function processTempFiles(
 
       //not a duplicate => get fileType from extension      
       const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
-      let inferredFileType = result.mime;
-      console.log('-------01')
+      let inferredFileType = result.mime;      
+      console.log(`inferredFileType = ${inferredFileType} \n hash = ${hash}`);
+      
       if (!isAllowedFileType(inferredFileType)) {
-        console.log('---------02')
+        console.log('not allowed file type');
         const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
-        console.log('---------03')
-        if (!conversion) {
+        console.log(`conversion = ${JSON.stringify(conversion)}`);
+
+        if (!conversion) { //could not convert deleting file and continuing
+          console.log('could not convert, deleting file')
           await fs.promises.unlink(tempFilePath);
           continue;
         }
         
         if (conversion) {
-          console.log('---------04')
+          console.log('converted file');
           await fs.promises.unlink(tempFilePath);
           hash = await computeFileHash(conversion.newFilePath, defaultDBConfig.metadata.hashAlgorithm);
           tempFile = conversion.newFileName;
@@ -118,7 +119,7 @@ export async function processTempFiles(
           tempFilePath = path.join(tempDir, tempFile);
         }
       }
-      console.log('---------05')
+
       //FACE EMBEDDINGS
       // if (inferredFileType.startsWith('image/')) {        
       //   console.log('---------06');

@@ -4,8 +4,9 @@ import { randomBytes } from "crypto";
 import sharp from 'sharp';
 import ffmpeg, { FfprobeData } from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
-import isAnimated from 'is-animated';
+import isAnimated from '@frsource/is-animated';
 import { readFile } from 'node:fs/promises';
+import { detectAnimation } from "./detect-animation";
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
@@ -67,7 +68,7 @@ export async function convertMediaFile(
     fileName: string): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false> {
   
     if (mime.startsWith("image/")) {
-      return await convertImage(filePath,dirPath,fileName);
+      return await convertImage(mime, filePath, dirPath, fileName);
     }
 
     if (mime.startsWith("audio/")) {
@@ -171,6 +172,7 @@ export async function convertAudio(
  * @returns        object with { newFilePath, newFileName, newMime } if success; else false
  */
 export async function convertImage(
+    mime: string,
     filePath: string,
     dirPath: string,
     fileName: string
@@ -180,7 +182,7 @@ export async function convertImage(
       const randomSuffix = randomBytes(10).toString("hex");
       const { name: baseName } = path.parse(fileName);
   
-      const isAnimated = await detectAnimation(filePath);
+      const isAnimated = await detectAnimation(mime, filePath);
   
       if(!isAnimated) {
         const newFileName = `${baseName}_${randomSuffix}.png`;
@@ -200,7 +202,7 @@ export async function convertImage(
         
         const newMime = "image/png";
         return { newFilePath, newFileName, newMime };
-      } else {
+      } else { //TODO:
         const newFileName = `${baseName}_${randomSuffix}.gif`;
         const newFilePath = path.join(dirPath, newFileName);
         await convertAnimatedToGif(filePath, newFilePath);
@@ -273,50 +275,7 @@ export function convertAnimatedToGif(
   });
 }
 
-async function detectAnimation(filePath: string) {
-  //first attempt with sharp, faster but less reliable, can produce false negatives
-  try {
-    const metadata = await sharp(filePath).metadata();
-    return (metadata.pages ?? 1) > 1;
-  } catch (sharpError) {
-    console.warn("sharp error reading metadata, falling back to ffprobe:", sharpError);
-  }
 
-  //then a fallback to ffprobe, slower, but more reliable, has to spawn process
-  try {
-    return await isAnimatedImageFFmpeg(filePath);
-  } catch (ffmpegError) {
-    console.error("Failed to run ffprobe:", ffmpegError);
-    return false;
-  }
-}
-
-export async function isAnimatedImageFFmpeg(filePath: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(filePath, (err, metadata) => {
-      if (err) {
-        return reject(err);
-      }
-
-      let totalFrames = 0;
-      metadata.streams.forEach((stream) => {
-        if (stream.nb_frames) {
-          totalFrames += parseInt(stream.nb_frames, 10);
-        }
-      });
-      //totalFrames > 1, treat it as animated
-      resolve(totalFrames > 1);
-    });
-  });
-}
-
-// export async function detectAnimation(filePath: string): Promise<boolean> {
-//   console.log("foo")
-//   const buf = await readFile(filePath);     // Buffer
-//   return isAnimated(buf);
-// }
-
-  
 
   
   
