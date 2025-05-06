@@ -1,12 +1,9 @@
 import * as path from "path";
 import { randomBytes } from "crypto";
 
-import sharp from 'sharp';
 import ffmpeg, { FfprobeData } from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
-import isAnimated from '@frsource/is-animated';
-import { readFile } from 'node:fs/promises';
-import { detectAnimation } from "./detect-animation";
+import { convertAnimatedToGif, convertStillToPng, detectAnimation } from "./image";
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
@@ -184,28 +181,24 @@ export async function convertImage(
   
       const isAnimated = await detectAnimation(mime, filePath);
   
-      if(!isAnimated) {
+      if (!isAnimated) {
         const newFileName = `${baseName}_${randomSuffix}.png`;
         const newFilePath = path.join(dirPath, newFileName);
-        
-        try {
-          await sharp(filePath).png().toFile(newFilePath);
-        } catch (sharpErr) {
-          console.warn("Sharp failed for static image, trying ffmpeg fallback", sharpErr);
-          try {
-            await convertToPngViaFfmpeg(filePath, newFilePath);
-          } catch (ffErr) {
-            console.error("FFmpeg fallback also failed:", ffErr);
-            return false;
-          }
+      
+        const ok = await convertStillToPng(filePath, newFilePath);
+      
+        if (!ok) {
+          return false;
         }
-        
-        const newMime = "image/png";
-        return { newFilePath, newFileName, newMime };
-      } else { //TODO:
+      
+        return { newFilePath, newFileName, newMime: 'image/png' };
+      } else {
         const newFileName = `${baseName}_${randomSuffix}.gif`;
         const newFilePath = path.join(dirPath, newFileName);
-        await convertAnimatedToGif(filePath, newFilePath);
+        const gifSuccess = await convertAnimatedToGif(filePath, newFilePath);
+        if(!gifSuccess) {
+          return false;
+        }
         const newMime = "image/gif";
         return { newFilePath, newFileName, newMime };
       }
@@ -215,65 +208,9 @@ export async function convertImage(
     }
 }
   
-/** ffmpeg to convert a static image to PNG */
-async function convertToPngViaFfmpeg(inputPath: string, outputPath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .outputFormat('png')
-      .output(outputPath)
-      .on('end', () => resolve())
-      .on('error', (err) => reject(err))
-      .run();
-  });
-}
-
-/**
- * convert animated image to animated GIF with ffmpeg
- */
-// export function convertAnimatedToGif(
-//     inputPath: string,
-//     outputPath: string
-//   ): Promise<void> {
-//     return new Promise((resolve, reject) => {
-//       ffmpeg(inputPath)
-//         .outputOptions([
-//           '-an',
-//           '-filter_complex',
-//           '[0:v] split [a][b];' +
-//             '[a] palettegen=stats_mode=single [p];' +
-//             '[b][p] paletteuse=dither=bayer:bayer_scale=5',
-//           '-loop 0'
-//         ])
-//         .output(outputPath)
-//         .on('end', () => resolve())
-//         .on('error', (err) => reject(err))
-//         .run();
-//     });
-// }
-  
-//TODO: CHANGE BACK
 
 
-export function convertAnimatedToGif(
-  inputPath: string,
-  outputPath: string
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .outputOptions([
-        '-an',
-        '-filter_complex',
-        '[0:v] split [a][b];' +
-          '[a] palettegen=stats_mode=single [p];' +
-          '[b][p] paletteuse=dither=bayer:bayer_scale=5',
-        '-loop 0'
-      ])
-      .output(outputPath)
-      .on('end', () => resolve())
-      .on('error', (err) => reject(err))
-      .run();
-  });
-}
+
 
 
 
