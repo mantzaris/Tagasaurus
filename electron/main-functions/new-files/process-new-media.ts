@@ -78,142 +78,168 @@ export async function processTempFiles(
   console.log("beginning process-new-media.ts");
 
   const dir = await fs.promises.opendir(tempDir);
-  for await (const dirent of dir) {
-    console.log(`dirent = ${JSON.stringify(dirent)}`)
-    if (!dirent.isFile()) continue;  
-    let tempFile = dirent.name;
-    let tempFilePath = path.join(tempDir, tempFile);
-        
-    try {
-      let hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
 
-      const existing = await checkHashStmt.get(hash);
-      if (existing) {
-        //exists, exact file, remove from tempDir
-        await fs.promises.unlink(tempFilePath);
-        continue;
-      }
-
-      //not a duplicate => get fileType from extension      
-      const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
-      if (!result || !result.mime) {
-        console.warn('Could not detect type, deleting', tempFilePath);
-        await fs.promises.unlink(tempFilePath).catch(() => {});
-        continue;
-      }
-      
-      let inferredFileType = result.mime;      
-      console.log(`inferredFileType = ${inferredFileType} \n hash = ${hash}`);
-      
-      if (!isAllowedFileType(inferredFileType)) {
-        console.log('not allowed file type');
-
-        const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
-        console.log(`conversion = ${JSON.stringify(conversion)}`);
-
-        if (!conversion) {
-          console.log('could not convert, deleting file');
+  try {
+    for await (const dirent of dir) {
+      console.log(`dirent = ${JSON.stringify(dirent)}`)
+      if (!dirent.isFile()) continue;  
+      let tempFile = dirent.name;
+      let tempFilePath = path.join(tempDir, tempFile);
+          
+      try {
+        let hash = await computeFileHash(tempFilePath, defaultDBConfig.metadata.hashAlgorithm);
+  
+        const existing = await checkHashStmt.get(hash);
+        if (existing) {
+          //exists, exact file, remove from tempDir
+          await fs.promises.unlink(tempFilePath);
+          continue;
+        }
+  
+        //not a duplicate => get fileType from extension      
+        const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
+        if (!result || !result.mime) {
+          console.warn('Could not detect type, deleting', tempFilePath);
           await fs.promises.unlink(tempFilePath).catch(() => {});
           continue;
         }
+        
+        let inferredFileType = result.mime;      
+        console.log(`inferredFileType = ${inferredFileType} \n hash = ${hash}`);
+        
+        if (!isAllowedFileType(inferredFileType)) {
+          console.log('not allowed file type');
+  
+          const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
+          console.log(`conversion = ${JSON.stringify(conversion)}`);
+  
+          if (!conversion) {
+            console.log('could not convert, deleting file');
+            await fs.promises.unlink(tempFilePath).catch(() => {});
+            continue;
+          }
+  
+          console.log('converted file');
+          await fs.promises.unlink(tempFilePath).catch(() => {});
+  
+          try {
+            hash = await computeFileHash(conversion.newFilePath, defaultDBConfig.metadata.hashAlgorithm);
+          } catch (e) {
+            console.error('hash failed, deleting converted file', e);
+            await fs.promises.unlink(conversion.newFilePath).catch(() => {});
+            continue;
+          }
 
-        console.log('converted file');
-        await fs.promises.unlink(tempFilePath).catch(() => {});
+          if (await checkHashStmt.get(hash)) { //make sure the new converted file is unique
+            console.log('duplicate after conversion; deleting', conversion.newFilePath);
+            await fs.promises.unlink(conversion.newFilePath).catch(() => {});
+            continue;
+          }
+        
+          tempFile         = conversion.newFileName;
+          inferredFileType = conversion.newMime;
+          tempFilePath     = path.join(tempDir, tempFile);
+        }
+
+        //FACE EMBEDDINGS
+        // if (inferredFileType.startsWith('image/')) {        
+        //   console.log('---------06');
+        //   const isAnimated = await detectAnimation(tempFilePath);
+        //   console.log(`isAnimated = ${isAnimated}`);
+        //   if (isAnimated) {
+        //     console.log('---------07  animated image');
+        //     try {
+        //       await analyseAnimated(tempFilePath, inferredFileType);           // ← await it
+        //     } catch (err) {
+        //       console.error('analyseAnimated failed:', err);
+        //     }
+        //     return;                                         // stop further handling
+        //   } else {
+        //     console.log('---------08')
+        //     const embs = await processFacesOnImage(tempFilePath);   // <- see below
+        //     embs.forEach((emb, idx) => {
+        //       console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
+        //                   Array.from(emb.slice(0, 8)));
+        //     });
+        //   }
+          
+        // }
+        // TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
+        //TODO: fail here should be handled not just transaction failure
+  
+        await db.exec("BEGIN TRANSACTION;");
 
         try {
-          hash = await computeFileHash(conversion.newFilePath, defaultDBConfig.metadata.hashAlgorithm);
-        } catch (e) {
-          console.error('hash failed, deleting converted file', e);
-          await fs.promises.unlink(conversion.newFilePath).catch(() => {});
+           //insert row with empty description and null embedding (or "")
+          //'filename' store the user's original name
+          await insertStmt.run(
+            hash,            //fileHash
+            tempFile,        //filename (the original user name, or store something else)
+            inferredFileType, //fileType
+            "",              //description
+            null             //descriptionEmbedding
+          );
+        
+          //move file to the correct subdirectory
+          const subPath = getHashSubdirectory(hash); // e.g. "a/3/e/7"
+          const finalDir = path.join(mediaDir, subPath);
+          
+          // e.g. "a3e71df2abc", dp mopt store file extensions just the hash and use the inferred filetype later
+          const finalPath = path.join(finalDir, hash);
+
+          await fs.promises.mkdir(finalDir, { recursive: true });
+          
+          await moveOrCopy(tempFilePath, finalPath);   // handles EXDEV
+
+          await db.exec("COMMIT;");
+        } catch (txErr) {
+          console.error('Tx error', txErr);
+          await db.exec('ROLLBACK;').catch(e=>console.error('Rollback failed', e));
           continue;
         }
-      
-        tempFile         = conversion.newFileName;
-        inferredFileType = conversion.newMime;
-        tempFilePath     = path.join(tempDir, tempFile);
+  
+        const insertedFile = await fetchStmt.get<MediaFile>(hash);//TODO: needed to notify UI?
+  
+        if (insertedFile) {
+          mainWindow.webContents.send("new-media", insertedFile);//TODO: needed to notify UI?
+        }
+  
+      } catch (err) {
+        console.error(`Error processing file: ${tempFile}`, err);
+  
+        //roll back DB changes if anything failed (db insert or rename)
+        try {
+          await db.exec("ROLLBACK;");
+        } catch (rollbackErr) {
+          console.error("Rollback error:", rollbackErr);
+        }
+  
+        await fs.promises.unlink(tempFilePath).catch(() => {});
       }
-
-      //FACE EMBEDDINGS
-      // if (inferredFileType.startsWith('image/')) {        
-      //   console.log('---------06');
-      //   const isAnimated = await detectAnimation(tempFilePath);
-      //   console.log(`isAnimated = ${isAnimated}`);
-      //   if (isAnimated) {
-      //     console.log('---------07  animated image');
-      //     try {
-      //       await analyseAnimated(tempFilePath, inferredFileType);           // ← await it
-      //     } catch (err) {
-      //       console.error('analyseAnimated failed:', err);
-      //     }
-      //     return;                                         // stop further handling
-      //   } else {
-      //     console.log('---------08')
-      //     const embs = await processFacesOnImage(tempFilePath);   // <- see below
-      //     embs.forEach((emb, idx) => {
-      //       console.log(`file ${hash}  face #${idx}  emb[0..7] =`,
-      //                   Array.from(emb.slice(0, 8)));
-      //     });
-      //   }
-        
-      // }
-      // TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
-      //TODO: fail here should be handled not just transaction failure
-
-      await db.exec("BEGIN TRANSACTION;");
-
-      //move file to the correct subdirectory
-      const subPath = getHashSubdirectory(hash); // e.g. "a/3/e/7"
-      const finalDir = path.join(mediaDir, subPath);
-      
-      // e.g. "a3e71df2abc", dp mopt store file extensions just the hash and use the inferred filetype later
-      const finalPath = path.join(finalDir, hash);
-      await fs.promises.mkdir(finalDir, { recursive: true });
-      await fs.promises.rename(tempFilePath, finalPath); //attempt to move
-
-      //insert row with empty description and null embedding (or "")
-      //'filename' store the user's original name
-      await insertStmt.run(
-        hash,            //fileHash
-        tempFile,        //filename (the original user name, or store something else)
-        inferredFileType, //fileType
-        "",              //description
-        null             //descriptionEmbedding
-      );
-
-      //if succeeded commit
-      await db.exec("COMMIT;");
-
-      const insertedFile = await fetchStmt.get<MediaFile>(hash);//TODO: needed?
-
-      if (insertedFile) {
-        mainWindow.webContents.send("new-media", insertedFile);//TODO: needed?
-      }
-
-    } catch (err) {
-      console.error(`Error processing file: ${tempFile}`, err);
-
-      //roll back DB changes if anything failed (db insert or rename)
-      try {
-        await db.exec("ROLLBACK;");
-      } catch (rollbackErr) {
-        console.error("Rollback error:", rollbackErr);
-      }
-
     }
+
+  } finally {
+    await dir.close().catch(()=>{}); 
   }
+
 }
 
 
-// //If tempDir and mediaDir live on different mount points (e.g. /tmp on tmpfs, media on /home/... or on an external drive), POSIX rename() returns -1 EXDEV. On Windows an out‑of‑volume rename simply fails with ERROR_NOT_SAME_DEVICE
-// async function moveOrCopy(src: string, dst: string) {
-//   try {
-//     await fs.rename(src, dst);
-//   } catch (err: any) {
-//     if (err.code === "EXDEV") {                 // cross‑device
-//       await fs.copyFile(src, dst);
-//       await fs.unlink(src);
-//     } else {
-//       throw err;   // genuine failure: propagate
-//     }
-//   }
-// }
+async function moveOrCopy(src: string, dst: string) {
+  try {
+    await fs.promises.rename(src, dst);
+  } catch (err: any) {
+    if (err.code === 'EXDEV') {
+      try {
+        await fs.promises.copyFile(src, dst);
+        await fs.promises.unlink(src);
+      } catch (copyErr) {
+        // clean partial dst; rethrow so outer catch rolls back
+        await fs.promises.unlink(dst).catch(()=>{});
+        throw copyErr;
+      }
+    } else {
+      throw err;
+    }
+  }
+}
