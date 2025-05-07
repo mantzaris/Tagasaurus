@@ -1,11 +1,16 @@
 import * as path from "path";
 import { randomBytes } from "crypto";
+import { stat, unlink } from 'node:fs/promises';
 
 import ffmpeg, { FfprobeData } from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+
 import { convertAnimatedToGif, convertStillToPng, detectAnimation } from "./image";
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
+
+const VIDEO_TIMEOUT_MS = 4*6_000_000;//4*100min
+const AUDIO_TIMEOUT_MS = 6_000_000; //100min
 
 
 const allowedVideoMimeTypes = [
@@ -80,81 +85,110 @@ export async function convertMediaFile(
 }
 
 
-/**
- * convert any input video to a standard MP4 (H.264 + AAC)
- *
- * @param filePath  path to input video
- * @param dirPath   directory to place the converted file
- * @param fileName  original file name (e.g. "movie.avi")
- * @returns         { newFilePath, newFileName, newMime } if success; else false
- */
 export async function convertVideo(
-  filePath: string,
-  dirPath: string,
-  fileName: string
-): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false> {
-  try {
-    const randomSuffix = randomBytes(10).toString("hex");
-    const { name: baseName } = path.parse(fileName);
+  filePath : string,
+  dirPath  : string,
+  fileName : string,
+  timeoutMs = VIDEO_TIMEOUT_MS         // guard
+): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false>
+{
+  const randomSuffix      = randomBytes(10).toString('hex');
+  const { name: baseName} = path.parse(fileName);
+  const newFileName       = `${baseName}_${randomSuffix}.mp4`;
+  const newFilePath       = path.join(dirPath, newFileName);
 
-    const newFileName = `${baseName}_${randomSuffix}.mp4`;
-    const newFilePath = path.join(dirPath, newFileName);
+  const ok = await new Promise<boolean>((resolve) => {
+    const cmd = ffmpeg(filePath)
+      /* pick streams explicitly */
+      .outputOptions([
+        '-map', '0:v:0',           // first video stream
+        '-map', '0:a?',            // first audio stream if present
+        /* video encoding */
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', '23',
+        /* audio encoding */
+        '-c:a', 'aac',
+        /* playback / streaming friendly */
+        '-movflags', '+faststart'
+      ])
+      .outputFormat('mp4')
+      .on('end', async () => {
+        try {
+          const { size } = await stat(newFilePath);
+          resolve(size > 0);       // success only if bytes written
+        } catch {
+          resolve(false);
+        }
+      })
+      .on('error', () => resolve(false))
+      .save(newFilePath);
 
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(filePath)
-        .videoCodec("libx264")
-        .audioCodec("aac")
-        .outputOptions([
-          "-movflags", "+faststart",
-          "-preset", "medium",
-          "-crf", "23"
-        ])
-        .format("mp4")
-        .on("end", () => resolve())
-        .on("error", (err) => reject(err))
-        .save(newFilePath);
-    });
+    /* -------- safety valve -------- */
+    const killer = setTimeout(() => {
+      cmd.kill('SIGKILL');
+      resolve(false);
+    }, timeoutMs);
 
-    const newMime = "video/mp4";
-    return { newFilePath, newFileName, newMime };
+    cmd.on('end',   () => clearTimeout(killer));
+    cmd.on('error', () => clearTimeout(killer));
+  });
 
-  } catch (err) {
-    console.error(`Failed to convert ${fileName} to MP4:`, err);
+  if (!ok) { // Remove the 0-byte or partially written output, ignore unlink errors
+    try { await unlink(newFilePath); } catch {}
     return false;
   }
+
+  return { newFilePath, newFileName, newMime: 'video/mp4' };
 }
+
 
 
 export async function convertAudio(
   filePath: string,
   dirPath: string,
-  fileName: string
+  fileName: string,
+  timeoutMs = AUDIO_TIMEOUT_MS
 ): Promise<{ newFilePath: string; newFileName: string; newMime: string } | false> {
-  try {
-    const randomSuffix = randomBytes(10).toString("hex");
-    const { name: baseName } = path.parse(fileName);
 
-    const newFileName = `${baseName}_${randomSuffix}.mp3`;
-    const newFilePath = path.join(dirPath, newFileName);
+  const randomSuffix      = randomBytes(10).toString('hex');
+  const { name: baseName} = path.parse(fileName);
+  const newFileName       = `${baseName}_${randomSuffix}.mp3`;
+  const newFilePath       = path.join(dirPath, newFileName);
 
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(filePath)
-        .audioBitrate('192k') //set audio bitrate, 192k decent default
-        .audioCodec('libmp3lame') //libmp3lame (most ffmpeg distributions have this)
-        .format('mp3') //container/format mp3
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .save(newFilePath);
-    });
+  const ok = await new Promise<boolean>((resolve) => {
+    const cmd = ffmpeg(filePath)
+      .noVideo()                       // strip any accidental video track
+      .audioCodec('libmp3lame')        // most ffmpeg-static builds include this
+      .audioBitrate('192k')
+      .outputFormat('mp3')
+      .on('end', async () => {
+        try {
+          const { size } = await stat(newFilePath);
+          resolve(size > 0);
+        } catch {
+          resolve(false);
+        }
+      })
+      .on('error', () => resolve(false))
+      .save(newFilePath);
 
-    //if successful return the new path/name with MP3 mime
-    const newMime = "audio/mpeg";
-    return { newFilePath, newFileName, newMime };
+    /* ---- safety valve ---- */
+    const killer = setTimeout(() => {
+      cmd.kill('SIGKILL');
+      resolve(false);
+    }, timeoutMs);
 
-  } catch (err) {
-    console.error(`Failed to convert ${fileName} to MP3:`, err);
+    cmd.on('end',   () => clearTimeout(killer));
+    cmd.on('error', () => clearTimeout(killer));
+  });
+
+  if (!ok) { // Remove the 0-byte or partially written output, ignore unlink errors
+    try { await unlink(newFilePath); } catch {}
     return false;
   }
+
+  return { newFilePath, newFileName, newMime: 'audio/mpeg' };
 }
 
 
@@ -179,7 +213,7 @@ export async function convertImage(
       const randomSuffix = randomBytes(10).toString("hex");
       const { name: baseName } = path.parse(fileName);
   
-      const isAnimated = await detectAnimation(mime, filePath);
+      const isAnimated = await detectAnimation(filePath, mime);
   
       if (!isAnimated) {
         const newFileName = `${baseName}_${randomSuffix}.png`;
@@ -208,14 +242,4 @@ export async function convertImage(
     }
 }
   
-
-
-
-
-
-
-  
-  
-  
-
 

@@ -96,28 +96,41 @@ export async function processTempFiles(
 
       //not a duplicate => get fileType from extension      
       const result = await detectTypeFromPartialBuffer(tempFilePath); //(tempFile);
+      if (!result || !result.mime) {
+        console.warn('Could not detect type, deleting', tempFilePath);
+        await fs.promises.unlink(tempFilePath).catch(() => {});
+        continue;
+      }
+      
       let inferredFileType = result.mime;      
       console.log(`inferredFileType = ${inferredFileType} \n hash = ${hash}`);
       
       if (!isAllowedFileType(inferredFileType)) {
         console.log('not allowed file type');
+
         const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
         console.log(`conversion = ${JSON.stringify(conversion)}`);
 
-        if (!conversion) { //could not convert deleting file and continuing
-          console.log('could not convert, deleting file')
-          await fs.promises.unlink(tempFilePath);
+        if (!conversion) {
+          console.log('could not convert, deleting file');
+          await fs.promises.unlink(tempFilePath).catch(() => {});
           continue;
         }
-        
-        if (conversion) {
-          console.log('converted file');
-          await fs.promises.unlink(tempFilePath);
+
+        console.log('converted file');
+        await fs.promises.unlink(tempFilePath).catch(() => {});
+
+        try {
           hash = await computeFileHash(conversion.newFilePath, defaultDBConfig.metadata.hashAlgorithm);
-          tempFile = conversion.newFileName;
-          inferredFileType = conversion.newMime;
-          tempFilePath = path.join(tempDir, tempFile);
+        } catch (e) {
+          console.error('hash failed, deleting converted file', e);
+          await fs.promises.unlink(conversion.newFilePath).catch(() => {});
+          continue;
         }
+      
+        tempFile         = conversion.newFileName;
+        inferredFileType = conversion.newMime;
+        tempFilePath     = path.join(tempDir, tempFile);
       }
 
       //FACE EMBEDDINGS
