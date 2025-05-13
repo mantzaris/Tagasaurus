@@ -9,7 +9,8 @@ import { defaultDBConfig } from "../initialization/init";
 import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } from "../utils/utils"
 import { convertMediaFile,  isAllowedFileType } from "../utils/media-conversion"; //detectAnimation
 import { MediaFile } from "../../types/dbConfig";
-import { analyseAnimated, faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
+import { faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
+import { processFacesOnImage_Buf } from "../utils/face-utils-data";
 
 
 
@@ -142,6 +143,23 @@ export async function processTempFiles(
         }
 
         //FACE EMBEDDINGS
+        if (inferredFileType.startsWith('image/')) {
+          
+          console.log(`previous embeddings:`);
+          const embs = await processFacesOnImage(tempFilePath);
+          embs.forEach((emb, idx) => {
+                   console.log(`file ${hash}  face #${idx}  emb[0..10] =`,
+                               Array.from(emb.slice(0, 11)));
+          });
+
+          console.log(`new embeddings:`);
+          const embsNew = await processFacesOnImage_Buf(tempFilePath);
+          embsNew.forEach((emb, idx) => {
+                   console.log(`file ${hash}  face #${idx}  emb[0..10] =`,
+                               Array.from(emb.slice(0, 11)));
+          });
+
+        }
         // if (inferredFileType.startsWith('image/')) {        
         //   console.log('---------06');
         //   const isAnimated = await detectAnimation(tempFilePath);
