@@ -509,6 +509,11 @@ export async function processFacesOnImage(
     for (const t of stamps) {
       try {
         const frameBuf = await extractVideoFrame(filePath, t);
+
+        if (!frameBuf || frameBuf.length === 0) {
+          continue;
+        }
+
         const embThis  = await processFacesOnImageData(frameBuf);
         allEmbeddings.push(...embThis);
       } catch (e) {
@@ -554,26 +559,61 @@ async function videoDurationSec(file: string): Promise<number> {
   });
 }
 
-async function extractVideoFrame(file: string, tSec: number): Promise<Buffer> {
-  return new Promise<Buffer>((res, rej) => {
-    const chunks: Buffer[] = [];
-    ffmpeg(file)
-      .seekInput(tSec)                      // -ss before input read
-      .outputOptions(
-        '-frames:v', '1',                   // grab 1 frame
-        '-f',        'image2pipe',
-        '-vcodec',   'png'                  // lossless
-      )
-      .output('pipe:1')
-      .on('error', rej)
-      .on('end', () => res(Buffer.concat(chunks)))
-      .pipe()
-      .on('data', c => chunks.push(c));
-  });
+async function extractVideoFrame(filePath: string, tSec: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+      console.log(`[ffmpeg] Starting frame extraction for ${filePath} at ${tSec}s.`);
+  
+      const command = ffmpeg(filePath)
+        .seekInput(tSec)
+        .outputOptions([
+          '-frames:v', '1',
+          '-f',        'image2pipe',
+          '-vcodec',   'png'
+        ])
+        .on("start", function(commandLine) {
+          console.log("[ffmpeg] Spawned Ffmpeg with command: " + commandLine);
+        })
+        .on("error", (err, stdout, stderr) => {
+          console.error("[ffmpeg] Error: " + err.message);
+          if (stdout) {
+              console.error("[ffmpeg] stdout: " + stdout);
+          }
+          if (stderr) {
+              console.error("[ffmpeg] stderr: " + stderr);
+          }
+          reject(err);
+        })
+        .on("end", () => {
+          console.log(`[ffmpeg] frame size ${chunks.reduce((n,c)=>n+c.length,0)} bytes`);
+          if (chunks.length === 0) {
+              console.warn("[ffmpeg] No data chunks received. Output buffer will be empty.");
+          }
+          const buf = Buffer.concat(chunks);
+          resolve(buf.length ? buf : null);
+        });
+  
+      const stream = command.pipe();
+  
+      stream.on("data", (chunk) => {
+        // console.log(`[stream] Received chunk of size: ${chunk.length}`);
+        chunks.push(chunk);
+      });
+  
+      stream.on("error", (err) => {
+          console.error("[stream] Stream error: " + err.message);
+          reject(err);
+      });
+  
+      stream.on("end", () => { // This end event is for the stream itself, ffmpeg "end" is handled above
+          console.log("[stream] Stream ended.");
+      });
+    });
 }
 
-function chooseTimes(duration: number, stepSec = 1, cap = 150): number[] {
-  const wanted = Math.min(cap, Math.ceil(duration / stepSec));
+
+function chooseTimes(duration: number, stepSec = 1): number[] {
+  const wanted = Math.floor( duration / stepSec);
   const times: number[] = [];
   for (let i = 0; i < wanted; ++i) times.push(i * stepSec);
   return times;

@@ -144,7 +144,7 @@ export async function processTempFiles(
 
 
         //FACE EMBEDDINGS
-        if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) {
+        if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues
           
           console.log(`new embeddings:`);
           const embsNew = await processFacesOnImage(tempFilePath, inferredFileType);
