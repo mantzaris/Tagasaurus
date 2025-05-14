@@ -2,44 +2,66 @@ import { readFile, stat } from 'node:fs/promises';
 import isAnimated from '@frsource/is-animated';
 import ffmpeg from 'fluent-ffmpeg';
 
-const QUICK_ANIMATED_FORMATS = new Set(['image/gif', 'image/webp', 'image/png']); // APNG is just image/png
+import sharp from "sharp";
+import { promises as fs } from "fs";
+import path from "path";
 
 
 /**
- * Convert a single-frame image to PNG using FFmpeg.
- * Returns true on success, false on failure / timeout.
+ * Convert a **still** image (JPEG, WebP, AVIF, …) to PNG using Sharp.
+ *
+ * @param inputPath  full path of the source file
+ * @param outputPath full path of the PNG to write
+ * @param timeoutMs  failsafe timeout (default 15 s)
+ * @returns          true  → PNG written and > 0 bytes  
+ *                   false → any error or timeout
  */
 export async function convertStillToPng(
-  inputPath: string,
+  inputPath : string,
   outputPath: string,
-  timeoutMs = 15_000
+  timeoutMs = 15_000,
 ): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const cmd = ffmpeg(inputPath)
-      // One output frame → PNG
-      .outputOptions(['-frames:v', '1'])
-      .outputFormat('png')
-      .on('end', async () => {
-        try {
-          const { size } = await stat(outputPath);
-          resolve(size > 0);
-        } catch {
-          resolve(false);
-        }
-      })
-      .on('error', () => resolve(false))
-      .save(outputPath);
 
-    /* -------- safety valve -------- */
-    const killer = setTimeout(() => {
-      cmd.kill('SIGKILL');
-      resolve(false);
+  let killer: NodeJS.Timeout | null = null;
+
+  /* ---- 1. start the async sharp job ------------------------------ */
+  const convert = (async (): Promise<boolean> => {
+    try {
+      console.log(`[Sharp] ➜ converting "${path.basename(inputPath)}"`);
+
+      await fs.mkdir(path.dirname(outputPath), { recursive: true });
+
+      await sharp(inputPath)
+        .rotate()            // honour EXIF orientation
+        .png()               // encode PNG
+        .toFile(outputPath);
+
+      const { size } = await fs.stat(outputPath);
+      console.log(`[Sharp] ✔ wrote ${size.toLocaleString()} bytes → ${path.basename(outputPath)}`);
+      return size > 0;
+
+    } catch (err) {
+      console.error(`[Sharp] ✖ ${path.basename(inputPath)} → ${(err as Error).message}`);
+      return false;
+
+    } finally {
+      if (killer) clearTimeout(killer);
+    }
+  })();
+
+  /* ---- 2. timeout guard ------------------------------------------ */
+  const timeout = new Promise<boolean>(res => {
+    killer = setTimeout(() => {
+      console.warn(`[Sharp] ⚠ timeout after ${timeoutMs} ms (${path.basename(inputPath)})`);
+      res(false);
     }, timeoutMs);
-
-    cmd.on('end',   () => clearTimeout(killer));
-    cmd.on('error', () => clearTimeout(killer));
   });
+
+  /* ---- 3. whichever finishes first ------------------------------- */
+  return Promise.race([convert, timeout]);
 }
+
+
 
 
 export async function detectAnimation(filePath: string, mime: string) {

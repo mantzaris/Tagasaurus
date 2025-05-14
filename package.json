@@ -117,6 +117,7 @@
     "pngjs": "^7.0.0",
     "readdirp": "^4.1.2",
     "sharp": "^0.34.0",
-    "streamifier": "^0.1.1"
+    "streamifier": "^0.1.1",
+    "webp-wasm": "^1.0.6"
   }
 }
