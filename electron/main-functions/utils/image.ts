@@ -112,24 +112,3 @@ export async function convertAnimatedToGif(
   });
 }
 
-
-// export function convertAnimatedToGif(
-//   inputPath: string,
-//   outputPath: string
-// ): Promise<void> {
-//   return new Promise((resolve, reject) => {
-//     ffmpeg(inputPath)
-//       .outputOptions([
-//         '-an',
-//         '-filter_complex',
-//         '[0:v] split [a][b];' +
-//           '[a] palettegen=stats_mode=single [p];' +
-//           '[b][p] paletteuse=dither=bayer:bayer_scale=5',
-//         '-loop 0'
-//       ])
-//       .output(outputPath)
-//       .on('end', () => resolve())
-//       .on('error', (err) => reject(err))
-//       .run();
-//   });
-// }
