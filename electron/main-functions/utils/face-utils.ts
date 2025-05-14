@@ -419,28 +419,38 @@ function mathInverse(m:number[][]){
  * @param src  Buffer (encoded frame) **or** pre-built Readable stream
  * @returns    { w, h, rot } where rot ∈ { 0, 90, 180, 270 }
  */
-function ffprobeDims(
+export function ffprobeDims(
   src: Buffer | Readable
 ): Promise<{ w: number; h: number; rot: number }> {
 
-  const inStream = Buffer.isBuffer(src)
-    ? streamifier.createReadStream(src)
-    : src;                                       // already a stream
+  const isBuf   = Buffer.isBuffer(src);
+  const inStream = isBuf ? Readable.from([src]) : src;
+
+  const isWebP  = isBuf &&
+                  src.toString('ascii', 0, 4) === 'RIFF' &&
+                  src.toString('ascii', 8, 12) === 'WEBP';
+
+  const inputOpts =
+    isBuf ? ['-f', isWebP ? 'webp_pipe' : 'image2pipe'] : [];
 
   return new Promise((resolve, reject) => {
     ffmpeg(inStream)
-      .inputOptions('-f', 'image2pipe')          // hint: single still via stdin
+      .inputOptions(...inputOpts)
       .ffprobe((err, meta) => {
-        if (err) return reject(err);
+        if (!err) {
+          const s = meta.streams.find(
+            v => v.codec_type === 'video' || v.codec_type === 'image'
+          );
+          if (s?.width && s?.height)
+            return resolve({ w: s.width, h: s.height, rot: +(s.tags?.rotate ?? 0) });
+        }
 
-        const s = meta.streams.find(
-          v => v.codec_type === 'video' || v.codec_type === 'image'
-        );
-        if (!s?.width || !s?.height)
-          return reject(new Error('ffprobe: no dimensions'));
-
-        const rot = +(s.tags?.rotate ?? 0);      // EXIF / display-matrix
-        resolve({ w: s.width, h: s.height, rot });
+        /* -------- FFprobe failed: try manual WebP header -------------- */
+        if (isWebP) {
+          const dims = webpDims(src as Buffer);
+          if (dims) return resolve({ ...dims, rot: 0 });
+        }
+        reject(err ?? new Error('ffprobe: no dimensions'));
       });
   });
 }
@@ -468,7 +478,8 @@ export async function processFacesOnImage(
           if (inferredFileType === 'image/gif') {
             frameBuf = await extractGifFrame(filePath, idx);
           } else if (inferredFileType === 'image/webp') {
-            frameBuf = await extractWebPFrame(filePath, idx);
+            // frameBuf = await extractWebPFrame(filePath, idx);
+            frameBuf = await extractWebPFrame(filePath, idx);   // now always FFmpeg
           } else {
             // APNG or something else, FFmpeg fallback
             frameBuf = await extractFrameViaFFmpeg(filePath, idx);
@@ -604,7 +615,7 @@ function chooseFrames(total: number): number[] {
 export async function countWebPFrames(path: string) {
   const img = new WebP.Image();
   await img.load(path);
-  return img.frameCount;                     // 0 ⇒ not animated
+  return img.frames.length;                       // 1 is not animated
 }
 
 export async function countGifFrames(path: string) {
@@ -642,11 +653,17 @@ export function encodePng(
   return PNG.sync.write(png);        // returns a Node Buffer
 }
 
-async function extractWebPFrame(file: string, frameIdx: number): Promise<Buffer> {
-  const img = new WebP.Image();
-  await img.load(file);
-  const frame = await img.getFrame(frameIdx);
-  return encodePng(Buffer.from(frame.bitmap), frame.width, frame.height);
+// async function extractWebPFrame(file: string, frameIdx: number): Promise<Buffer> {
+//   const img = new WebP.Image();
+//   await img.load(file);
+//   const frame = await img.getFrame(frameIdx);
+//   return encodePng(Buffer.from(frame.bitmap), frame.width, frame.height);
+// }
+async function extractWebPFrame(
+  file   : string,
+  frameIdx: number
+): Promise<Buffer> {
+  return extractFrameViaFFmpeg(file, frameIdx);   // reuse the generic helper
 }
 
 // fallback for APNG / exotic formats
@@ -669,4 +686,30 @@ async function extractFrameViaFFmpeg(
       .pipe()
       .on('data', c => chunks.push(c));
   });
+}
+
+function webpDims(buf: Buffer) {
+  // RIFF….WEBP
+  if (buf.toString('ascii', 0, 4) !== 'RIFF' ||
+      buf.toString('ascii', 8, 12) !== 'WEBP')
+    return null;
+
+  // VP8  (lossy) : starts at byte 20, little-endian 16-bit width/height −1
+  if (buf.toString('ascii', 12, 15) === 'VP8') {
+    const w = buf.readUInt16LE(26) & 0x3FFF;
+    const h = buf.readUInt16LE(28) & 0x3FFF;
+    return { w, h };
+  }
+
+  // VP8L (lossless) or VP8X (extended) – quick parse
+  if (buf.toString('ascii', 12, 15) === 'VP8L') {
+    const b0 = buf[21];
+    const b1 = buf[22];
+    const b2 = buf[23];
+    const b3 = buf[24];
+    const w = 1 + (((b1 & 0x3F) << 8) | b0);
+    const h = 1 + (((b3 & 0xF)  << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6));
+    return { w, h };
+  }
+  return null;
 }
