@@ -5,7 +5,6 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
 import * as fs    from 'fs/promises';
 
-
 import { Readable } from 'stream';
 import streamifier from 'streamifier';
 
@@ -13,8 +12,11 @@ import { GifReader } from 'omggif';
 import WebP from 'node-webpmux';
 import { PNG } from 'pngjs';
 
-import { detectAnimation } from './image';
+import { detectAnimation, savePngRaw, saveThumbs } from './image';
 import { videoDurationSec, chooseTimes, extractVideoFrame } from './video'
+import * as distance from 'ml-distance';
+import sharp from 'sharp';
+
 
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
@@ -55,7 +57,7 @@ export async function faceSetupOnce(): Promise<void> {
     await setupPromise;
 }
 
-
+//TODO: next 'softNMS'
 function nonMaxSup(faces: FaceDet[], thr = 0.3): FaceDet[] {
     const iou = (a:number[], b:number[]) => {
       const x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
@@ -78,7 +80,7 @@ function getFaces(
     dx: number,
     dy: number,
     side: number,
-    confTh = 0.55,
+    confTh = 0.65,
   ): FaceDet[] {
   
     const faces: FaceDet[] = [];
@@ -218,6 +220,15 @@ async function ffmpegScalePadRaw(
 
 
 
+async function ensureBuffer(src: Buffer | Readable): Promise<Buffer> {
+  if (Buffer.isBuffer(src)) return src;
+  const chunks: Buffer[] = [];
+  for await (const c of src) chunks.push(c as Buffer);
+  return Buffer.concat(chunks);
+}
+
+
+
 //PUBLIC entry function for embeddings
 export async function processFacesOnImageData(data: Buffer | Readable): Promise<Float32Array[]> {
 
@@ -271,7 +282,16 @@ export async function processFacesOnImageData(data: Buffer | Readable): Promise<
         //    );        
         
         // const raw112    = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
-        const raw112 = await ffmpegAligned112Raw(data, kpsLocal);
+
+        const fullBuf = await ensureBuffer(data);
+        const cropBuf = await sharp(fullBuf)
+          .extract({ left: leftInt, top: topInt, width: sideInt, height: sideInt })
+          .toBuffer();                // <-- raw encoded JPEG of the square
+
+        saveThumbs(cropBuf, idx+100);
+        const raw112 = await ffmpegAligned112Raw(cropBuf, kpsLocal);
+        await savePngRaw(raw112, 112, 112, `face${idx+10000}`);
+        saveThumbs(raw112, idx);
         const tensor112 = rgb24ToTensor112(raw112);
         // console.log(`face ${idx} tensor dims →`, tensor112.dims);  // should log [1,3,112,112]
 
@@ -280,15 +300,13 @@ export async function processFacesOnImageData(data: Buffer | Readable): Promise<
         l2Normalize(emb);
         embeddings.push(emb);
 
-        // console.log(`face ${idx} emb[0..4] →`, Array.from(emb.slice(0,5)));
-        // const norm = Math.sqrt(emb.reduce((s,x) => s + x*x, 0));
-        // console.log(`face ${idx} L2 →`, norm.toFixed(3));
         ++idx;
     }
 
     return embeddings;     
 }
-  
+
+
 
 
 export function scaleFaceBox(
@@ -470,7 +488,7 @@ export async function processFacesOnImage(
     if (animated) {
       const info = await analyseAnimated(filePath, inferredFileType);
       if (info) {
-        const { frames } = info;          // indices chosen by chooseFrames
+        const { frames } = info;  // indices chosen by chooseFrames
         const allEmbeddings: Float32Array[] = [];
 
         for (const idx of frames) {
@@ -478,16 +496,17 @@ export async function processFacesOnImage(
 
           if (inferredFileType === 'image/gif') {
             frameBuf = await extractGifFrame(filePath, idx);
-          } else if (inferredFileType === 'image/webp') {
+          } else if (inferredFileType === 'image/webp') { //TODO: webp on the renderer side
             // frameBuf = await extractWebPFrame(filePath, idx);
-            frameBuf = await extractWebPFrame(filePath, idx);   // now always FFmpeg
+            continue; //frameBuf = await extractWebPFrame(filePath, idx);   // now always FFmpeg
           } else {
             // APNG or something else, FFmpeg fallback
             frameBuf = await extractFrameViaFFmpeg(filePath, idx);
           }
 
           const embForFrame = await processFacesOnImageData(frameBuf);
-          allEmbeddings.push(...embForFrame);
+          embForFrame.forEach(l2norm);
+          addIfUnique(allEmbeddings, embForFrame); //allEmbeddings.push(...embForFrame);
         }
 
         console.log(
@@ -516,7 +535,8 @@ export async function processFacesOnImage(
         }
 
         const embThis  = await processFacesOnImageData(frameBuf);
-        allEmbeddings.push(...embThis);
+        embThis.forEach(l2norm);
+        addIfUnique(allEmbeddings, embThis); //allEmbeddings.push(...embThis);
       } catch (e) {
         console.warn(`frame @${t}s failed:`, e);
       }
@@ -535,7 +555,9 @@ export async function processFacesOnImage(
   const frameBuf = await fs.readFile(filePath);   // throws if file missing
 
   /* full detection + embedding pipeline */
-  const embeddings = await processFacesOnImageData(frameBuf);
+  const embeddingsRaw = await processFacesOnImageData(frameBuf);
+  embeddingsRaw.forEach(l2norm);
+  const embeddings = dedupEmbeddings(embeddingsRaw);
 
   /* minimal console output */
   console.log(
@@ -545,10 +567,60 @@ export async function processFacesOnImage(
     console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
   );
 
+  printPairwiseSims(embeddings)
   return embeddings;
 }
 
+function printPairwiseSims(embs: Float32Array[]) {
+  for (let i = 0; i < embs.length; ++i) {
+    for (let j = i + 1; j < embs.length; ++j) {
+      const sim = distance.similarity.cosine(embs[i] as any, embs[j] as any);
+      console.log(`sim(${i},${j}) = ${sim.toFixed(3)}`);
+    }
+  }
+}
 
+//Embedding aggregations
+const SIM_THR = 0.999; //higher more faces
+
+function isDuplicate(a: Float32Array, b: Float32Array, thr = SIM_THR): boolean {
+  return distance.similarity.cosine(
+           a as unknown as number[],
+           b as unknown as number[],
+         ) >= thr;
+}
+
+function addIfUnique(
+  acc : Float32Array[],
+  cand: Float32Array[],
+  thr  = SIM_THR,
+): number {
+  let added = 0;
+  for (const e of cand) {
+    if (acc.some(u => isDuplicate(e, u, thr))) continue;  // ← single test
+    acc.push(e);
+    ++added;
+  }
+  return added;
+}
+
+export function dedupEmbeddings(
+  embs: Float32Array[],
+  thr = SIM_THR,
+): Float32Array[] {
+  const unique: Float32Array[] = [];
+  addIfUnique(unique, embs, thr);           // reuse the logic once
+  return unique;
+}
+
+/* keep your l2norm helper as-is */
+function l2norm(v: Float32Array) {
+  let s = 0;
+  for (let i = 0; i < v.length; ++i) s += v[i] * v[i];
+  if (s === 0) return;
+  s = 1 / Math.sqrt(s);
+  for (let i = 0; i < v.length; ++i) v[i] *= s;
+}
 
 //--------------------------
 //GIF STUFF
@@ -623,18 +695,6 @@ export function encodePng(
   return PNG.sync.write(png);        // returns a Node Buffer
 }
 
-// async function extractWebPFrame(file: string, frameIdx: number): Promise<Buffer> {
-//   const img = new WebP.Image();
-//   await img.load(file);
-//   const frame = await img.getFrame(frameIdx);
-//   return encodePng(Buffer.from(frame.bitmap), frame.width, frame.height);
-// }
-async function extractWebPFrame(
-  file   : string,
-  frameIdx: number
-): Promise<Buffer> {
-  return extractFrameViaFFmpeg(file, frameIdx);   // reuse the generic helper
-}
 
 // fallback for APNG / exotic formats
 async function extractFrameViaFFmpeg(

@@ -1,11 +1,14 @@
 import { readFile, stat } from 'node:fs/promises';
 import isAnimated from '@frsource/is-animated';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
 
 import sharp from "sharp";
 import { promises as fs } from "fs";
 import path from "path";
+import { once, Readable } from 'node:stream';
 
+ffmpeg.setFfmpegPath(ffmpegPath || "");
 
 /**
  * Convert a **still** image (JPEG, WebP, AVIF, …) to PNG using Sharp.
@@ -134,3 +137,31 @@ export async function convertAnimatedToGif(
   });
 }
 
+
+async function toBuffer(src: Buffer | Readable): Promise<Buffer> {
+  if (Buffer.isBuffer(src)) return src;
+  const chunks: Buffer[] = [];
+  src.on('data', (c: Buffer) => chunks.push(c));
+  await once(src, 'end');
+  return Buffer.concat(chunks);
+}
+
+export async function saveThumbs(raw: Buffer | Readable, suff = 0) {
+  const buf = Buffer.isBuffer(raw) ? raw : await toBuffer(raw);
+  await sharp(buf, {
+    raw: { width: 112, height: 112, channels: 3 },
+  })
+  .png()
+  .toFile(`/home/resort/Downloads/tempVids/face${suff}.png`);
+}
+
+export async function savePngRaw(
+  rgb: Buffer | Uint8Array,
+  w: number,
+  h: number,
+  tag: string,
+) {
+  await sharp(rgb as Buffer, { raw: { width: w, height: h, channels: 3 } })
+    .png()
+    .toFile(`/home/resort/Downloads/tempVids/${tag}.png`);
+}
