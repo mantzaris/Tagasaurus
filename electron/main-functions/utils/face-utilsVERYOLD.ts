@@ -29,6 +29,8 @@ const CANONICAL_112: Point[] = [
   {x:70.7299, y:92.2041}
 ];
 
+
+
 const SIGM = (x:number) => 1/(1+Math.exp(-x));
 const STRIDES = [8, 16, 32];
 
@@ -229,11 +231,16 @@ export async function processFacesOnImageVERYOLD(filePath: string) {
              leftInt,
              topInt,
              sideInt
-           );        
+           );
         
         
         // const raw112    = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
-        const raw112 = await ffmpegAligned112Raw(filePath, kpsLocal);
+        const raw112 = await ffmpegAligned112Raw(filePath, kpsBigger) //kpsLocal); //use local if crop path is used
+
+        await saveRawRGB24AsPng(raw112, 112,// width
+          112,// height
+          path.join(OUT_DIR, `${fileStem}_face${idx}_aligned.png`)
+        );
 
         const tensor112 = rgb24ToTensor112(raw112);
         console.log(`face ${idx} tensor dims →`, tensor112.dims);  // should log [1,3,112,112]
@@ -251,6 +258,18 @@ export async function processFacesOnImageVERYOLD(filePath: string) {
     return faces.length;          // let caller know how many we saved
 }
   
+
+export async function saveRawRGB24AsPng(
+  raw   : Buffer,
+  width : number,
+  height: number,
+  outPath: string
+) {
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
+  await sharp(raw, { raw: { width, height, channels: 3 } })
+    .png()                      // or .jpeg({quality:90}) if you prefer
+    .toFile(outPath);
+}
 
 
 export function scaleFaceBox(
@@ -350,12 +369,15 @@ function l2Normalize(v: Float32Array) {
 
 
 
-//--------------------------
+
 
 /**
  * Build an FFmpeg perspective filter that maps the 112×112
  * canonical template onto the source image via 5-point similarity.
  */
+
+
+
 function ffmpegAligned112Raw(
   src : string,
   kps : number[]          // 10 numbers, full-image coords
@@ -390,15 +412,19 @@ function ffmpegAligned112Raw(
     const w = inv[2][0]*x + inv[2][1]*y + inv[2][2];
     return [u/w, v/w];
   };
-  const [x0,y0] = map(0,0);
-  const [x1,y1] = map(111,0);
-  const [x2,y2] = map(111,111);
-  const [x3,y3] = map(0,111);
+// 0,0   → top‑left
+const [x0,y0] = map(0  , 0  );
+// 111,0 → top‑right
+const [x1,y1] = map(111, 0  );
+// 0,111 → bottom‑left   ← changed
+const [x2,y2] = map(0  , 111);
+// 111,111 → bottom‑right ← changed
+const [x3,y3] = map(111, 111);
 
-  const vf = `perspective=` +
-             `x0=${x0}:y0=${y0}:x1=${x1}:y1=${y1}:` +
-             `x2=${x2}:y2=${y2}:x3=${x3}:y3=${y3},` +
-             `scale=112:112:flags=lanczos`;
+const vf = `perspective=` +
+           `x0=${x0}:y0=${y0}:x1=${x1}:y1=${y1}:` +
+           `x2=${x2}:y2=${y2}:x3=${x3}:y3=${y3},` +
+           `scale=112:112:flags=lanczos`;
 
   // 6. run FFmpeg and return raw rgb24 bytes ------------------
   return new Promise((res,rej)=>{
@@ -412,6 +438,9 @@ function ffmpegAligned112Raw(
   });
 }
 
+
+
+
 /* very small 3×3 inverse; paste near your helpers */
 function mathInverse(m:number[][]){
   const [a,b,c] = m[0], [d,e,f] = m[1], [g,h,i] = m[2];
@@ -424,3 +453,11 @@ function mathInverse(m:number[][]){
   ];
 }
 
+
+/*
+If you ever decide to work with just a similarity (affine) matrix instead of perspective you can replace the filter with an affine‑style transform filter:
+
+const a =  M.a, b = M.b, c = M.e,
+      d =  M.c, e = M.d, f = M.f;  // src → dst, no inversion
+const vf = `transform=${a}:${b}:${c}:${d}:${e}:${f},scale=112:112`;
+*/
