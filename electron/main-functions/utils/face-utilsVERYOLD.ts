@@ -12,7 +12,7 @@ ffmpeg.setFfmpegPath(ffmpegPath || "");
 const MODELS_DIR  = path.join(__dirname, '..', '..', '..', '..', 'models', 'buffalo_l');
 const OUT_DIR    = '/home/resort/Pictures/temp1';           // make sure it exists!
 
-const MARGIN = 0.18;
+const MARGIN = 0.3;
 
 let scrfdSess: ort.InferenceSession;
 let arcSess  : ort.InferenceSession;
@@ -221,23 +221,15 @@ export async function processFacesOnImageVERYOLD(filePath: string) {
         const topInt   = Math.floor(cropTop);
         const sideInt  = Math.ceil(cropSide);   
 
-        const kpsLocal = kpsBigger.map((v,i) =>
-            i % 2 === 0 ? v - leftInt : v - topInt);
-
-
-        await ffmpegCrop112(
-             filePath,
-            path.join(OUT_DIR, `${fileStem}_face${idx}.png`),
-             leftInt,
-             topInt,
-             sideInt
-           );
+        const kpsLocal = kpsBigger.map((v,i) => i % 2 === 0 ? v - leftInt : v - topInt);
+        await ffmpegCrop112(filePath, path.join(OUT_DIR, `${fileStem}_face${idx}.png`), leftInt, topInt, sideInt);
         
         
         // const raw112    = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
-        const raw112 = await ffmpegAligned112Raw(filePath, kpsBigger) //kpsLocal); //use local if crop path is used
+        const raw112 = await ffmpegAligned112Raw(filePath, kpsBigger, -5) //kpsLocal); //use local if crop path is used
 
-        await saveRawRGB24AsPng(raw112, 112,// width
+        await saveRawRGB24AsPng(raw112, 
+          112,// width
           112,// height
           path.join(OUT_DIR, `${fileStem}_face${idx}_aligned.png`)
         );
@@ -380,16 +372,17 @@ function l2Normalize(v: Float32Array) {
 
 function ffmpegAligned112Raw(
   src : string,
-  kps : number[]          // 10 numbers, full-image coords
+  kps : number[], // 10 numbers, full-image coords
+  marginPx = 0
 ): Promise<Buffer> {
 
   // 1. canonical InsightFace template -------------------------
   const CAN112 = [
-    {x:38.2946, y:51.6963},
-    {x:73.5318, y:51.5014},
-    {x:56.0252, y:71.7366},
-    {x:41.5493, y:92.3655},
-    {x:70.7299, y:92.2041}
+    {x:38.2946, y:51.69633 + marginPx},
+    {x:73.5318, y:51.50143 + marginPx},
+    {x:56.0252, y:71.73663 + marginPx},
+    {x:41.5493, y:92.36553 + marginPx},
+    {x:70.7299, y:92.20413 + marginPx}
   ];
 
   // 2. landmarks detected on current face ---------------------
