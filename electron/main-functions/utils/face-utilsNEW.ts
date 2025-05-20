@@ -4,7 +4,6 @@ import { Readable } from 'stream';
 
 import * as ort   from 'onnxruntime-node';
 
-import sharp      from 'sharp';//TODO: image-js fo no Libvips dependency
 import nudged     from 'nudged';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
@@ -66,7 +65,8 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
         const { boxBigger, kpsBigger } =
                 scaleFaceBox({ width, height }, face.box, face.kps, MARGIN);
         
-        const raw112 = await ffmpegAligned112Raw(bufWhole, kpsBigger, -5, 'mjpeg'); //using full image but use local if crop path is used
+        const codec  = guessCodec(bufWhole); 
+        const raw112 = await ffmpegAligned112Raw(bufWhole, kpsBigger, -5, codec); //using full image but use local if crop path is used
         const tensor112 = rgb24ToTensor112(raw112);
         
         const embOut = await arcSess!.run({ [arcSess!.inputNames[0]]: tensor112 });
@@ -166,19 +166,53 @@ function getFaces(
     return nonMaxSup(faces);
 }
 
+function ffprobeDims(
+  data: Buffer | Readable
+): Promise<{ w: number; h: number; rot: 0|90|180|270 }> {
+
+  const isBuf   = Buffer.isBuffer(data);
+  const inStream = isBuf ? Readable.from([data]) : data;
+
+  const isWebP  = isBuf &&
+                  data.toString('ascii', 0, 4)  === 'RIFF' &&
+                  data.toString('ascii', 8, 12) === 'WEBP';
+
+  const inputOpts =
+      isBuf ? ['-f', isWebP ? 'webp_pipe' : 'image2pipe'] : [];
+
+  return new Promise((res, rej) => {
+    ffmpeg(inStream)
+      .inputOptions(...inputOpts)
+      .ffprobe((err, meta) => {
+        if (!err) {
+          const s = meta.streams.find(v => v.codec_type === 'image' ||
+                                           v.codec_type === 'video');
+          if (s?.width && s?.height) {
+            const rot = +(s.tags?.rotate ?? 0) as 0|90|180|270;
+            return res({ w: s.width, h: s.height, rot });
+          }
+        }
+        rej(err ?? new Error('ffprobe: no dimensions'));
+      });
+  });
+}
+
+
 //sharp-based preprocessing   -> 640×640 Float32 CHW tensor
 async function preprocessNode(data: Buffer | Readable) {
     const SIDE = 640;
   
     const buf = await ensureBuffer(data);
-    const meta = await sharp(buf).rotate().metadata();
-    if (!meta.width || !meta.height) throw new Error('cannot read image dims');
+    const { w, h, rot }  = await ffprobeDims(buf);     // ← replaces Sharp
+    const width          = (rot === 90 || rot === 270) ? h : w;
+    const height         = (rot === 90 || rot === 270) ? w : h;
+
+    const scale = Math.min(SIDE / width, SIDE / height);
+    const nw    = Math.round(width  * scale);
+    const nh    = Math.round(height * scale);
   
-    const scale = Math.min(SIDE/meta.width, SIDE/meta.height);
-    const nw    = Math.round(meta.width  * scale);
-    const nh    = Math.round(meta.height * scale);
-  
-    const paddedRGB = await ffmpegScalePadRaw(buf, nw, nh, SIDE);
+    const codec  = guessCodec(buf);
+    const paddedRGB = await ffmpegScalePadRaw(buf, nw, nh, SIDE, codec, rot);
   
     /* ----------------------------------------------------- */
     /* build BGR Float32 CHW tensor with InsightFace scaling */
@@ -197,39 +231,56 @@ async function preprocessNode(data: Buffer | Readable) {
     }
   
     const tensor = new ort.Tensor('float32', f32, [1,3,SIDE,SIDE]);
-    return { tensor, scale, dx:0, dy:0, side:SIDE, width: meta.width, height: meta.height };
+    return { tensor, scale, dx:0, dy:0, side:SIDE, width: width, height: height };
 }
 
 
-//Produce a 640 × 640 RGB24 buffer with letter-boxing
-function ffmpegScalePadRaw(
-  data : Buffer | Readable,
+/**
+ * Resize + letterbox **and** apply EXIF/video rotation if `rot` ≠ 0.
+ *
+ * @param data   encoded frame (Buffer or stream)
+ * @param nw,nh  target *inner* size (before padding)
+ * @param SIDE   final square side (default 640)
+ * @param vcodec 'mjpeg' | 'png'
+ * @param rot    0 | 90 | 180 | 270   ← NEW
+ */
+export function ffmpegScalePadRaw(
+  data   : Buffer | Readable,
   nw     : number,
   nh     : number,
-  SIDE   = 640
+  SIDE   = 640,
+  vcodec : 'mjpeg' | 'png' = 'mjpeg',
+  rot    : 0 | 90 | 180 | 270 = 0           // ← added arg
 ): Promise<Buffer> {
 
-  // build the exact filter chain you had: scale -> pad -> rgb24
+  const transpose =
+      rot === 90  ? 'transpose=1,'   // clockwise
+    : rot === 180 ? 'transpose=1,transpose=1,'
+    : rot === 270 ? 'transpose=2,'   // counter-clockwise
+    :               '';
+
   const vf = [
-    `scale=${nw}:${nh}:flags=lanczos+accurate_rnd+full_chroma_inp`,     // high-quality resize
-    `pad=${SIDE}:${SIDE}:0:0:black`,       // pad right/bottom with black
-    'format=rgb24'                         // return raw RGB24
+    transpose +
+    `scale=${nw}:${nh}:flags=lanczos+accurate_rnd+full_chroma_inp`,
+    `pad=${SIDE}:${SIDE}:0:0:black`,
+    'format=rgb24',
   ].join(',');
 
-  const input  = asReadable(data);             /* stdin for FFmpeg */
   const chunks: Buffer[] = [];
 
   return new Promise((res, rej) => {
-      ffmpeg(input)
-        .inputFormat('image2pipe')               /* ← critical */
-        .inputOptions('-vcodec', 'mjpeg')        /* jpeg/png → mjpeg is fine */
-        .outputOptions('-vf', vf, '-vframes', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24')
-        .on('error', rej)
-        .on('end', () => res(Buffer.concat(chunks)))
-        .pipe()
-        .on('data', c => chunks.push(c));
-    });
+    ffmpeg(asReadable(data))
+      .inputFormat('image2pipe')
+      .inputOptions('-vcodec', vcodec)
+      .outputOptions('-vf', vf, '-vframes', '1',
+                     '-f', 'rawvideo', '-pix_fmt', 'rgb24')
+      .on('error', rej)
+      .on('end', () => res(Buffer.concat(chunks)))
+      .pipe()
+      .on('data', c => chunks.push(c));
+  });
 }
+
 
 
 
@@ -298,7 +349,7 @@ function ffmpegAligned112Raw(
   return new Promise((res, rej) => {
     ffmpeg(input)
       .inputFormat('image2pipe')
-      .inputOptions('-vcodec', vcodec)
+      .inputOptions('-vcodec', codec)
       .outputOptions('-vf', vf, '-frames:v', '1',
                      '-f', 'rawvideo', '-pix_fmt', 'rgb24')
       .on('error', rej)

@@ -217,6 +217,12 @@ export async function saveRawRGB24AsPng(
 
 
 export function guessCodec(buf: Buffer): 'mjpeg' | 'png' {
-  if (buf.slice(0, 8).toString('ascii') === '\x89PNG\r\n\x1a\n') return 'png';
-  return 'mjpeg';                      // default: most JPEGs start FF D8
+  // PNG  89 50 4E 47 0D 0A 1A 0A
+  if (buf.slice(0, 8).toString('hex') === '89504e470d0a1a0a') return 'png';
+  // JPEG FF D8
+  return 'mjpeg';
 }
+// export function guessCodec(buf: Buffer): 'mjpeg' | 'png' {
+//   if (buf.slice(0, 8).toString('ascii') === '\x89PNG\r\n\x1a\n') return 'png';
+//   return 'mjpeg';                      // default: most JPEGs start FF D8
+// }
