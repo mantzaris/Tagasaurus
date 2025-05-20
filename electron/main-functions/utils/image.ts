@@ -214,3 +214,9 @@ export async function saveRawRGB24AsPng(
       .run();
   });
 }
+
+
+export function guessCodec(buf: Buffer): 'mjpeg' | 'png' {
+  if (buf.slice(0, 8).toString('ascii') === '\x89PNG\r\n\x1a\n') return 'png';
+  return 'mjpeg';                      // default: most JPEGs start FF D8
+}

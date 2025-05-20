@@ -10,7 +10,8 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
 import { FaceDet } from '../../types/face';
 import { l2Normalize, mathInverse, nonMaxSup, scaleFaceBox, SIGM } from './face';
-import { rgb24ToTensor112, saveRawRGB24AsPng } from './image';
+import { guessCodec, rgb24ToTensor112, saveRawRGB24AsPng } from './image';
+import { asReadable, ensureBuffer } from './utils';
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
@@ -39,6 +40,77 @@ export async function faceSetupOnce(): Promise<void> {
       })();
     }
     await setupPromise;
+}
+
+
+async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' | 'png' = 'mjpeg'): Promise<Float32Array[]> {
+    await faceSetupOnce();
+
+    const { tensor, scale, dx, dy, side, width, height } =
+            await preprocessNode(data);
+    
+    const feeds: Record<string, ort.Tensor> = {};
+    feeds[scrfdSess.inputNames[0]] = tensor;
+    const detOut = await scrfdSess.run(feeds);
+
+    const faces = getFaces(detOut, scrfdSess, scale, dx, dy, side);
+
+    if (faces.length === 0) return [];
+
+    const embeddings: Float32Array[] = [];
+    const bufWhole = await ensureBuffer(data);
+
+    for (let i = 0; i < faces.length; ++i) {
+        const face = faces[i];
+        
+        const { boxBigger, kpsBigger } =
+                scaleFaceBox({ width, height }, face.box, face.kps, MARGIN);
+        
+        const raw112 = await ffmpegAligned112Raw(bufWhole, kpsBigger, -5, 'mjpeg'); //using full image but use local if crop path is used
+        const tensor112 = rgb24ToTensor112(raw112);
+        
+        const embOut = await arcSess!.run({ [arcSess!.inputNames[0]]: tensor112 });
+        const emb    = embOut[arcSess!.outputNames[0]].data as Float32Array;
+        l2Normalize(emb);
+        embeddings.push(emb);
+        
+        const norm = Math.sqrt(emb.reduce((s,x) => s + x*x, 0));
+        
+        if(DEBUG) {
+
+          await fs.mkdir(OUT_DIR, { recursive: true });
+          const fileStem = Math.floor(Math. random() * (9999 - 1000 + 1)) + 1000 //path.parse(filePath).name;
+          await saveRawRGB24AsPng(raw112, 
+            112,// width
+            112,// height
+            path.join(OUT_DIR, `${fileStem}_face${i}_aligned.png`)
+          );
+
+          console.log(`face ${i} tensor dims: `, tensor112.dims);  // should log [1,3,112,112]
+          console.log(`face ${i} emb[0..4]: `, Array.from(emb.slice(0,5)));
+          console.log(`face ${i} L2: `, norm.toFixed(3));
+        }
+
+
+    }
+
+    return embeddings; //let caller know how many we saved
+}
+
+
+//PUBLIC entry: detect & crop faces
+export async function processFacesOnImageNEW(filePath: string) {
+
+    await faceSetupOnce();
+
+    const imageBuf = await fs.readFile(filePath);
+    
+    const embeddingsRaw = await processFacesOnImageData(imageBuf);
+
+    console.log("in processFacesOnImageNEW: ")
+    embeddingsRaw.forEach((emb, i) =>
+      console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
+    );
 }
 
   
@@ -95,18 +167,18 @@ function getFaces(
 }
 
 //sharp-based preprocessing   -> 640×640 Float32 CHW tensor
-async function preprocessNode(filePath: string) {
+async function preprocessNode(data: Buffer | Readable) {
     const SIDE = 640;
   
-    const imgSharp = sharp(filePath).rotate(); //TODO: no sharp              // EXIF-aware
-    const meta      = await imgSharp.metadata();
-    if (!meta.width || !meta.height) throw new Error('Cannot read image dims');
+    const buf = await ensureBuffer(data);
+    const meta = await sharp(buf).rotate().metadata();
+    if (!meta.width || !meta.height) throw new Error('cannot read image dims');
   
     const scale = Math.min(SIDE/meta.width, SIDE/meta.height);
     const nw    = Math.round(meta.width  * scale);
     const nh    = Math.round(meta.height * scale);
   
-    const paddedRGB = await ffmpegScalePadRaw(filePath, nw, nh, SIDE);
+    const paddedRGB = await ffmpegScalePadRaw(buf, nw, nh, SIDE);
   
     /* ----------------------------------------------------- */
     /* build BGR Float32 CHW tensor with InsightFace scaling */
@@ -131,7 +203,7 @@ async function preprocessNode(filePath: string) {
 
 //Produce a 640 × 640 RGB24 buffer with letter-boxing
 function ffmpegScalePadRaw(
-  file   : string,
+  data : Buffer | Readable,
   nw     : number,
   nh     : number,
   SIDE   = 640
@@ -144,73 +216,22 @@ function ffmpegScalePadRaw(
     'format=rgb24'                         // return raw RGB24
   ].join(',');
 
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    ffmpeg(file)
-      .outputOptions('-vf', vf, '-vframes', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24')
-      .on('error', reject)
-      .on('end', () => resolve(Buffer.concat(chunks)))
-      .pipe()                        // stdout → Node stream
-      .on('data', chunk => chunks.push(chunk));
-  });
+  const input  = asReadable(data);             /* stdin for FFmpeg */
+  const chunks: Buffer[] = [];
+
+  return new Promise((res, rej) => {
+      ffmpeg(input)
+        .inputFormat('image2pipe')               /* ← critical */
+        .inputOptions('-vcodec', 'mjpeg')        /* jpeg/png → mjpeg is fine */
+        .outputOptions('-vf', vf, '-vframes', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24')
+        .on('error', rej)
+        .on('end', () => res(Buffer.concat(chunks)))
+        .pipe()
+        .on('data', c => chunks.push(c));
+    });
 }
 
 
-
-//PUBLIC entry: detect & crop faces
-export async function processFacesOnImageNEW(filePath: string) {
-
-    await faceSetupOnce();
-
-    const { tensor, scale, dx, dy, side, width, height } =
-            await preprocessNode(filePath);
-
-    const feeds: Record<string, ort.Tensor> = {};
-    feeds[scrfdSess.inputNames[0]] = tensor;
-    const detOut = await scrfdSess.run(feeds);
-
-    const faces = getFaces(detOut, scrfdSess, scale, dx, dy, side);
-
-    if (faces.length === 0) return 0;
-
-    await fs.mkdir(OUT_DIR, { recursive: true });
-    const fileStem = path.parse(filePath).name;
-
-    let idx = 0;
-    for (const face of faces) {
-        
-        const { boxBigger, kpsBigger } =
-                scaleFaceBox({ width, height }, face.box, face.kps, MARGIN);
-        
-        const raw112 = await ffmpegAligned112Raw(filePath, kpsBigger, -5) //using full image but use local if crop path is used
-
-        const tensor112 = rgb24ToTensor112(raw112);
-        
-
-        const embOut = await arcSess!.run({ [arcSess!.inputNames[0]]: tensor112 });
-        const emb    = embOut[arcSess!.outputNames[0]].data as Float32Array;
-        l2Normalize(emb);
-        
-        const norm = Math.sqrt(emb.reduce((s,x) => s + x*x, 0));
-        
-        if(DEBUG) {
-          await saveRawRGB24AsPng(raw112, 
-            112,// width
-            112,// height
-            path.join(OUT_DIR, `${fileStem}_face${idx}_aligned.png`)
-          );
-
-          console.log(`face ${idx} tensor dims: `, tensor112.dims);  // should log [1,3,112,112]
-          console.log(`face ${idx} emb[0..4]: `, Array.from(emb.slice(0,5)));
-          console.log(`face ${idx} L2: `, norm.toFixed(3));
-        }
-
-
-        ++idx;
-    }
-
-    return faces.length; //let caller know how many we saved
-}
 
 
 
@@ -219,9 +240,10 @@ export async function processFacesOnImageNEW(filePath: string) {
  * canonical template onto the source image via 5-point similarity.
  */
 function ffmpegAligned112Raw(
-  filePath : string,
-  kps : number[], // 10 numbers, full-image coords
-  marginPx = 0
+  data: Buffer | Readable,
+  kps: number[], // 10 numbers, full-image coords
+  marginPx = 0,
+  vcodec : 'mjpeg'|'png' = 'mjpeg', 
 ): Promise<Buffer> {
 
   // 1. canonical InsightFace template -------------------------
@@ -258,9 +280,9 @@ function ffmpegAligned112Raw(
   const [x0,y0] = map(0  , 0  );
   // 111,0 -> top‑right
   const [x1,y1] = map(111, 0  );
-  // 0,111 -> bottom‑left   ← changed
+  // 0,111 -> bottom‑left   - changed
   const [x2,y2] = map(0  , 111);
-  // 111,111 -> bottom‑right ← changed
+  // 111,111 -> bottom‑right - changed
   const [x3,y3] = map(111, 111);
 
   const vf = `perspective=` +
@@ -268,15 +290,21 @@ function ffmpegAligned112Raw(
            `x2=${x2}:y2=${y2}:x3=${x3}:y3=${y3},` +
            `scale=112:112:flags=lanczos`;
 
+  const input = asReadable(data);
+  const codec  = vcodec ?? (Buffer.isBuffer(data) ? guessCodec(data) : 'mjpeg');
+  const chunks: Buffer[] = [];
+
   // 6. run FFmpeg and return raw rgb24 bytes ------------------
-  return new Promise((res,rej)=>{
-    const chunks:Buffer[]=[];
-    ffmpeg(filePath)
-      .outputOptions('-vf',vf,'-frames:v','1','-f','rawvideo','-pix_fmt','rgb24')
-      .on('error',rej)
-      .on('end',()=>res(Buffer.concat(chunks)))
+  return new Promise((res, rej) => {
+    ffmpeg(input)
+      .inputFormat('image2pipe')
+      .inputOptions('-vcodec', vcodec)
+      .outputOptions('-vf', vf, '-frames:v', '1',
+                     '-f', 'rawvideo', '-pix_fmt', 'rgb24')
+      .on('error', rej)
+      .on('end', () => res(Buffer.concat(chunks)))
       .pipe()
-      .on('data',c=>chunks.push(c));
+      .on('data', c => chunks.push(c));
   });
 }
 

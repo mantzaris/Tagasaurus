@@ -1,6 +1,8 @@
 import fs, {open} from "fs/promises"; //import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { Readable } from 'stream';
+
 
 import { createHash } from "crypto";
 import { loadEsm } from 'load-esm';
@@ -110,6 +112,17 @@ export async function validatePath(p: string): Promise<string | undefined> {
     return;                            // unreadable → treat as invalid
   }
 
-  // 4) Pass – return the canonical absolute path (realpath resolves junctions)
+  // 4) Pass - return the canonical absolute path (realpath resolves junctions)
   return fs.realpath(normal);
 }
+
+
+export async function ensureBuffer(src: Buffer | Readable): Promise<Buffer> {
+  if (Buffer.isBuffer(src)) return src;
+  const chunks: Buffer[] = [];
+  for await (const c of src) chunks.push(c as Buffer);
+  return Buffer.concat(chunks);
+}
+
+export const asReadable = (src: Buffer | Readable): Readable =>
+  Buffer.isBuffer(src) ? Readable.from([src]) : src;
