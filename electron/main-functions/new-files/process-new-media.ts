@@ -13,6 +13,7 @@ import { MediaFile } from "../../types/dbConfig";
 import { faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
 import { processFacesOnImageOLD } from "../utils/face-utilsOLD";
 import { processFacesOnImageVERYOLD } from "../utils/face-utilsVERYOLD";
+import { processFacesOnImageNEW } from "../utils/face-utilsNEW";
 
 
 
@@ -145,7 +146,7 @@ export async function processTempFiles(
         }
 
 
-        //FACE EMBEDDINGS
+        //FACE EMBEDDINGS---------
         if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues
           
           console.log(`new embeddings:`);
@@ -162,8 +163,10 @@ export async function processTempFiles(
           });
 
           await processFacesOnImageVERYOLD(tempFilePath);
+
+          await processFacesOnImageNEW(tempFilePath);
         }
-        
+        //--------------------
         
         //TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
         //TODO: fail here should be handled not just transaction failure
