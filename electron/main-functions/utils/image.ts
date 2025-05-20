@@ -7,6 +7,8 @@ import sharp from "sharp";
 import { promises as fs } from "fs";
 import path from "path";
 import { once, Readable } from 'node:stream';
+import * as ort   from 'onnxruntime-node';
+
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
@@ -155,6 +157,8 @@ export async function saveThumbs(raw: Buffer | Readable, suff = 0) {
   .toFile(`/home/resort/Downloads/tempVids/face${suff}.png`);
 }
 
+
+//TODO: still need this?
 export async function savePngRaw(
   rgb: Buffer | Uint8Array,
   w: number,
@@ -164,4 +168,49 @@ export async function savePngRaw(
   await sharp(rgb as Buffer, { raw: { width: w, height: h, channels: 3 } })
     .png()
     .toFile(`/home/resort/Downloads/tempVids/${tag}.png`);
+}
+
+
+
+
+export function rgb24ToTensor112(buf: Buffer): ort.Tensor {
+  const size = 112 * 112;
+  const f32  = new Float32Array(3 * size);
+  for (let i = 0; i < size; ++i) {
+    const r = buf[i*3    ];
+    const g = buf[i*3 + 1];
+    const b = buf[i*3 + 2];
+    f32[i]          = (b - 127.5) / 128;   // B
+    f32[i +   size] = (g - 127.5) / 128;   // G
+    f32[i + 2*size] = (r - 127.5) / 128;   // R
+  }
+  return new ort.Tensor('float32', f32, [1, 3, 112, 112]);
+}
+
+
+export async function saveRawRGB24AsPng(
+  raw    : Buffer,
+  width  : number,
+  height : number,
+  out    : string,
+): Promise<void> {
+  const stream = Readable.from([raw]);
+
+  return new Promise((res, rej) => {
+    ffmpeg(stream)
+      .inputFormat('rawvideo')
+      .inputOptions([
+        '-pix_fmt rgb24',
+        `-s ${width}x${height}`,   // short form of -video_size
+      ])
+      .outputOptions([
+        '-vcodec png',            // choose the PNG encoder
+        '-frames:v 1',            // only one frame
+        '-y',                     // overwrite existing file
+      ])
+      .output(out)
+      .on('end',  () => res())
+      .on('error',rej)
+      .run();
+  });
 }

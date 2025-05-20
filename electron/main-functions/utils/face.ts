@@ -69,32 +69,3 @@ export function mathInverse(m:number[][]){
   ];
 }
 
-
-
-
-export async function saveRawRGB24AsPng(
-  raw    : Buffer,
-  width  : number,
-  height : number,
-  out    : string,
-): Promise<void> {
-  const stream = Readable.from([raw]);
-
-  return new Promise((res, rej) => {
-    ffmpeg(stream)
-      .inputFormat('rawvideo')
-      .inputOptions([
-        '-pix_fmt rgb24',
-        `-s ${width}x${height}`,   // short form of -video_size
-      ])
-      .outputOptions([
-        '-vcodec png',            // choose the PNG encoder
-        '-frames:v 1',            // only one frame
-        '-y',                     // overwrite existing file
-      ])
-      .output(out)
-      .on('end',  () => res())
-      .on('error',rej)
-      .run();
-  });
-}
