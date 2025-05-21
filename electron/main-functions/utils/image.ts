@@ -9,6 +9,10 @@ import path from "path";
 import { once, Readable } from 'node:stream';
 import * as ort   from 'onnxruntime-node';
 
+import { GifReader } from 'omggif';
+import WebP from 'node-webpmux';
+import { PNG } from 'pngjs';
+
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 
@@ -216,6 +220,7 @@ export async function saveRawRGB24AsPng(
 }
 
 
+
 export function guessCodec(buf: Buffer): 'mjpeg' | 'png' {
   // PNG  89 50 4E 47 0D 0A 1A 0A
   if (buf.slice(0, 8).toString('hex') === '89504e470d0a1a0a') return 'png';
@@ -226,3 +231,95 @@ export function guessCodec(buf: Buffer): 'mjpeg' | 'png' {
 //   if (buf.slice(0, 8).toString('ascii') === '\x89PNG\r\n\x1a\n') return 'png';
 //   return 'mjpeg';                      // default: most JPEGs start FF D8
 // }
+
+
+
+export async function analyseAnimated(file: string, mime: string) {
+  let total = 1;
+
+  if (mime === 'image/gif') {
+    total = await countGifFrames(file);
+  } else if (mime === 'image/webp') {
+    total = await countWebPFrames(file);
+  } else {
+    return false;
+  }
+
+  const picks = chooseFrames(total);
+  console.log(`animated: ${total} frames → sample`, picks);
+  return { total, frames: picks };
+}
+
+export function chooseFrames(total: number): number[] {
+  const maxFrames = 150;
+  const wanted    = Math.min(maxFrames, Math.max(1, Math.ceil(total / 20)));
+
+  const step  = total / wanted;
+  const picks = new Set<number>();
+
+  for (let i = 0; i < wanted; ++i)
+    picks.add(Math.floor(i * step));
+
+  picks.add(total - 1);                  // ensures final frame
+  return [...picks];
+}
+
+export async function countWebPFrames(path: string) {
+  const img = new WebP.Image();
+  await img.load(path);
+  return img.frames.length;                       // 1 is not animated
+}
+
+export async function countGifFrames(path: string) {
+  const buf = await fs.readFile(path);
+  const reader = new GifReader(buf);
+  return reader.numFrames();                 // integer frame count
+}
+
+export async function extractGifFrame(file: string, frameIdx: number): Promise<Buffer> {
+  const buf   = await fs.readFile(file);
+  const gif   = new GifReader(buf);
+  const frame = Buffer.allocUnsafe(gif.width * gif.height * 4);   // RGBA
+  gif.decodeAndBlitFrameRGBA(frameIdx, frame);
+  // Convert RGBA → PNG in-memory so ffmpegScalePadRaw can read it
+  return encodePng(frame, gif.width, gif.height);                 // small helper
+}
+
+/**
+ * Convert an RGBA Buffer to a PNG Buffer (no file-system writes).
+ *
+ * @param rgba   Raw RGBA pixels, length = width * height * 4
+ * @param width
+ * @param height
+ */
+export function encodePng(
+  rgba  : Buffer,
+  width : number,
+  height: number
+): Buffer {
+  // pngjs wants a PNG instance with .data = RGBA buffer
+  const png = new PNG({ width, height });
+  rgba.copy(png.data);               // no per-pixel loop, just one copy
+  return PNG.sync.write(png);        // returns a Node Buffer
+}
+
+export async function extractFrameViaFFmpeg(
+  file: string,
+  frameIdx: number
+): Promise<Buffer> {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    ffmpeg(file)
+      .outputOptions(
+        '-vf', `select='gte(n\\,${frameIdx})',setpts=PTS-STARTPTS`,
+        '-frames:v', '1',
+        '-f', 'image2pipe',
+        '-vcodec', 'png'
+      )
+      .output('pipe:1')
+      .on('error', reject)
+      .on('end', () => resolve(Buffer.concat(chunks)))
+      .pipe()
+      .on('data', c => chunks.push(c));
+  });
+}

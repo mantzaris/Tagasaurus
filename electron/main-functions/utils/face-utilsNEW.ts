@@ -11,7 +11,7 @@ import * as distance from 'ml-distance';
 
 import { FaceDet } from '../../types/face';
 import { l2Normalize, mathInverse, nonMaxSup, scaleFaceBox, SIGM } from './face';
-import { guessCodec, rgb24ToTensor112, saveRawRGB24AsPng } from './image';
+import { analyseAnimated, detectAnimation, extractFrameViaFFmpeg, extractGifFrame, guessCodec, rgb24ToTensor112, saveRawRGB24AsPng } from './image';
 import { asReadable, ensureBuffer } from './utils';
 import { chooseTimes, extractVideoFrame, videoDurationSec } from './video';
 
@@ -114,7 +114,6 @@ export async function processFacesFromMediaNEW(filePath: string, inferredFileMim
       const stamps = chooseTimes(dur, STEP_SEC).slice(0, MAX_SAMPLES);
 
       console.log(`${path.basename(filePath)}: sampling ${stamps.length} frames`);
-      const allEmbeddings: Float32Array[] = [];
 
       for (const t of stamps) {
         try {
@@ -134,19 +133,66 @@ export async function processFacesFromMediaNEW(filePath: string, inferredFileMim
         `${path.basename(filePath)} → ${allEmbeddings.length} unique face(s)`
       );
       return allEmbeddings;
-    } else { //still image
-      const imageBuf = await fs.readFile(filePath);    
-      const embeddingsRaw = await processFacesOnImageData(imageBuf);
+    } else if(inferredFileMimeType.startsWith('image/')) { //image animated or still
+            
+      const animated = await detectAnimation(filePath, inferredFileMimeType);
+      
+      if (animated) {       
+        if(inferredFileMimeType.startsWith('image/webp')) {
+          return allEmbeddings;
+        }
 
-      console.log("in processFacesOnImageNEW: ")
-      embeddingsRaw.forEach((emb, i) =>
-        console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
-      );
+        const info = await analyseAnimated(filePath, inferredFileMimeType);
+        
+        if (info) {
+          const { frames } = info;  // indices chosen by chooseFrames
+  
+          for (const idx of frames) {
+            let frameBuf: Buffer;  
+            try {
+              frameBuf = await extractGifFrame(filePath, idx);
+            } catch {
+              // APNG or something else, FFmpeg fallback
+              frameBuf = await extractFrameViaFFmpeg(filePath, idx);            
+            }
+              
+            if(!frameBuf) continue;
+
+            try { //isolate per-frame errors
+              const embForFrame = await processFacesOnImageData(frameBuf);
+              embForFrame.forEach(l2Normalize);
+              addIfUnique(allEmbeddings, embForFrame);
+            } catch (e) {
+              console.warn(`  face processing failed (frame ${idx}):`,
+                          (e as Error).message ?? e);
+            }
+          }
+  
+          console.log(
+            `${path.basename(filePath)} → ${allEmbeddings.length} face(s) (across ${
+              frames.length
+            } sampled frame${frames.length > 1 ? 's' : ''})`
+          );
+          return allEmbeddings;             // TODO: aggregate in conservative way
+        }
+      } else {
+        const imageBuf = await fs.readFile(filePath);    
+        const embeddingsRaw = await processFacesOnImageData(imageBuf);
+
+        console.log("in processFacesOnImageNEW: ")
+        embeddingsRaw.forEach((emb, i) =>
+          console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
+        );
+
+        return embeddingsRaw;
+      }
     }
 
+    return allEmbeddings;
 }
 
 
+//TODO: duplicate detect!! ----------
 const SIM_THR = 0.999; //higher more faces
 
 function isDuplicate(a: Float32Array, b: Float32Array, thr = SIM_THR): boolean {
@@ -165,7 +211,7 @@ function addIfUnique(acc : Float32Array[], cand: Float32Array[], thr  = SIM_THR)
   }
   return added;
 }
-
+//--------------------------------
 
   
 //parse SCRFD outputs 'Bounding boxes'
@@ -252,7 +298,7 @@ function ffprobeDims(
 }
 
 
-//sharp-based preprocessing   -> 640×640 Float32 CHW tensor
+
 async function preprocessNode(data: Buffer | Readable) {
     const SIDE = 640;
   
