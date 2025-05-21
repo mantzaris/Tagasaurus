@@ -126,3 +126,10 @@ export async function ensureBuffer(src: Buffer | Readable): Promise<Buffer> {
 
 export const asReadable = (src: Buffer | Readable): Readable =>
   Buffer.isBuffer(src) ? Readable.from([src]) : src;
+
+
+export function cosineF32(u: Float32Array, v: Float32Array): number {
+  let dot = 0;
+  for (let i = 0; i < u.length; ++i) dot += u[i] * v[i];
+  return dot;                         // works because u, v are L2-normalised
+};

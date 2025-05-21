@@ -149,22 +149,21 @@ export async function processTempFiles(
         //FACE EMBEDDINGS---------
         if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues
           
-          console.log(`new embeddings:`);
-          const embsNew = await processFacesOnImage(tempFilePath, inferredFileType);
+          // console.log(`new embeddings:`);
+          // const embsNew = await processFacesOnImage(tempFilePath, inferredFileType);
+          // embsNew.forEach((emb, idx) => {
+          //          console.log(`file ${hash}  face #${idx}  emb[0..10] =`,
+          //                      Array.from(emb.slice(0, 11)));
+          // });
+
+
+          const embsNew = await processFacesFromMediaNEW(tempFilePath, inferredFileType);
+          console.log(`NEW EMBS`);
           embsNew.forEach((emb, idx) => {
                    console.log(`file ${hash}  face #${idx}  emb[0..10] =`,
                                Array.from(emb.slice(0, 11)));
           });
 
-          // const embOLD = await processFacesOnImageOLD(tempFilePath);
-          // embOLD.forEach((emb, idx) => {
-          //   console.log(`OLD file ${hash}  face #${idx}  emb[0..10] =`,
-          //               Array.from(emb.slice(0, 11)));
-          // });
-
-          // await processFacesOnImageVERYOLD(tempFilePath);
-
-          await processFacesFromMediaNEW(tempFilePath, inferredFileType);
         }
         //--------------------
         

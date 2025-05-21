@@ -7,12 +7,11 @@ import * as ort   from 'onnxruntime-node';
 import nudged     from 'nudged';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
-import * as distance from 'ml-distance';
 
 import { FaceDet } from '../../types/face';
 import { l2Normalize, mathInverse, nonMaxSup, scaleFaceBox, SIGM } from './face';
 import { analyseAnimated, detectAnimation, extractFrameViaFFmpeg, extractGifFrame, guessCodec, rgb24ToTensor112, saveRawRGB24AsPng } from './image';
-import { asReadable, ensureBuffer } from './utils';
+import { asReadable, cosineF32, ensureBuffer } from './utils';
 import { chooseTimes, extractVideoFrame, videoDurationSec } from './video';
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
@@ -24,6 +23,8 @@ const DEBUG = true;
 const OUT_DIR = '/home/resort/Pictures/temp'; // make sure it exists!
 
 const MARGIN = 0.3; //for the face outline rang is 0.2 - 0.35
+const FACE_SIM_THR = 0.75; //higher value -> fewer considered similar -> more faces
+const DET_CONF_THR = 0.80;
 
 let scrfdSess: ort.InferenceSession;
 let arcSess  : ort.InferenceSession;
@@ -173,16 +174,14 @@ export async function processFacesFromMediaNEW(filePath: string, inferredFileMim
               frames.length
             } sampled frame${frames.length > 1 ? 's' : ''})`
           );
-          return allEmbeddings;             // TODO: aggregate in conservative way
+          return allEmbeddings;
         }
-      } else {
+      } else { //still images
         const imageBuf = await fs.readFile(filePath);    
-        const embeddingsRaw = await processFacesOnImageData(imageBuf);
+        let embeddingsRaw = await processFacesOnImageData(imageBuf);
 
-        console.log("in processFacesOnImageNEW: ")
-        embeddingsRaw.forEach((emb, i) =>
-          console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
-        );
+        embeddingsRaw = dedupEmbeddings(embeddingsRaw);
+        // embeddingsRaw.forEach((emb, i) => console.log(`face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`));
 
         return embeddingsRaw;
       }
@@ -192,20 +191,27 @@ export async function processFacesFromMediaNEW(filePath: string, inferredFileMim
 }
 
 
-//TODO: duplicate detect!! ----------
-const SIM_THR = 0.999; //higher more faces
 
-function isDuplicate(a: Float32Array, b: Float32Array, thr = SIM_THR): boolean {
-  return distance.similarity.cosine(
-           a as unknown as number[],
-           b as unknown as number[],
-         ) >= thr;
+export function isDuplicate(a: Float32Array, b: Float32Array, thr = FACE_SIM_THR): boolean {
+  if (thr < -1 || thr > 1) {
+    throw new RangeError(`cosine threshold must be in [-1,1], got ${thr}`);
+  }
+  console.log(`cosineF32  = ${cosineF32(a, b)}`);
+  return cosineF32(a, b) >= thr;
 }
 
-function addIfUnique(acc : Float32Array[], cand: Float32Array[], thr  = SIM_THR): number {
+export function dedupEmbeddings(embs: Float32Array[], thr  = FACE_SIM_THR): Float32Array[] {
+  const unique: Float32Array[] = [];
+  addIfUnique(unique, embs, thr);
+  return unique;
+}
+
+export function addIfUnique(acc : Float32Array[], cand: Float32Array[], thr = FACE_SIM_THR): number {
   let added = 0;
-  for (const e of cand) {
-    if (acc.some(u => isDuplicate(e, u, thr))) continue;  // ← single test
+  outer: for (const e of cand) {
+    for (const u of acc) {
+      if (isDuplicate(e, u, thr)) continue outer;
+    }
     acc.push(e);
     ++added;
   }
@@ -222,7 +228,7 @@ function getFaces(
     dx: number,
     dy: number,
     side: number,
-    confTh = 0.55,
+    confTh = DET_CONF_THR,
   ): FaceDet[] {
   
     const faces: FaceDet[] = [];
