@@ -10,11 +10,7 @@ import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } fro
 import { convertMediaFile,  isAllowedFileType } from "../utils/media-conversion"; //detectAnimation
 import { MediaFile } from "../../types/dbConfig";
 
-import { faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
-import { processFacesOnImageOLD } from "../utils/face-utilsOLD";
-import { processFacesOnImageVERYOLD } from "../utils/face-utilsVERYOLD";
-import { processFacesFromMediaNEW } from "../utils/face-utilsNEW";
-
+import { faceSetupOnce, processFacesFromMedia } from "../utils/face-utils";
 
 
 /**
@@ -157,7 +153,7 @@ export async function processTempFiles(
           // });
 
 
-          const embsNew = await processFacesFromMediaNEW(tempFilePath, inferredFileType);
+          const embsNew = await processFacesFromMedia(tempFilePath, inferredFileType);
           console.log(`NEW EMBS`);
           embsNew.forEach((emb, idx) => {
                    console.log(`file ${hash}  face #${idx}  emb[0..10] =`,
