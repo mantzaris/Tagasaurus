@@ -36,7 +36,7 @@ export async function convertStillToPng(
   /* ---- 1. start the async sharp job ------------------------------ */
   const convert = (async (): Promise<boolean> => {
     try {
-      console.log(`[Sharp] ➜ converting "${path.basename(inputPath)}"`);
+      // console.log(`[Sharp] ➜ converting "${path.basename(inputPath)}"`);
 
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
@@ -261,7 +261,7 @@ export async function analyseAnimated(file: string, mime: string) {
   }
 
   const picks = chooseFrames(total);
-  console.log(`animated: ${total} frames → sample`, picks);
+  // console.log(`animated: ${total} frames → sample`, picks);
   return { total, frames: picks };
 }
 

@@ -19,7 +19,7 @@ ffmpeg.setFfmpegPath(ffmpegPath || "");
 
 const MODELS_DIR  = path.join(__dirname, '..', '..', '..', '..', 'models', 'buffalo_l');
 
-const DEBUG = true;
+const DEBUG = false;
 const OUT_DIR = '/home/resort/Pictures/temp'; // make sure it exists!
 
 const MARGIN = 0.3; //for the face outline rang is 0.2 - 0.35
@@ -114,7 +114,7 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
       const dur    = await videoDurationSec(filePath);
       const stamps = chooseTimes(dur, STEP_SEC).slice(0, MAX_SAMPLES);
 
-      console.log(`${path.basename(filePath)}: sampling ${stamps.length} frames`);
+      if(DEBUG) console.log(`${path.basename(filePath)}: sampling ${stamps.length} frames`);
 
       for (const t of stamps) {
         try {
@@ -130,9 +130,8 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
         }
       }
 
-      console.log(
-        `${path.basename(filePath)} → ${allEmbeddings.length} unique face(s)`
-      );
+      if(DEBUG) console.log(`${path.basename(filePath)} → ${allEmbeddings.length} unique face(s)`);
+
       return allEmbeddings;
     } else if(inferredFileMimeType.startsWith('image/')) { //image animated or still
             
@@ -169,18 +168,15 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
             }
           }
   
-          console.log(
-            `${path.basename(filePath)} → ${allEmbeddings.length} face(s) (across ${
-              frames.length
-            } sampled frame${frames.length > 1 ? 's' : ''})`
-          );
+          if(DEBUG) console.log(`${path.basename(filePath)} → ${allEmbeddings.length} face(s) (across ${frames.length} sampled frame${frames.length > 1 ? 's' : ''})`);
+
           return allEmbeddings;
         }
       } else { //still images
         if(inferredFileMimeType.startsWith('image/webp')) {
           return allEmbeddings;
         }
-        
+
         const imageBuf = await fs.readFile(filePath);    
         let embeddingsRaw = await processFacesOnImageData(imageBuf);
 
@@ -200,7 +196,9 @@ export function isDuplicate(a: Float32Array, b: Float32Array, thr = FACE_SIM_THR
   if (thr < -1 || thr > 1) {
     throw new RangeError(`cosine threshold must be in [-1,1], got ${thr}`);
   }
-  console.log(`cosineF32  = ${cosineF32(a, b)}`);
+  
+  if(DEBUG) console.log(`cosineF32  = ${cosineF32(a, b)}`);
+  
   return cosineF32(a, b) >= thr;
 }
 
