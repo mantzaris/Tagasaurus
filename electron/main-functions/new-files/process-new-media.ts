@@ -13,7 +13,7 @@ import { MediaFile } from "../../types/dbConfig";
 import { faceSetupOnce, processFacesOnImage } from "../utils/face-utils";
 import { processFacesOnImageOLD } from "../utils/face-utilsOLD";
 import { processFacesOnImageVERYOLD } from "../utils/face-utilsVERYOLD";
-import { processFacesOnImageNEW } from "../utils/face-utilsNEW";
+import { processFacesFromMediaNEW } from "../utils/face-utilsNEW";
 
 
 
@@ -156,15 +156,15 @@ export async function processTempFiles(
                                Array.from(emb.slice(0, 11)));
           });
 
-          const embOLD = await processFacesOnImageOLD(tempFilePath);
-          embOLD.forEach((emb, idx) => {
-            console.log(`OLD file ${hash}  face #${idx}  emb[0..10] =`,
-                        Array.from(emb.slice(0, 11)));
-          });
+          // const embOLD = await processFacesOnImageOLD(tempFilePath);
+          // embOLD.forEach((emb, idx) => {
+          //   console.log(`OLD file ${hash}  face #${idx}  emb[0..10] =`,
+          //               Array.from(emb.slice(0, 11)));
+          // });
 
-          await processFacesOnImageVERYOLD(tempFilePath);
+          // await processFacesOnImageVERYOLD(tempFilePath);
 
-          await processFacesOnImageNEW(tempFilePath);
+          await processFacesFromMediaNEW(tempFilePath, inferredFileType);
         }
         //--------------------
         

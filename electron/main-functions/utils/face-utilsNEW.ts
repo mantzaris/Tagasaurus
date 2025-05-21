@@ -7,10 +7,13 @@ import * as ort   from 'onnxruntime-node';
 import nudged     from 'nudged';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import * as distance from 'ml-distance';
+
 import { FaceDet } from '../../types/face';
 import { l2Normalize, mathInverse, nonMaxSup, scaleFaceBox, SIGM } from './face';
 import { guessCodec, rgb24ToTensor112, saveRawRGB24AsPng } from './image';
 import { asReadable, ensureBuffer } from './utils';
+import { chooseTimes, extractVideoFrame, videoDurationSec } from './video';
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
@@ -99,19 +102,70 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
 
 
 //PUBLIC entry: detect & crop faces
-export async function processFacesOnImageNEW(filePath: string) {
-
+export async function processFacesFromMediaNEW(filePath: string, inferredFileMimeType: string) {
+    const STEP_SEC = 1; 
+    const MAX_SAMPLES = 36000;
+     
     await faceSetupOnce();
+    let allEmbeddings: Float32Array[] = [];
 
-    const imageBuf = await fs.readFile(filePath);
-    
-    const embeddingsRaw = await processFacesOnImageData(imageBuf);
+    if (inferredFileMimeType.startsWith('video/')) {
+      const dur    = await videoDurationSec(filePath);
+      const stamps = chooseTimes(dur, STEP_SEC).slice(0, MAX_SAMPLES);
 
-    console.log("in processFacesOnImageNEW: ")
-    embeddingsRaw.forEach((emb, i) =>
-      console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
-    );
+      console.log(`${path.basename(filePath)}: sampling ${stamps.length} frames`);
+      const allEmbeddings: Float32Array[] = [];
+
+      for (const t of stamps) {
+        try {
+          // ONE ffmpeg at a time - sequential
+          const frameBuf = await extractVideoFrame(filePath, t, 'mjpeg');
+          if (!frameBuf) continue;
+
+          const embThis = await processFacesOnImageData(frameBuf);
+          embThis.forEach(l2Normalize);
+          addIfUnique(allEmbeddings, embThis);
+        } catch (e) {
+          console.warn(`frame @${t}s failed:`, (e as Error).message ?? e);
+        }
+      }
+
+      console.log(
+        `${path.basename(filePath)} → ${allEmbeddings.length} unique face(s)`
+      );
+      return allEmbeddings;
+    } else { //still image
+      const imageBuf = await fs.readFile(filePath);    
+      const embeddingsRaw = await processFacesOnImageData(imageBuf);
+
+      console.log("in processFacesOnImageNEW: ")
+      embeddingsRaw.forEach((emb, i) =>
+        console.log(`  face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`)
+      );
+    }
+
 }
+
+
+const SIM_THR = 0.999; //higher more faces
+
+function isDuplicate(a: Float32Array, b: Float32Array, thr = SIM_THR): boolean {
+  return distance.similarity.cosine(
+           a as unknown as number[],
+           b as unknown as number[],
+         ) >= thr;
+}
+
+function addIfUnique(acc : Float32Array[], cand: Float32Array[], thr  = SIM_THR): number {
+  let added = 0;
+  for (const e of cand) {
+    if (acc.some(u => isDuplicate(e, u, thr))) continue;  // ← single test
+    acc.push(e);
+    ++added;
+  }
+  return added;
+}
+
 
   
 //parse SCRFD outputs 'Bounding boxes'
