@@ -23,7 +23,7 @@ const DEBUG = true;
 const OUT_DIR = '/home/resort/Pictures/temp'; // make sure it exists!
 
 const MARGIN = 0.3; //for the face outline rang is 0.2 - 0.35
-const FACE_SIM_THR = 0.70; //higher value -> fewer considered similar -> more faces
+const FACE_SIM_THR = 0.5; //higher value -> fewer considered similar -> more faces
 const DET_CONF_THR = 0.55;
 
 let scrfdSess: ort.InferenceSession;
@@ -177,6 +177,10 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
           return allEmbeddings;
         }
       } else { //still images
+        if(inferredFileMimeType.startsWith('image/webp')) {
+          return allEmbeddings;
+        }
+        
         const imageBuf = await fs.readFile(filePath);    
         let embeddingsRaw = await processFacesOnImageData(imageBuf);
 
@@ -467,83 +471,3 @@ function ffmpegAligned112Raw(
 
 
 
-
-
-/*
-future: to work with just a similarity (affine) matrix instead of perspective you can replace the filter with an affine‑style transform filter:
-
-const a =  M.a, b = M.b, c = M.e,
-      d =  M.c, e = M.d, f = M.f;  // src → dst, no inversion
-const vf = `transform=${a}:${b}:${c}:${d}:${e}:${f},scale=112:112`;
-*/
-
-/*
-        // const [x1, y1, x2, y2] = boxBigger;
-        // const side   = Math.max(x2 - x1, y2 - y1);
-        // const cx     = (x1 + x2) / 2;
-        // const cy     = (y1 + y2) / 2;
-        // let cropLeft = cx - side / 2;
-        // let cropTop  = cy - side / 2;
-        
-        // cropLeft = Math.max(0, cropLeft);
-        // cropTop  = Math.max(0, cropTop);
-
-        let cropSide = Math.min(side, width - cropLeft, height - cropTop);
-
-const leftInt  = Math.floor(cropLeft);
-const topInt   = Math.floor(cropTop);
-const sideInt  = Math.ceil(cropSide);   
-// const kpsLocal = kpsBigger.map((v,i) => i % 2 === 0 ? v - leftInt : v - topInt);
-// await ffmpegCrop112(filePath, path.join(OUT_DIR, `${fileStem}_face${idx}.png`), leftInt, topInt, sideInt);
-       
-//const raw112 = await ffmpegCrop112Raw(filePath, leftInt, topInt, sideInt);
-
-function ffmpegCrop112(
-  src : string,
-  dst : string,
-  left: number,
-  top : number,
-  side: number
-): Promise<void> {
-
-  const vf = `crop=${side}:${side}:${left}:${top},scale=112:112:flags=lanczos`;
-
-  return new Promise((res, rej) => {
-    ffmpeg(src)
-      .outputOptions(
-        '-vf',      vf,
-        '-frames:v','1',   // exactly one frame
-        '-c:v',     'png', // encode with PNG codec
-        '-pix_fmt', 'rgb24'
-      )
-      .save(dst)
-      .on('error', rej)
-      .on('end',   () => res());
-  });
-}
-
-function ffmpegCrop112Raw(
-  src : string,
-  left: number,
-  top : number,
-  side: number
-): Promise<Buffer> {
-
-  const vf = `crop=${side}:${side}:${left}:${top},scale=112:112:flags=lanczos`;
-
-  return new Promise((res, rej) => {
-    const chunks: Buffer[] = [];
-    ffmpeg(src)
-      .outputOptions(
-        '-vf',       vf,
-        '-frames:v', '1',
-        '-f',        'rawvideo',
-        '-pix_fmt',  'rgb24'
-      )
-      .on('error', rej)
-      .on('end', () => res(Buffer.concat(chunks)))
-      .pipe()
-      .on('data', c => chunks.push(c));
-  });
-}
-*/
