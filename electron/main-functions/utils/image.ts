@@ -152,14 +152,29 @@ async function toBuffer(src: Buffer | Readable): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+
+/**
+ * Save a 112×112 RGB24 frame (raw) as PNG via FFmpeg.
+ */
 export async function saveThumbs(raw: Buffer | Readable, suff = 0) {
   const buf = Buffer.isBuffer(raw) ? raw : await toBuffer(raw);
-  await sharp(buf, {
-    raw: { width: 112, height: 112, channels: 3 },
-  })
-  .png()
-  .toFile(`/home/resort/Downloads/tempVids/face${suff}.png`);
+  const dst = `/home/resort/Downloads/tempVids/face${suff}.png`;
+
+  await fs.mkdir('/home/resort/Downloads/tempVids', { recursive: true });
+
+  return new Promise<void>((resolve, reject) => {
+    ffmpeg(Readable.from([buf]))
+      .inputFormat('rawvideo')
+      .inputOptions('-pix_fmt', 'rgb24', '-s', '112x112')   // width×height
+      .output(dst)
+      .outputOptions('-frames:v', '1', '-vcodec', 'png')
+      .on('error', reject)
+      .on('end', () => resolve())
+      .run();
+  });
 }
+
+
 
 
 //TODO: still need this?
