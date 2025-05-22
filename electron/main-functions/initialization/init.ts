@@ -343,9 +343,10 @@ async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promis
       ON ${tables.mediaFiles}(${columns.mediaFiles.fileHash});
     `);
 
+    //libsql_vector_idx(description_embedding, 'metric=cosine') or eucliedian etc
     await db.exec(`
       CREATE INDEX IF NOT EXISTS ${indexes.mediaFilesDescriptionEmbedding}
-      ON ${tables.mediaFiles}(libsql_vector_idx(${columns.mediaFiles.descriptionEmbedding}));
+      ON ${tables.mediaFiles}(libsql_vector_idx(${columns.mediaFiles.descriptionEmbedding})); 
     `);
 
     await db.exec(`

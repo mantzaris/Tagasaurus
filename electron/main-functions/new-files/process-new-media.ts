@@ -41,7 +41,7 @@ export async function processTempFiles(
 
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
-  const { mediaFiles } = tables;
+  const { mediaFiles, faceEmbeddings } = tables;
   const { fileHash, filename, fileType, description, descriptionEmbedding } =
     columns.mediaFiles;
 
@@ -60,6 +60,13 @@ export async function processTempFiles(
       ${description},
       ${descriptionEmbedding}
     ) VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const insertFaceStmt = await db.prepare(`
+    INSERT INTO ${faceEmbeddings} (
+        ${columns.faceEmbeddings.mediaFileId},
+        ${columns.faceEmbeddings.faceEmbedding}
+    ) VALUES (?, ?)
   `);
 
   const fetchStmt = await db.prepare(`
@@ -143,10 +150,12 @@ export async function processTempFiles(
 
 
         //FACE EMBEDDINGS---------
+        let allEmbeddings: Float32Array[] = [];
+
         if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues, webp currently bypassed
-          const embsNew = await processFacesFromMedia(tempFilePath, inferredFileType);
+          allEmbeddings = await processFacesFromMedia(tempFilePath, inferredFileType);
           
-          embsNew.forEach((emb, idx) => { console.log(`file ${hash}  face #${idx}  emb[0..10] =`, Array.from(emb.slice(0, 11))); });
+          allEmbeddings.forEach((emb, idx) => { console.log(`file ${hash}  face #${idx}  emb[0..10] =`, Array.from(emb.slice(0, 11))); });
         }
         //--------------------
         
@@ -166,6 +175,19 @@ export async function processTempFiles(
             "",              //description
             null             //descriptionEmbedding
           );
+
+          if(allEmbeddings.length > 0) {
+            const mediaFileRow = await fetchStmt.get<MediaFile>(hash);
+
+            if (mediaFileRow) {
+              const mediaFileId = mediaFileRow.id;
+              for (const emb of allEmbeddings) {
+                // Store the raw Float32Array as a blob
+                await insertFaceStmt.run([mediaFileId, Buffer.from(emb.buffer)]);
+              }
+            }           
+
+          }
         
           //move file to the correct subdirectory
           const subPath = getHashSubdirectory(hash); // e.g. "a/3/e/7"
