@@ -13,6 +13,7 @@ import { getRandomEntries } from "./main-functions/db-operations/random-entries"
 import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
+import { searchTagging } from "./main-functions/db-operations/search";
 
 app.commandLine.appendSwitch(
   'enable-features',
@@ -268,5 +269,17 @@ async function enqueueIngest(
     ingestRunning = false;
   }
 }
+
+
+ipcMain.handle("search-embeddings", async (
+  event, 
+  descrEmb: Float32Array[] = [] , 
+  faceEmb: Float32Array[] = [],
+  k: number = 100): Promise<string[]> => {
+  
+  return await searchTagging(db, descrEmb, faceEmb, k);
+});
+
+
 
 //allowing the gpu

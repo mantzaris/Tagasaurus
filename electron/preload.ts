@@ -31,6 +31,10 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.send('save-media-description', {fileHash, description, embedding});
   },
 
+  searchEmbeddings: async (descrEmb: Float32Array[] = [], faceEmb: Float32Array[] = [], k: number = 100) => {
+    return await ipcRenderer.invoke('search-embeddings', descrEmb, faceEmb, k);
+  }
+
 };
 
 contextBridge.exposeInMainWorld("bridge", CONTEXT_BRIDGE);

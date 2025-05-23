@@ -159,10 +159,6 @@ export async function processTempFiles(
         }
         //--------------------
         
-        //TODO: INSERT INTO face_embeddings (file_id, face_idx, vector)
-        //TODO: fail here should be handled not just transaction failure
-  
-        
         await db.exec("BEGIN TRANSACTION;");
 
         try {
