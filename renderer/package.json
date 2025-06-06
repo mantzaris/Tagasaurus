@@ -28,7 +28,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "dexie": "^4.0.11",
     "nudged": "^2.1.1",
-    "onnxruntime-web": "^1.22.0-dev.20250409-89f8206ba4",
+    "onnxruntime-web": "^1.22.0",
     "svelte-loading-spinners": "^0.3.6"
   }
 }

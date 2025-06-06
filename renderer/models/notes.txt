@@ -1,0 +1,99 @@
+text embeddings are Float16, 384 dimensions for all-MiniLM-L6-v2
+
+## Steps to Convert a Sentence Transformers Model for Use in transformers.js (Offline)
+
+Below is a concise, copy-paste guide to convert a Sentence Transformers model (like **all-MiniLM-L6-v2**) into the JSON + `.bin` format that `@xenova/transformers` expects for offline usage.
+
+---
+
+### 1. Clone the transformers.js Repository
+
+```bash
+git clone https://github.com/xenova/transformers.js
+cd transformers.js
+
+python -m venv env
+source env/bin/activate
+
+pip install -r scripts/requirements.txt
+pip install sentence-transformers
+
+python -m scripts.convert \
+  --model_id sentence-transformers/all-MiniLM-L6-v2 \
+  --task feature-extraction \
+  --trust_remote_code yes \
+  --quantize yes \
+  --modes fp16 \
+  --output_parent_dir ../Tagasaurus/models
+
+
+# Offline Model Preparation & Integration with Electron
+
+This guide outlines the steps taken to convert the Sentence Transformers model (`all-MiniLM-L6-v2`) to the format expected by transformers.js for offline usage in your Electron app.
+
+## 1. Environment Setup
+
+1. **Clone the Transformers.js Repository:**
+
+   ```bash
+   git clone https://github.com/xenova/transformers.js.git
+   cd transformers.js
+
+npm install
+
+cd scripts
+pip install -r requirements.txt
+cd ..
+
+Run the Conversion Script:
+
+From the root directory of the cloned repository, run the following command to convert the model with fp16 quantization:
+
+python -m scripts.convert --model_id sentence-transformers/all-MiniLM-L6-v2 --quantize yes --modes fp16 --output_parent_dir ../Tagasaurus/models
+
+    The script will download the model and tokenizer files from the Hugging Face Hub.
+
+    It processes and applies quantization (fp16 mode).
+
+Verify the Output:
+
+The output folder should be located at:
+
+/home/resort/Documents/repos/Tagasaurus/models/sentence-transformers/all-MiniLM-L6-v2
+
+It should contain:
+
+    config.json
+
+    quantize_config.json
+
+    tokenizer_config.json
+
+    tokenizer.json
+
+    special_tokens_map.json
+
+    vocab.txt
+
+An onnx folder with the ONNX model files
+
+
+run download_models.mjs
+
+--- 
+ORT-WASM Binaries (onnx runtime Binaries) need downloading
+# ── Linux / macOS ────────────────────────────────────────────
+# 1. Create the target directory inside your repo
+mkdir -p renderer/assets/ort
+
+# 2. Pick the transformers.js version you ship
+TF_VER="3.5.0"
+
+# 3. Download the four wasm files once
+cdn="https://cdn.jsdelivr.net/npm/@huggingface/transformers@${TF_VER}/dist"
+for f in ort-wasm.wasm ort-wasm-simd.wasm ort-wasm-threaded.wasm ort-wasm-simd-threaded.wasm
+do
+  echo "→ $f"
+  curl -sSL -o "renderer/assets/ort/$f" "$cdn/$f"
+done
+echo "✓ ORT WASM binaries placed in renderer/assets/ort/"

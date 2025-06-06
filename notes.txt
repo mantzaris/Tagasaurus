@@ -14,3 +14,8 @@ Because the CSS file already lives in the same folder as the two font files, jus
   src:url("./bootstrap-icons.woff2") format("woff2"),
       url("./bootstrap-icons.woff")  format("woff")
 }
+
+---
+
+resort@resort:~/Documents/repos/Tagasaurus/renderer$ npm run  fetch-ort
+

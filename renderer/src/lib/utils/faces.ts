@@ -7,8 +7,12 @@
 //ArcFace-R50 w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
 
 //TODO: use OffscreenCanvas instead of DOM canvas (faster less memory and goes on worker)
+import { env } from 'onnxruntime-web';
 
-import * as onnxruntime from 'onnxruntime-web';
+
+// Disable browser cache during development as mentioned in README
+env.useBrowserCache = false;
+import * as ort from 'onnxruntime-web';
 import nudged from 'nudged';
 
 //configuration
@@ -38,8 +42,22 @@ let lastFaces : FaceDetections[] = [];                   // result of getFaces()
 
 export async function facesSetUp() {
   try {
-    detectSession = await onnxruntime.InferenceSession.create(MODEL_PATH_DETECTION);
-    embedSession = await onnxruntime.InferenceSession.create(MODEL_PATH_EMBEDDING);
+    console.log("Setting up face detection with ONNX runtime");
+    console.log("WASM paths:", env.wasm.wasmPaths);
+    
+    detectSession = await ort.InferenceSession.create(MODEL_PATH_DETECTION, {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'all'
+    });
+    
+    embedSession = await ort.InferenceSession.create(MODEL_PATH_EMBEDDING, {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'all'
+    });
+
+
+    console.log(`detectSession: ${detectSession}, and embedSession: ${embedSession}`);  //TODO: uncomment ort-FIX xxx
+
     lastImg = null;
     lastFaces = [];
     return true;
@@ -53,11 +71,17 @@ export async function detectFacesInImage(imgEl: HTMLImageElement): Promise<{id:n
   lastImg = imgEl; //keep for embed step
   const {tensor, scale, dx, dy, side} = preprocessImage(imgEl);
 
+  console.log(`in detectFacesInImage, detectSession = ${detectSession}`);
+
   const feeds: Record<string, any> = {};
   feeds[detectSession.inputNames[0]] = tensor;
   const detectionOut = await detectSession.run(feeds);
 
+  console.log(`in detectFacesInImage, detectionOut = ${detectionOut}`);
+
   lastFaces = getFaces(detectionOut, detectSession, scale, dx, dy, side);
+
+  console.log(`in detectFacesInImage, lastFaces = ${lastFaces}`);
 
   // map to a lighter object for the UI
   return lastFaces.map((f,i) => ({ id: i, box: f.box, kps: f.kps }));
@@ -75,7 +99,7 @@ export async function embedFace(id: number): Promise<Float32Array|null> {
 
 
 
-function getFaces(detectionOut  : Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
+function getFaces(detectionOut: Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
 
   const σ = (x:number)=>1/(1+Math.exp(-x));
   const strides=[8,16,32];
@@ -132,6 +156,9 @@ function getFaces(detectionOut  : Record<string, any>, sess : any, scale=1, dx=0
 
 //canvas112->L2-normalised 512-D embedding
 async function getEmbedding(cnv: HTMLCanvasElement, session: any): Promise<Float32Array> {
+  
+  console.log(`in getEmbedding`);
+
   const tensor = canvasToTensor(cnv);
   const feeds: Record<string, any> = {};
   feeds[session.inputNames[0]] = tensor;
@@ -162,7 +189,7 @@ function canvasToTensor(cnv: HTMLCanvasElement) {
     arr[i +   size] = (g - 127.5) / 128;
     arr[i + 2*size] = (r - 127.5) / 128;
   }
-  return new (onnxruntime as any).Tensor('float32', arr, [1,3,H,W]);
+  return new (ort as any).Tensor('float32', arr, [1,3,H,W]);
 }
 
 
@@ -202,7 +229,7 @@ function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 
   const kNew = kps.slice();//copies
   
-  for (let i=0;i<5;++i){
+  for (let i=0;i<5;++i) {
     kNew[2*i]   = Math.min(Math.max(kNew[2*i]  , x1), x2);
     kNew[2*i+1] = Math.min(Math.max(kNew[2*i+1], y1), y2);
   }
@@ -241,7 +268,10 @@ function preprocessImage(img: HTMLImageElement) {
     chw[i + 2*size] = (r - 127.5) / 128; //R (swap!)
   }
 
-  const tensor = new (onnxruntime as any).Tensor('float32', chw, [1, 3, S, S]);
+  const tensor = new (ort as any).Tensor('float32', chw, [1, 3, S, S]);
+  
+  console.log(`tensor in preprocessImage = ${JSON.stringify(tensor)}`); //TODO: uncomment ort-FIX xxx
+
   return { tensor, scale, dx, dy, side: S }; //return { tensor, scale, dx, dy };
 }
 
