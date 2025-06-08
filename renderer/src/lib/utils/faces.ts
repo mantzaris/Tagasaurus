@@ -98,7 +98,7 @@ export async function embedFace(id: number): Promise<Float32Array|null> {
 }
 
 
-
+//TODO: fixed −5 px shift down-scales the face (more chin)
 function getFaces(detectionOut: Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
 
   const σ = (x:number)=>1/(1+Math.exp(-x));
@@ -211,7 +211,7 @@ function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElemen
   
   const cv = document.createElement('canvas');
   const ctx = cv.getContext('2d')!;
-  ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+  ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f); //TODO: Call cv.width = cv.height = 112 to lock it.
   ctx.drawImage(image, 0, 0);
 
   return cv;
@@ -220,7 +220,7 @@ function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElemen
 function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 
   let [x1,y1,x2,y2] = box;
-  const margin = 0.15, w = x2-x1, h = y2-y1;
+  const margin = 0.15, w = x2-x1, h = y2-y1; //TODO: make closer to 0.3 which is the backend
 
   x1 = Math.max(0, x1 - w*margin);
   y1 = Math.max(0, y1 - h*margin);
