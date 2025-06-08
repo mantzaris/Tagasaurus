@@ -10,7 +10,7 @@ import { getMediaDir } from '$lib/utils/localStorageManager';
 import { snapshotVideo, boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
-import {facesSetUp, detectFacesInImage, embedFace} from '$lib/utils/faces';
+import {facesSetUp, detectFacesInImage, embedFace, scaleFaceBox, make112Face} from '$lib/utils/faces';
 
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
@@ -39,7 +39,7 @@ let canSave = $state(true);
 onMount(async () => {
   isProcessing = true;
 
-  console.log(`text embedding will use of gpu: ${device}`);
+  // console.log(`text embedding will use of gpu: ${device}`);
 
   try {
     mediaDir = await getMediaDir();
@@ -59,7 +59,7 @@ onMount(async () => {
     console.error("Error during media retrieval:", error);
     window.location.href = "/tagging"; //$goto('/tagging');
   }
-  
+  console.log('before facesSetup')
   await facesSetUp(); //~0.6seconds
   
 
@@ -72,7 +72,7 @@ async function nextMediaFile() {
 
   try {
     mediaFile = await getRandomMediaFile(true);
-    console.log('nextMediaFile: mediaFile', $state.snapshot(mediaFile));
+    // console.log('nextMediaFile: mediaFile', $state.snapshot(mediaFile));
 
     if (mediaFile) {
       const { fileHash } = mediaFile; 
@@ -198,23 +198,43 @@ const toggleSearch = async () => {
 
 async function searchFaceThumbnails() {
   
-  if(mediaFile?.fileType.startsWith('image/')) {
+  // if(mediaFile?.fileType.startsWith('image/')) {
 
-      const img = document.getElementById('viewing-image-id') as HTMLImageElement;
-      const detections = await detectFacesInImage(img);
+  //     const img = document.getElementById('viewing-image-id') as HTMLImageElement;
+  //     const detections = await detectFacesInImage(img);
 
-      if(detections.length > 0) searchAllowFaces = true;
+  //     if(detections.length > 0) searchAllowFaces = true;
 
-      faces = detections.map(detection => ({
-        ...detection,
-        src      : boxToThumb(img, detection.box),
-        selected: false }));
+  //     faces = detections.map(detection => ({
+  //       ...detection,
+  //       src      : boxToThumb(img, detection.box, detection.kps),
+  //       selected: false }));
       
-      console.log('faces: ', faces); //continue here
+  //     // console.log('faces: ', faces); //continue here
+  // }
+
+  if(mediaFile?.fileType.startsWith('image/')) {
+    const img = document.getElementById('viewing-image-id') as HTMLImageElement;
+    const detections = await detectFacesInImage(img);
+
+    if(detections.length > 0) searchAllowFaces = true;
+
+    // Generate aligned 112x112 faces instead of bounding box crops
+    const alignedFaces = [];
+    for (let i = 0; i < detections.length; i++) {
+      const { boxBigger, kpsBigger } = scaleFaceBox(img, detections[i].box, detections[i].kps);
+      const cv112 = make112Face(kpsBigger, img);
+      alignedFaces.push({
+        ...detections[i],
+        src: cv112.toDataURL(),  // using aligned face instead of boxToThumb: boxToThumb(img, detection.box),
+        selected: false
+      });
+    }
+    faces = alignedFaces;
   }
 
+  
   if (mediaFile?.fileType.startsWith('video/')) {
-    
     const vid = document.getElementById('viewing-video-id') as HTMLVideoElement;
 
     // make sure we have at least one decoded frame
@@ -222,13 +242,40 @@ async function searchFaceThumbnails() {
     const img = await snapshotVideo(vid);
 
     const detections = await detectFacesInImage(img);
-    faces = detections.map(d => ({
-      ...d,
-      src: boxToThumb(img, d.box),
-      selected: false
-    }));
-    searchAllowFaces = faces.length > 0;
+
+    if(detections.length > 0) searchAllowFaces = true;
+
+    // Generate aligned 112x112 faces instead of bounding box crops
+    const alignedFaces = [];
+    for (let i = 0; i < detections.length; i++) {
+      const { boxBigger, kpsBigger } = scaleFaceBox(img, detections[i].box, detections[i].kps);
+      const cv112 = make112Face(kpsBigger, img);
+      alignedFaces.push({
+        ...detections[i],
+        src: cv112.toDataURL(),  // using aligned face instead of boxToThumb
+        selected: false
+      });
+    }
+    faces = alignedFaces;
   }
+
+
+  // if (mediaFile?.fileType.startsWith('video/')) {
+    
+  //   const vid = document.getElementById('viewing-video-id') as HTMLVideoElement;
+
+  //   // make sure we have at least one decoded frame
+  //   if (vid.readyState < 2) await vid.play();         // kick decode
+  //   const img = await snapshotVideo(vid);
+
+  //   const detections = await detectFacesInImage(img);
+  //   faces = detections.map(d => ({
+  //     ...d,
+  //     src: boxToThumb(img, d.box),
+  //     selected: false
+  //   }));
+  //   searchAllowFaces = faces.length > 0;
+  // }
     
   console.log('process face thumbnails');
 }
