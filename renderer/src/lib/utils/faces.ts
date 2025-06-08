@@ -19,14 +19,19 @@ import nudged from 'nudged';
 const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx'; //also scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
 const MODEL_PATH_EMBEDDING = '/assets/models/buffalo_l/w600k_r50.onnx';
 
+//MUST match constants in backend/face.ts
+const DEFAULT_MARGIN = 0.30; //for the face detection box
+const FACE_DET_BOX_SHIFT = -5;
+
 //InsightFace 112×112 canonical template
 const CANONICAL_112 = [
-  {x:38.2946, y:51.6963},
-  {x:73.5318, y:51.5014},
-  {x:56.0252, y:71.7366},
-  {x:41.5493, y:92.3655},
-  {x:70.7299, y:92.2041}
+  {x:38.2946, y:51.6963 + FACE_DET_BOX_SHIFT},
+  {x:73.5318, y:51.5014 + FACE_DET_BOX_SHIFT},
+  {x:56.0252, y:71.7366 + FACE_DET_BOX_SHIFT},
+  {x:41.5493, y:92.3655 + FACE_DET_BOX_SHIFT},
+  {x:70.7299, y:92.2041 + FACE_DET_BOX_SHIFT}
 ];
+
 
 interface FaceDetections {
   score : number;
@@ -206,11 +211,13 @@ function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElemen
   //similarity (Translate-Scale-Rotate)  one-object API
   const tfm = nudged.estimators.TSR(srcPts, CANONICAL_112);     
   
-  //to 3×3 DOM matrix {a,b,c,d,e,f}
-  const m = nudged.transform.toMatrix(tfm);              
+  //to 3x3 DOM matrix {a,b,c,d,e,f}
+  const m = nudged.transform.toMatrix(tfm);
   
   const cv = document.createElement('canvas');
+  cv.width  = cv.height = 112;
   const ctx = cv.getContext('2d')!;
+  
   ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f); //TODO: Call cv.width = cv.height = 112 to lock it.
   ctx.drawImage(image, 0, 0);
 
@@ -220,12 +227,12 @@ function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElemen
 function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
 
   let [x1,y1,x2,y2] = box;
-  const margin = 0.15, w = x2-x1, h = y2-y1; //TODO: make closer to 0.3 which is the backend
+  const w = x2-x1, h = y2-y1; //TODO: make closer to 0.3 which is the backend
 
-  x1 = Math.max(0, x1 - w*margin);
-  y1 = Math.max(0, y1 - h*margin);
-  x2 = Math.min(img.width , x2 + w*margin);
-  y2 = Math.min(img.height, y2 + h*margin);
+  x1 = Math.max(0, x1 - w*DEFAULT_MARGIN);
+  y1 = Math.max(0, y1 - h*DEFAULT_MARGIN);
+  x2 = Math.min(img.width , x2 + w*DEFAULT_MARGIN);
+  y2 = Math.min(img.height, y2 + h*DEFAULT_MARGIN);
 
   const kNew = kps.slice();//copies
   
