@@ -12,7 +12,6 @@ const Q_DESC = `
   SELECT mf.file_hash AS fileHash
   FROM   vector_top_k('${indexes.mediaFilesDescriptionEmbedding}', ?1, ?2) AS v
   JOIN   ${tables.mediaFiles} AS mf ON mf.id = v.id
-  ORDER  BY v.distance; 
 `;
 
 const Q_FACE = `
@@ -20,7 +19,6 @@ const Q_FACE = `
   FROM   vector_top_k('${indexes.faceEmbeddingsVector}', ?1, ?2) AS v
   JOIN   ${tables.faceEmbeddings} AS fe ON fe.id = v.id
   JOIN   ${tables.mediaFiles}     AS mf ON mf.id = fe.media_file_id
-  ORDER  BY v.distance;
 `;
 
 let tempTableCreated = false;
@@ -35,7 +33,7 @@ const TEMP_TABLE_SQL = `
 
 //put the top-k matching face-embeddings into a TEMP table
 const Q_FACE_HITS_INSERT = `
-  INSERT INTO _tmp_media_hits (media_file_id)
+  INSERT OR IGNORE INTO _tmp_media_hits (media_file_id)
   SELECT DISTINCT fe.media_file_id
   FROM   vector_top_k('${indexes.faceEmbeddingsVector}', ?1, ?2) AS v
   JOIN   ${tables.faceEmbeddings} AS fe ON fe.id = v.id;
@@ -77,15 +75,19 @@ export async function searchTagging(
 
   //HYBRID BRANCH of face and description
   if (descrEmb.length && faceEmb.length) {
-    const faceVec  = faceEmb[0];   // take the first (or only) face embedding
+    
     const descrVec = descrEmb[0];  // take the first (or only) description vector
-    if (!faceVec || !descrVec) return [];
-
     await db.exec(`DELETE FROM _tmp_media_hits;`);
-    await stmtFaceHitsInsert.run([toBuf(faceVec), k]);
+    await db.exec("BEGIN TRANSACTION;");
 
-    //re-rank that set by description similarity
-    const rows = await stmtDescRerank.all([ toBuf(descrVec), k ]) as Row[];
+    for (const fv of faceEmb) {
+      await stmtFaceHitsInsert!.run([toBuf(fv), k]);
+    }
+    
+    await db.exec("COMMIT");
+
+    // re-rank the union by description similarity
+    const rows = await stmtDescRerank!.all([toBuf(descrVec), k * faceEmb.length]) as Row[];
 
     // nearest-first list of media_file hashes
     return rows.map(r => r.fileHash);
@@ -96,10 +98,35 @@ export async function searchTagging(
       return rows.map(r => r.fileHash);
   }
 
-  if(faceEmb.length) {
-    // face-only branch two-step lookup
-    const rows = await stmtFace!.all([ toBuf(faceEmb[0]), k ]) as Row[];
-    return rows.map(r => r.fileHash);
+  if (faceEmb.length) {
+    if (faceEmb.length === 1) {
+      // fast-path: exactly the behaviour you had before
+      const rows = await stmtFace!.all([toBuf(faceEmb[0]), k]) as Row[];
+      return rows.map(r => r.fileHash);
+    }
+
+    //run top-k search separately for every face vector
+    const perFaceRows: Row[][] = [];
+    for (const fv of faceEmb) {
+      const rows = await stmtFace!.all([toBuf(fv), k]) as Row[];
+      perFaceRows.push(rows);
+    }
+
+    //interleave the rows while de-duplicating
+    const result: string[] = [];
+    const seen  = new Set<string>();
+    for (let rank = 0; rank < k; rank++) {
+      for (const rows of perFaceRows) {
+        const row = rows[rank];
+        if (!row) continue;                 // this face had < k hits
+        if (!seen.has(row.fileHash)) {
+          seen.add(row.fileHash);
+          result.push(row.fileHash);
+        }
+      }
+    }
+
+    return result;
   }
 
   return [];

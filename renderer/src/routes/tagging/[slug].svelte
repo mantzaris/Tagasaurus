@@ -293,9 +293,10 @@ async function search() {
     const textVecs = text.length ? [textEmbedding] : [];
     const faceVecs = faceEmbeddings.slice(0, 1); // keep only the first  
 
-    //TODO: deal with multiple faces
     const searchHashes = await window.bridge.searchEmbeddings( textVecs, faceVecs, 100 );
-    console.log(searchHashes);
+    
+    console.log(`SEARCH hashes = `, searchHashes);
+
     /* do the expensive work (API call, embedding, etc.) */
 
     isProcessing = false;
