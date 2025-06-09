@@ -6,7 +6,6 @@ import { fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
 import { detectGPU } from '$lib/utils/detect-gpu';
 import { type DeviceGPU } from './lib/types/general-types';
 
-// import '$lib/utils/transformers-init';  //TODO: uncomment ort-FIX xxx
 
 let { children } = $props();
 

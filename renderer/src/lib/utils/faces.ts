@@ -7,17 +7,12 @@
 //ArcFace-R50 w600k_r50.onnx model sha256sum, 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
 
 //TODO: use OffscreenCanvas instead of DOM canvas (faster less memory and goes on worker)
-import { env } from 'onnxruntime-web';
-
 
 // Disable browser cache during development as mentioned in README
-env.useBrowserCache = false;
-import * as ort from 'onnxruntime-web';
 import nudged from 'nudged';
+import { initializeOnnxRuntime, ort, env } from './onnx-init';
 
 //configuration
-const MODEL_PATH_DETECTION = '/assets/models/buffalo_l/det_10g.onnx'; //also scrfd10Gkps/scrfd_10g_bnkps.onnx';//https://huggingface.co/ByteDance/InfiniteYou/resolve/main/supports/insightface/models/antelopev2/scrfd_10g_bnkps.onnx
-const MODEL_PATH_EMBEDDING = '/assets/models/buffalo_l/w600k_r50.onnx';
 
 //MUST match constants in backend/face.ts
 const DEFAULT_MARGIN = 0.30; //for the face detection box
@@ -32,7 +27,6 @@ const CANONICAL_112 = [
   {x:70.7299, y:92.2041 + FACE_DET_BOX_SHIFT}
 ];
 
-
 interface FaceDetections {
   score : number;
   box   : number[]; //[x1,y1,x2,y2] in original image pixels
@@ -42,25 +36,13 @@ interface FaceDetections {
 let detectSession: any;
 let embedSession: any;
 
-let lastImg   : HTMLImageElement | null = null;   // keep pixels around
-let lastFaces : FaceDetections[] = [];                   // result of getFaces()
+let lastImg   : HTMLImageElement | null = null; // keep pixels around
+let lastFaces : FaceDetections[] = []; // result of getFaces()
 
 export async function facesSetUp() {
 
-  try {
-    console.log("Setting up face detection with ONNX runtime");
-    console.log("WASM paths:", env.wasm.wasmPaths);
-    
-    detectSession = await ort.InferenceSession.create(MODEL_PATH_DETECTION, {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'all'
-    });
-    
-    embedSession = await ort.InferenceSession.create(MODEL_PATH_EMBEDDING, {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'all'
-    });
-
+  try {    
+    ({detectSession, embedSession} = await initializeOnnxRuntime());
 
     lastImg = null;
     lastFaces = [];
