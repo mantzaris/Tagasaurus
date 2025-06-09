@@ -80,8 +80,8 @@ async function main() {
   }
   
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1500,
+    height: 1000,
     resizable: true,
     show: true,
     webPreferences: {

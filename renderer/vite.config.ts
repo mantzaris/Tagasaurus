@@ -17,5 +17,16 @@ export default defineConfig({
       // This line sets up the $lib alias
       $lib: path.resolve(__dirname, 'src/lib'),
     },
-  }
+  },
+  server: {
+    headers: {
+      // Ensure proper MIME types for WASM files
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
+  },
+  optimizeDeps: {
+    exclude: ['onnxruntime-web']
+  },
+  assetsInclude: ['**/*.wasm', '**/*.onnx'],
 });
