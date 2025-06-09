@@ -197,21 +197,6 @@ const toggleSearch = async () => {
 };
 
 async function searchFaceThumbnails() {
-  
-  // if(mediaFile?.fileType.startsWith('image/')) {
-
-  //     const img = document.getElementById('viewing-image-id') as HTMLImageElement;
-  //     const detections = await detectFacesInImage(img);
-
-  //     if(detections.length > 0) searchAllowFaces = true;
-
-  //     faces = detections.map(detection => ({
-  //       ...detection,
-  //       src      : boxToThumb(img, detection.box, detection.kps),
-  //       selected: false }));
-      
-  //     // console.log('faces: ', faces); //continue here
-  // }
 
   if(mediaFile?.fileType.startsWith('image/')) {
     const img = document.getElementById('viewing-image-id') as HTMLImageElement;
@@ -233,7 +218,6 @@ async function searchFaceThumbnails() {
     faces = alignedFaces;
   }
 
-  
   if (mediaFile?.fileType.startsWith('video/')) {
     const vid = document.getElementById('viewing-video-id') as HTMLVideoElement;
 
@@ -258,24 +242,6 @@ async function searchFaceThumbnails() {
     }
     faces = alignedFaces;
   }
-
-
-  // if (mediaFile?.fileType.startsWith('video/')) {
-    
-  //   const vid = document.getElementById('viewing-video-id') as HTMLVideoElement;
-
-  //   // make sure we have at least one decoded frame
-  //   if (vid.readyState < 2) await vid.play();         // kick decode
-  //   const img = await snapshotVideo(vid);
-
-  //   const detections = await detectFacesInImage(img);
-  //   faces = detections.map(d => ({
-  //     ...d,
-  //     src: boxToThumb(img, d.box),
-  //     selected: false
-  //   }));
-  //   searchAllowFaces = faces.length > 0;
-  // }
     
   console.log('process face thumbnails');
 }
@@ -298,10 +264,10 @@ async function search() {
   const selectedCount = faces.filter((f: { selected: boolean }) => f.selected).length;
   if (text.length == 0 && selectedCount == 0) return;
 
-  try {
-    isProcessing = true;
-    searchProcessing = true;
+  isProcessing = true;
+  searchProcessing = true;
 
+  try {
     const faceInds: number[] = [];
     let faceEmbeddings: Float32Array[] = [];
     let textEmbedding: Float32Array = new Float32Array(0);
@@ -321,8 +287,8 @@ async function search() {
       textEmbedding = (await embedText(text, device))[0];
     }
     
-    console.log('face embeddings:', faceEmbeddings.length);
-    console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0,8)));
+    faceEmbeddings.forEach((emb, i) => console.log(`face[${i}] (first 8):`, Array.from(emb.slice(0, 8))) );
+    console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0, 8)) );
 
     const textVecs = text.length ? [textEmbedding] : [];
     const faceVecs = faceEmbeddings.slice(0, 1); // keep only the first  
