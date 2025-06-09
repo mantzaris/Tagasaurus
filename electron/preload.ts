@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, ipcMain, webUtils } from "electron";
 import { MediaFile } from "./types/dbConfig";
+import { SearchRow } from "./types/variousTypes";
 
 export const CONTEXT_BRIDGE = {
 
@@ -31,7 +32,7 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.send('save-media-description', {fileHash, description, embedding});
   },
 
-  searchEmbeddings: async (descrEmb: Float32Array[] = [], faceEmb: Float32Array[] = [], k: number = 100) => {
+  searchEmbeddings: async (descrEmb: Float32Array[] = [], faceEmb: Float32Array[] = [], k: number = 100): Promise<SearchRow[]> => {
     return await ipcRenderer.invoke('search-embeddings', descrEmb, faceEmb, k);
   }
 

@@ -14,6 +14,7 @@ import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 import { searchTagging } from "./main-functions/db-operations/search";
+import { SearchRow } from "./types/variousTypes";
 
 app.commandLine.appendSwitch(
   'enable-features',
@@ -275,7 +276,7 @@ ipcMain.handle("search-embeddings", async (
   event, 
   descrEmb: Float32Array[] = [] , 
   faceEmb: Float32Array[] = [],
-  k: number = 100): Promise<string[]> => {
+  k: number = 100): Promise<SearchRow[]> => {
   
   return await searchTagging(db, descrEmb, faceEmb, k);
 });

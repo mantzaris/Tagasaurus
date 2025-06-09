@@ -5,7 +5,7 @@ import { params } from '@roxi/routify';
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
 import { getMediaFile, getRandomMediaFile, getTotalMediaFileCount, removeMediaFileSequential } from '$lib/utils/temp-mediafiles';
-import type { DeviceGPU, MediaFile } from '$lib/types/general-types';
+import type { DeviceGPU, MediaFile, SearchRow } from '$lib/types/general-types';
 import { getMediaDir } from '$lib/utils/localStorageManager';
 import { snapshotVideo, boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 
@@ -30,6 +30,8 @@ let searchAllowFaces = $state(false);
 let faces:any = $state([]); //{ id: 1, src: 'https://picsum.photos/andom=1', selected: false },
 let searchProcessing = $state(false);
 let searchText = $state('');
+
+let searchRowResults: SearchRow[] =  $state([]);
 
 let askDelete = $state(false);
 
@@ -68,6 +70,7 @@ onMount(async () => {
 
 async function nextMediaFile() {
   faces = [];
+  searchRowResults = [];
   searchAllowFaces = false;
 
   try {
@@ -98,6 +101,7 @@ async function nextMediaFile() {
 
 async function prevMediaFile() {
   faces = [];
+  searchRowResults = [];
   searchAllowFaces = false;
 
   try {
@@ -259,9 +263,9 @@ function toggleFace(i: number) {
 }
 
 async function search() {
-  console.log('search')
   const text = searchText.trim();
   const selectedCount = faces.filter((f: { selected: boolean }) => f.selected).length;
+  
   if (text.length == 0 && selectedCount == 0) return;
 
   isProcessing = true;
@@ -293,9 +297,9 @@ async function search() {
     const textVecs = text.length ? [textEmbedding] : [];
     const faceVecs = faceEmbeddings.slice(0, 1); // keep only the first  
 
-    const searchHashes = await window.bridge.searchEmbeddings( textVecs, faceVecs, 100 );
-    
-    console.log(`SEARCH hashes = `, searchHashes);
+    const searchRows: SearchRow[] = await window.bridge.searchEmbeddings( textVecs, faceVecs, 100 );
+    searchRowResults = searchRows;
+    console.log(`SEARCH searchRows = `, searchRows);
 
     /* do the expensive work (API call, embedding, etc.) */
 
@@ -412,10 +416,10 @@ async function search() {
       <Col xs="12" sm="8" lg="8" class="d-flex flex-column p-3 image-col" style="min-height:40vh !important; ">
         
         {#if mediaFile}
-          <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)} fileType={mediaFile.fileType}/>  
+          <MediaView imageUrl={getMediaFilePath(mediaDir,mediaFile.fileHash)} fileType={mediaFile.fileType}/>
         {:else}
           Not Found
-        {/if}  
+        {/if}
       
       </Col>
     </Row>

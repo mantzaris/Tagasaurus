@@ -133,3 +133,8 @@ export function cosineF32(u: Float32Array, v: Float32Array): number {
   for (let i = 0; i < u.length; ++i) dot += u[i] * v[i];
   return dot;                         // works because u, v are L2-normalised
 };
+
+export function dedupPreserveOrder<T>(arr: T[]): T[] {
+  const seen = new Set<T>();
+  return arr.filter(x => !seen.has(x) && (seen.add(x), true));
+}

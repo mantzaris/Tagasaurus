@@ -1,21 +1,27 @@
 
 import { type Database} from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
+import { dedupPreserveOrder } from "../utils/utils";
+import { SearchRow } from "../../types/variousTypes";
 
-type Row = { fileHash: string };
+
 
 const { tables, columns, indexes } = defaultDBConfig;
 // helper: Float32Array -> Buffer without copies
 const toBuf = (v: Float32Array) => Buffer.from(new Uint8Array(v.buffer)); //const toBuf = (v: Float32Array) => Buffer.from(v.buffer);
 
 const Q_DESC = `
-  SELECT mf.file_hash AS fileHash
+  SELECT  mf.file_hash      AS fileHash,
+          mf.file_type      AS fileType,
+          mf.description    AS description
   FROM   vector_top_k('${indexes.mediaFilesDescriptionEmbedding}', ?1, ?2) AS v
   JOIN   ${tables.mediaFiles} AS mf ON mf.id = v.id
 `;
 
 const Q_FACE = `
-  SELECT mf.file_hash AS fileHash
+  SELECT  mf.file_hash   AS fileHash,
+          mf.file_type   AS fileType,
+          mf.description AS description
   FROM   vector_top_k('${indexes.faceEmbeddingsVector}', ?1, ?2) AS v
   JOIN   ${tables.faceEmbeddings} AS fe ON fe.id = v.id
   JOIN   ${tables.mediaFiles}     AS mf ON mf.id = fe.media_file_id
@@ -42,7 +48,9 @@ const Q_FACE_HITS_INSERT = `
 
 //re-rank those hits by description-embedding distance
 const Q_DESC_RERANK = `
-  SELECT mf.file_hash AS fileHash
+  SELECT  mf.file_hash   AS fileHash,
+          mf.file_type   AS fileType,
+          mf.description AS description
   FROM   _tmp_media_hits mh
   JOIN   ${tables.mediaFiles} mf ON mf.id = mh.media_file_id
   ORDER  BY vector_distance_cos(mf.description_embedding, ?1)
@@ -58,7 +66,7 @@ export async function searchTagging(
   descrEmb: Float32Array[] = [],
   faceEmb : Float32Array[] = [],
   k = 100
-): Promise<string[]> {
+): Promise<SearchRow[]> {
 
   // allow only one modality at a time
   if (!descrEmb.length && !faceEmb.length) return [];
@@ -87,47 +95,52 @@ export async function searchTagging(
     await db.exec("COMMIT");
 
     // re-rank the union by description similarity
-    const rows = await stmtDescRerank!.all([toBuf(descrVec), k * faceEmb.length]) as Row[];
+    const rows = await stmtDescRerank!.all([toBuf(descrVec), k * faceEmb.length]) as SearchRow[];
 
     // nearest-first list of media_file hashes
-    return rows.map(r => r.fileHash);
+    return rowsToUniqueMedia(rows);
   }
 
   if (descrEmb.length) {
-      const rows = await stmtDesc!.all([ toBuf(descrEmb[0]), k ]) as Row[];
-      return rows.map(r => r.fileHash);
+      const rows = await stmtDesc!.all([ toBuf(descrEmb[0]), k ]) as SearchRow[];
+      return rowsToUniqueMedia(rows);
   }
 
   if (faceEmb.length) {
     if (faceEmb.length === 1) {
-      // fast-path: exactly the behaviour you had before
-      const rows = await stmtFace!.all([toBuf(faceEmb[0]), k]) as Row[];
-      return rows.map(r => r.fileHash);
+      const rows = await stmtFace!.all([toBuf(faceEmb[0]), k]) as SearchRow[];
+      return rowsToUniqueMedia(rows);          // ← was rows.map(...)
     }
 
     //run top-k search separately for every face vector
-    const perFaceRows: Row[][] = [];
+    const perFaceRows: SearchRow[][] = [];
     for (const fv of faceEmb) {
-      const rows = await stmtFace!.all([toBuf(fv), k]) as Row[];
-      perFaceRows.push(rows);
+      perFaceRows.push(await stmtFace!.all([toBuf(fv), k]) as SearchRow[]);
     }
 
     //interleave the rows while de-duplicating
-    const result: string[] = [];
-    const seen  = new Set<string>();
+    const interleaved: SearchRow[] = [];
     for (let rank = 0; rank < k; rank++) {
       for (const rows of perFaceRows) {
         const row = rows[rank];
-        if (!row) continue;                 // this face had < k hits
-        if (!seen.has(row.fileHash)) {
-          seen.add(row.fileHash);
-          result.push(row.fileHash);
-        }
+        if (row) interleaved.push(row);        // collect full objects
       }
     }
 
-    return result;
+    return rowsToUniqueMedia(interleaved);
   }
 
   return [];
+}
+
+function rowsToUniqueMedia(rows: SearchRow[]): SearchRow[] {
+  const seen = new Set<string>();         
+  const uniq: SearchRow[] = [];
+  for (const r of rows) {
+    if (!seen.has(r.fileHash)) {
+      seen.add(r.fileHash);
+      uniq.push(r);
+    }
+  }
+  return uniq;
 }

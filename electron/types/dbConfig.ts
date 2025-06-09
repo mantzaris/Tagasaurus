@@ -1,5 +1,5 @@
 export interface MediaFile {
-  id?: number;                 // primary key
+  id?: number;                 // primary key TODO: BigInt ???
   fileHash: string;            // hash of the file
   filename: string;
   fileType: string;
