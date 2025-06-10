@@ -37,7 +37,7 @@
 
 <style>
  .result-card{
-    height:clamp(150px,25vh,300px);
+    height: max(150px,30vh);
     width:100%;
     display:flex;               /* keeps captionable future additions easy */
     justify-content:center;

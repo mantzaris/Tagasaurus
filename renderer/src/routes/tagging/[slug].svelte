@@ -315,6 +315,11 @@ async function search() {
   }
 }
 
+async function searchSelected(row: SearchRow) {
+  mediaFile = (await window.bridge.getMediaFilesByHash( [row.fileHash] ))[0];
+  openSearch = false;
+}
+
 </script>
 
 <div>
@@ -480,7 +485,11 @@ async function search() {
           <p class="text-center text-muted my-4">Start New Search</p>
         {:else}        
           {#each searchRowResults as row}
-            <SearchResultCard {row} {mediaDir} />
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div onclick={() => searchSelected(row)}>
+              <SearchResultCard {row} {mediaDir}    />
+            </div>
           {/each}          
         {/if}
       </Container>
@@ -509,27 +518,6 @@ async function search() {
     border: 2px solid transparent;
   }
 
-  .face-cell {
-    height: 20vh !important;
-  }
-
-  @media (max-width: 1000px) {
-    .face-cell {
-      height: 25vh !important;
-    }
-  }
-
-  @media (max-height: 768px) {
-    .face-cell {
-      height: 20vh !important;
-    }
-  }
-
-  @media (max-height:550px) {
-    .face-cell {
-      height: 15vh !important;
-    }
-  }
 </style>
 
 

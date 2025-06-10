@@ -4,7 +4,7 @@ export interface MediaFile {
   filename: string;
   fileType: string;
   description: string;
-  descriptionEmbedding: number[] | null; //descriptionEmbedding: Float32Array | null;
+  descriptionEmbedding: Float32Array | number[] | null; //descriptionEmbedding: Float32Array | null;
 }
 
 export interface FaceEmbedding {

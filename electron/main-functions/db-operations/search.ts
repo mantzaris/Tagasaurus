@@ -3,6 +3,7 @@ import { type Database} from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
 import { dedupPreserveOrder } from "../utils/utils";
 import { SearchRow } from "../../types/variousTypes";
+import { MediaFile } from "../../types/dbConfig";
 
 
 
@@ -144,3 +145,61 @@ function rowsToUniqueMedia(rows: SearchRow[]): SearchRow[] {
   }
   return uniq;
 }
+
+
+export async function getMediaFilesByHash(
+  db: Database,
+  hashes: string[]
+): Promise<MediaFile[]> {
+
+  if (hashes.length === 0) return [];
+
+  const { tables, columns } = defaultDBConfig;
+  const placeholders = "(" + hashes.map(() => "?").join(",") + ")";
+
+  const sql = `
+    SELECT
+      ${columns.mediaFiles.id}                  AS id,
+      ${columns.mediaFiles.fileHash}            AS fileHash,
+      ${columns.mediaFiles.filename}            AS filename,
+      ${columns.mediaFiles.fileType}            AS fileType,
+      ${columns.mediaFiles.description}         AS description,
+      ${columns.mediaFiles.descriptionEmbedding} AS descriptionEmbedding
+    FROM ${tables.mediaFiles}
+    WHERE ${columns.mediaFiles.fileHash} IN ${placeholders};
+  `;
+
+  /* prepare → all()  (instead of db.all) */
+  const stmt = await db.prepare(sql);
+  const rows = await stmt.all(hashes) as {
+    id: number;
+    fileHash: string;
+    filename: string;
+    fileType: string;
+    description: string | null;
+    descriptionEmbedding: Buffer | null;
+  }[];
+
+  const mediaFiles: MediaFile[] = rows.map(r => ({
+    id:          r.id,
+    fileHash:    r.fileHash,
+    filename:    r.filename,
+    fileType:    r.fileType,
+    description: r.description,
+    descriptionEmbedding: r.descriptionEmbedding
+      ? new Float32Array(
+          r.descriptionEmbedding.buffer,
+          r.descriptionEmbedding.byteOffset,
+          r.descriptionEmbedding.byteLength / 4
+        )
+      : null
+  }));
+
+  // keep caller’s order
+  const order = new Map(hashes.map((h, i) => [h, i]));
+  mediaFiles.sort((a, b) => order.get(a.fileHash)! - order.get(b.fileHash)!);
+
+  return mediaFiles;
+}
+
+

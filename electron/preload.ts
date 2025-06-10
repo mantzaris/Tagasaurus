@@ -34,7 +34,11 @@ export const CONTEXT_BRIDGE = {
 
   searchEmbeddings: async (descrEmb: Float32Array[] = [], faceEmb: Float32Array[] = [], k: number = 100): Promise<SearchRow[]> => {
     return await ipcRenderer.invoke('search-embeddings', descrEmb, faceEmb, k);
-  }
+  },
+
+  getMediaFilesByHash: async (hashes: string[]): Promise<MediaFile[]> => {
+    return ipcRenderer.invoke("mediafiles-by-hash", hashes)
+  },
 
 };
 

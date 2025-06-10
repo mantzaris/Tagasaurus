@@ -13,7 +13,7 @@ import { getRandomEntries } from "./main-functions/db-operations/random-entries"
 import { MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
-import { searchTagging } from "./main-functions/db-operations/search";
+import { getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
 import { SearchRow } from "./types/variousTypes";
 
 app.commandLine.appendSwitch(
@@ -282,5 +282,9 @@ ipcMain.handle("search-embeddings", async (
 });
 
 
+ipcMain.handle( "mediafiles-by-hash", async (_event, hashes: string[] = []) => {
+    return getMediaFilesByHash(db, hashes);
+  }
+);
 
 //allowing the gpu
