@@ -264,6 +264,7 @@ function toggleFace(i: number) {
 }
 
 async function search() {
+
   const text = searchText.trim();
   const selectedCount = faces.filter((f: { selected: boolean }) => f.selected).length;
   
@@ -296,10 +297,11 @@ async function search() {
     console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0, 8)) );
 
     const textVecs = text.length ? [textEmbedding] : [];
-    const faceVecs = faceEmbeddings.slice(0, 1); // keep only the first  
+    const faceVecs = faceEmbeddings; //.slice(0, 1); // keep only the first  
 
     const searchRows: SearchRow[] = await window.bridge.searchEmbeddings( textVecs, faceVecs, 100 );
-    searchRowResults = searchRows;
+    searchRowResults = [];
+    searchRowResults = searchRows.map(r => ({ ...r })); 
     console.log(`SEARCH searchRows = `, searchRows);
 
     /* do the expensive work (API call, embedding, etc.) */
@@ -484,10 +486,10 @@ async function searchSelected(row: SearchRow) {
         {#if searchRowResults.length === 0}
           <p class="text-center text-muted my-4">Start New Search</p>
         {:else}        
-          {#each searchRowResults as row}
+          {#each searchRowResults as row (row.fileHash)}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div onclick={() => searchSelected(row)}>
+            <div onclick={() => searchSelected(row) }>
               <SearchResultCard {row} {mediaDir}    />
             </div>
           {/each}          
