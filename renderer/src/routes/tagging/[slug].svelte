@@ -11,6 +11,7 @@ import { snapshotVideo, boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
 import {facesSetUp, detectFacesInImage, embedFace, scaleFaceBox, make112Face} from '$lib/utils/faces';
+  import SearchResultCard from '$lib/components/SearchResultCard.svelte';
 
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
@@ -475,13 +476,13 @@ async function search() {
       </Accordion>
 
       <Container fluid class="h-100" >
-        <Row class="g-0">
-          {#each faces as face}
-            <Col lg="6" class="d-flex justify-content-center align-items-center p-2">
-              <img class="img-fluid face-cell " src={face.src} alt="face" style="max-height: 100%; object-fit: contain; cursor: pointer;" />
-            </Col>
-          {/each}
-        </Row>
+        {#if searchRowResults.length === 0}
+          <p class="text-center text-muted my-4">Start New Search</p>
+        {:else}        
+          {#each searchRowResults as row}
+            <SearchResultCard {row} {mediaDir} />
+          {/each}          
+        {/if}
       </Container>
       
     </ModalBody>
