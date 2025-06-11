@@ -62,10 +62,9 @@ onMount(async () => {
     console.error("Error during media retrieval:", error);
     window.location.href = "/tagging"; //$goto('/tagging');
   }
-  console.log('before facesSetup')
+  
   await facesSetUp(); //~0.6seconds
   
-
   isProcessing = false;
 });
 
@@ -76,15 +75,12 @@ async function nextMediaFile() {
 
   try {
     mediaFile = await getRandomMediaFile(true);
-    // console.log('nextMediaFile: mediaFile', $state.snapshot(mediaFile));
 
     if (mediaFile) {
       const { fileHash } = mediaFile; 
       if (!seenMediaFiles.some(m => m.fileHash === fileHash)) {
          seenMediaFiles.push(mediaFile);
       }
-
-      // console.log('nextMediaFile: seenMediaFiles', $state.snapshot(seenMediaFiles));
 
       if (seenMediaFiles.length > 400) {
         seenMediaFiles.shift();
@@ -163,7 +159,7 @@ async function saveDescription() {
   try {
     const vec32 = (await embedText(mediaFile.description, device))[0]; //F32 array (384)
     //const [vec32] = await embedText(mediaFile.description, device);
-    console.log(vec32);
+    // console.log(vec32);
 
     const idx = seenMediaFiles.findIndex(
       m => m.fileHash === mediaFile?.fileHash
@@ -248,7 +244,6 @@ async function searchFaceThumbnails() {
     faces = alignedFaces;
   }
     
-  console.log('process face thumbnails');
 }
 
 const toggleSearchAccordion = (...args: any[]) => {
@@ -293,8 +288,8 @@ async function search() {
       textEmbedding = (await embedText(text, device))[0];
     }
     
-    faceEmbeddings.forEach((emb, i) => console.log(`face[${i}] (first 8):`, Array.from(emb.slice(0, 8))) );
-    console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0, 8)) );
+    // faceEmbeddings.forEach((emb, i) => console.log(`face[${i}] (first 8):`, Array.from(emb.slice(0, 8))) );
+    // console.log('text embedding (first 8):', Array.from(textEmbedding.slice(0, 8)) );
 
     const textVecs = text.length ? [textEmbedding] : [];
     const faceVecs = faceEmbeddings; //.slice(0, 1); // keep only the first  
@@ -302,7 +297,7 @@ async function search() {
     const searchRows: SearchRow[] = await window.bridge.searchEmbeddings( textVecs, faceVecs, 100 );
     searchRowResults = [];
     searchRowResults = searchRows.map(r => ({ ...r })); 
-    console.log(`SEARCH searchRows = `, searchRows);
+    // console.log(`SEARCH searchRows = `, searchRows);
 
     /* do the expensive work (API call, embedding, etc.) */
 
