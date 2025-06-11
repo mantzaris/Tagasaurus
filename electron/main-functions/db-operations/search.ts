@@ -54,6 +54,7 @@ const Q_DESC_RERANK = `
           mf.description AS description
   FROM   _tmp_media_hits mh
   JOIN   ${tables.mediaFiles} mf ON mf.id = mh.media_file_id
+  WHERE  mf.${columns.mediaFiles.descriptionEmbedding} IS NOT NULL
   ORDER  BY vector_distance_cos(mf.description_embedding, ?1)
   LIMIT  ?2;
 `;

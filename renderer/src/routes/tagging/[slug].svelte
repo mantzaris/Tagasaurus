@@ -318,6 +318,10 @@ async function search() {
 }
 
 async function searchSelected(row: SearchRow) {
+  faces = [];
+  searchRowResults = [];
+  searchAllowFaces = false;
+
   mediaFile = (await window.bridge.getMediaFilesByHash( [row.fileHash] ))[0];
   openSearch = false;
 }
