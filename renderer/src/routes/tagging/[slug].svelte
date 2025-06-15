@@ -12,6 +12,7 @@ import { snapshotVideo, boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 import {embedText} from '$lib/utils/text-embeddings';
 import {facesSetUp, detectFacesInImage, embedFace, scaleFaceBox, make112Face} from '$lib/utils/faces';
   import SearchResultCard from '$lib/components/SearchResultCard.svelte';
+  import TaggingSlugContextMenu from '$lib/components/TaggingSlugContextMenu.svelte';
 
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
@@ -321,7 +322,14 @@ async function searchSelected(row: SearchRow) {
   openSearch = false;
 }
 
+  function saveFile() {
+		/* real save logic here */
+		console.log('saved!');
+	}
+
 </script>
+
+<TaggingSlugContextMenu {saveFile}/>
 
 <div>
   <Modal isOpen={askDelete} toggle={closeDeleteModal} size={'lg'}>
