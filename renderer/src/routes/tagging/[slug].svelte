@@ -40,9 +40,9 @@ let askDelete = $state(false);
 let isProcessing = $state(false);
 let canSave = $state(true);
 
-// let toastOpen   = $state(false);
-// let toastText   = $state('');
-// let toastColor  = $state('success');
+let saveToastOpen   = $state(false);
+let saveToastText   = $state('');
+let saveToastColor  = $state('success');
 
 onMount(async () => {
   isProcessing = true;
@@ -71,8 +71,6 @@ onMount(async () => {
   await facesSetUp(); //~0.6seconds
   
   isProcessing = false;
-  console.log(mediaFile?.filename)
-  console.log(mediaFile?.fileHash)
 });
 
 async function nextMediaFile() {
@@ -328,39 +326,39 @@ async function searchSelected(row: SearchRow) {
   openSearch = false;
 }
 
-// async function saveFile() {
-//   if (!mediaFile) return;
+async function saveFile() {
+  if (!mediaFile) return;
 
-//   const ok = await window.bridge.saveFileByHash(mediaFile.fileHash);
+  const ok = await window.bridge.saveFileByHash(mediaFile.fileHash);
 
-//   if (ok) {
-//       toastColor = 'success';
-//       toastText  = 'Saved to Downloads';
-//     } else {
-//       toastColor = 'danger';
-//       toastText  = 'Save failed';
-//     }
-//     toastOpen = true;
-// }
+  if (ok) {
+      saveToastColor = 'success';
+      saveToastText  = 'Saved to Downloads';
+    } else {
+      saveToastColor = 'danger';
+      saveToastText  = 'Save failed';
+    }
+    saveToastOpen = true;
+}
 
 </script>
 
-<!-- <TaggingSlugContextMenu {saveFile}/> -->
+<TaggingSlugContextMenu {saveFile}/>
 
 
-<!-- <div class="toast-container">
+<div class="toast-container">
   <Toast
-    isOpen={toastOpen}
+    isOpen={saveToastOpen}
     autohide
     fade
     delay={2000}  
-    color={toastColor}
-    on:close={() => (toastOpen = false)}
+    color={saveToastColor}
+    on:close={() => (saveToastOpen = false)}
   >
-    <Icon name={toastColor === 'success' ? 'save' : 'alert-circle'} class="me-2" />
-    {toastText}
+    <Icon name={saveToastColor === 'success' ? 'save' : 'alert-circle'} class="me-2" />
+    {saveToastText}
   </Toast>
-</div> -->
+</div>
 
 <div>
   <Modal isOpen={askDelete} toggle={closeDeleteModal} size={'lg'}>
@@ -523,7 +521,7 @@ async function searchSelected(row: SearchRow) {
       <Container fluid class="h-100" >
         {#if searchRowResults.length === 0}
           <p class="text-center text-muted my-4">Start New Search</p>
-        {:else}        
+        {:else}
           {#each searchRowResults as row (row.fileHash)}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->

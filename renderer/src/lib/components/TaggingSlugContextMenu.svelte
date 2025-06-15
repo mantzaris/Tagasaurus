@@ -1,4 +1,4 @@
-<!-- <script lang="ts">
+<script lang="ts">
 	//
 	const { saveFile } = $props<{ saveFile: () => void }>();
 
@@ -42,19 +42,19 @@
 		const el = e.target as HTMLElement | null;
 		if (menu.visible && !el?.closest('.ctx-menu')) close();
 	}
-</script> -->
+</script>
 
 <!-- global listeners: use classic on:  to keep language servers happy -->
-<!-- <svelte:window
+<svelte:window
 	on:contextmenu|preventDefault={(e) => open(e.clientX, e.clientY)}
 	on:pointerdown={pointerDown}
 	on:pointerup={cancelPress}
 	on:pointerleave={cancelPress}
 	on:click={clickOutside}
 	on:keydown={(e) => e.key === 'Escape' && close()}
-/> -->
+/>
 
-<!-- {#if menu.visible}
+{#if menu.visible}
 	<div  class="ctx-menu border rounded bg-light shadow-sm"
 	      bind:this={menuEl}
 	      style="position:fixed; left:{menu.x}px; top:{menu.y}px; z-index:9999;">
@@ -63,8 +63,8 @@
 			💾 Save file
 		</button>
 	</div>
-{/if} -->
+{/if}
 
-<!-- <style>
+<style>
 	.ctx-menu{min-width:140px;padding:.25rem 0;background:#fff;}
-</style> -->
+</style>
