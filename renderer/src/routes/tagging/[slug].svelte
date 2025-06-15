@@ -40,9 +40,9 @@ let askDelete = $state(false);
 let isProcessing = $state(false);
 let canSave = $state(true);
 
-let toastOpen   = $state(false);
-let toastText   = $state('');
-let toastColor  = $state('success');
+// let toastOpen   = $state(false);
+// let toastText   = $state('');
+// let toastColor  = $state('success');
 
 onMount(async () => {
   isProcessing = true;
@@ -71,6 +71,8 @@ onMount(async () => {
   await facesSetUp(); //~0.6seconds
   
   isProcessing = false;
+  console.log(mediaFile?.filename)
+  console.log(mediaFile?.fileHash)
 });
 
 async function nextMediaFile() {
@@ -326,27 +328,27 @@ async function searchSelected(row: SearchRow) {
   openSearch = false;
 }
 
-async function saveFile() {
-  if (!mediaFile) return;
+// async function saveFile() {
+//   if (!mediaFile) return;
 
-  const ok = await window.bridge.saveFileByHash(mediaFile.fileHash);
+//   const ok = await window.bridge.saveFileByHash(mediaFile.fileHash);
 
-  if (ok) {
-      toastColor = 'success';
-      toastText  = 'Saved to Downloads';
-    } else {
-      toastColor = 'danger';
-      toastText  = 'Save failed';
-    }
-    toastOpen = true;
-}
+//   if (ok) {
+//       toastColor = 'success';
+//       toastText  = 'Saved to Downloads';
+//     } else {
+//       toastColor = 'danger';
+//       toastText  = 'Save failed';
+//     }
+//     toastOpen = true;
+// }
 
 </script>
 
-<TaggingSlugContextMenu {saveFile}/>
+<!-- <TaggingSlugContextMenu {saveFile}/> -->
 
 
-<div class="toast-container">
+<!-- <div class="toast-container">
   <Toast
     isOpen={toastOpen}
     autohide
@@ -358,7 +360,7 @@ async function saveFile() {
     <Icon name={toastColor === 'success' ? 'save' : 'alert-circle'} class="me-2" />
     {toastText}
   </Toast>
-</div>
+</div> -->
 
 <div>
   <Modal isOpen={askDelete} toggle={closeDeleteModal} size={'lg'}>

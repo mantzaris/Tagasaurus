@@ -29,6 +29,7 @@
     "dexie": "^4.0.11",
     "nudged": "^2.1.1",
     "onnxruntime-web": "^1.22.0",
-    "svelte-loading-spinners": "^0.3.6"
+    "svelte-loading-spinners": "^0.3.6",
+    "svelte-pdf": "^1.0.28"
   }
 }
