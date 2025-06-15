@@ -1,19 +1,17 @@
 <script lang="ts">
-	//
 	export let saveFile: () => void;
 
-	//
 	let show = false, x = 0, y = 0;
 	let pressTimer: ReturnType<typeof setTimeout>;
+	let ignoreNextClick = false;
 	let menuEl: HTMLElement;
-    let ignoreNextClick = false;
 
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { tick } from 'svelte';
 
-	//  open / close 
-	async function open(cx: number, cy: number) {
+	//
+	async function open(cx: number, cy: number, skipFirstClick = false) {
 		x = cx; y = cy; show = true;
-        ignoreNextClick = true;
+		ignoreNextClick = skipFirstClick;        
 		await tick();
 		clampIntoViewport();
 	}
@@ -27,48 +25,30 @@
 		if (y + h > H) y = Math.max(0, H - h);
 	}
 
-	/* ---------- global listeners ---------- */
-	function context(e: MouseEvent) {
-		e.preventDefault();
-		open(e.clientX, e.clientY);
-	}
+	//
 	function down(e: PointerEvent) {
-		pressTimer = setTimeout(() => open(e.clientX, e.clientY), 600);
+		pressTimer = setTimeout(
+			() => open(e.clientX, e.clientY, true),   // skip first click
+			600
+		);
 	}
 	const cancel = () => clearTimeout(pressTimer);
 
 	function clickOutside(e: MouseEvent) {
-		// const el = e.target as HTMLElement | null;        
-		// if (show && !el?.closest('.ctx-menu')) close();
-
-    if (ignoreNextClick) {       
-        ignoreNextClick = false;
-        return;
-    }
-    const el = e.target as HTMLElement | null;
-    if (show && !el?.closest('.ctx-menu')) close();
-
-
+		if (ignoreNextClick) { ignoreNextClick = false; return; }
+		const el = e.target as HTMLElement | null;
+		if (show && !el?.closest('.ctx-menu')) close();
 	}
-	const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
-
-	onMount(() => {
-		addEventListener('contextmenu', context);
-		addEventListener('pointerdown', down);
-		addEventListener('pointerup', cancel);
-		addEventListener('pointerleave', cancel);
-		addEventListener('click', clickOutside);
-		addEventListener('keydown', esc);
-	});
-	onDestroy(() => {
-		removeEventListener('contextmenu', context);
-		removeEventListener('pointerdown', down);
-		removeEventListener('pointerup', cancel);
-		removeEventListener('pointerleave', cancel);
-		removeEventListener('click', clickOutside);
-		removeEventListener('keydown', esc);
-	});
 </script>
+
+<svelte:window
+	on:contextmenu|preventDefault={(e) => open(e.clientX, e.clientY)}
+	on:pointerdown={down}
+	on:pointerup={cancel}
+	on:pointerleave={cancel}
+	on:click={clickOutside}
+	on:keydown={(e) => e.key === 'Escape' && close()}
+/>
 
 {#if show}
 	<div class="ctx-menu border rounded bg-light shadow-sm"
