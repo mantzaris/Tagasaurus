@@ -1,12 +1,12 @@
 <script lang="ts">
-	/* --- props (runes style) --- */
+	//
 	const { saveFile } = $props<{ saveFile: () => void }>();
 
-	/* --- reactive state --- */
+	//
 	let menu = $state({ visible:false, x:0, y:0 });
-	let menuEl = $state<HTMLElement | null>(null);      // ← silences warning
+	let menuEl = $state<HTMLElement | null>(null);     
 	let pressTimer: ReturnType<typeof setTimeout>;
-	let skipNextClick = false;                           // internal flag
+	let skipNextClick = false;                           
 
 	import { tick } from 'svelte';
 

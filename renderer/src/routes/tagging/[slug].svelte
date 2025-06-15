@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure, Tooltip } from '@sveltestrap/sveltestrap';
+import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure, Tooltip, Toast } from '@sveltestrap/sveltestrap';
 import { params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
@@ -11,8 +11,8 @@ import { snapshotVideo, boxToThumb, getMediaFilePath } from '$lib/utils/utils';
 
 import {embedText} from '$lib/utils/text-embeddings';
 import {facesSetUp, detectFacesInImage, embedFace, scaleFaceBox, make112Face} from '$lib/utils/faces';
-  import SearchResultCard from '$lib/components/SearchResultCard.svelte';
-  import TaggingSlugContextMenu from '$lib/components/TaggingSlugContextMenu.svelte';
+import SearchResultCard from '$lib/components/SearchResultCard.svelte';
+import TaggingSlugContextMenu from '$lib/components/TaggingSlugContextMenu.svelte';
 
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
@@ -39,6 +39,10 @@ let askDelete = $state(false);
 
 let isProcessing = $state(false);
 let canSave = $state(true);
+
+let toastOpen   = $state(false);
+let toastText   = $state('');
+let toastColor  = $state('success');
 
 onMount(async () => {
   isProcessing = true;
@@ -322,14 +326,39 @@ async function searchSelected(row: SearchRow) {
   openSearch = false;
 }
 
-  function saveFile() {
-		/* real save logic here */
-		console.log('saved!');
-	}
+async function saveFile() {
+  if (!mediaFile) return;
+
+  const ok = await window.bridge.saveFileByHash(mediaFile.fileHash);
+
+  if (ok) {
+      toastColor = 'success';
+      toastText  = 'Saved to Downloads';
+    } else {
+      toastColor = 'danger';
+      toastText  = 'Save failed';
+    }
+    toastOpen = true;
+}
 
 </script>
 
 <TaggingSlugContextMenu {saveFile}/>
+
+
+<div class="toast-container">
+  <Toast
+    isOpen={toastOpen}
+    autohide
+    fade
+    delay={2000}  
+    color={toastColor}
+    on:close={() => (toastOpen = false)}
+  >
+    <Icon name={toastColor === 'success' ? 'save' : 'alert-circle'} class="me-2" />
+    {toastText}
+  </Toast>
+</div>
 
 <div>
   <Modal isOpen={askDelete} toggle={closeDeleteModal} size={'lg'}>
@@ -527,6 +556,12 @@ async function searchSelected(row: SearchRow) {
     border: 2px solid transparent;
   }
 
+  .toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1050;
+  }
 </style>
 
 

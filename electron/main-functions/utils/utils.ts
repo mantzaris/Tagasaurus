@@ -2,13 +2,16 @@ import fs, {open} from "fs/promises"; //import * as fs from "fs";
 import * as path from "path";
 import { pathToFileURL } from "url";
 import { Readable } from 'stream';
+import { randomBytes } from 'node:crypto';
 
+import Database from "libsql/promise";
 
 import { createHash } from "crypto";
 import { loadEsm } from 'load-esm';
 
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import { getMediaFilesByHash } from "../db-operations/search";
 
 
 ffmpeg.setFfmpegPath(ffmpegPath || "");
@@ -109,7 +112,7 @@ export async function validatePath(p: string): Promise<string | undefined> {
     }
   } catch (e) {
     console.warn("Path not readable:", p, e);
-    return;                            // unreadable → treat as invalid
+    return;                            // unreadable treat as invalid
   }
 
   // 4) Pass - return the canonical absolute path (realpath resolves junctions)
@@ -137,4 +140,49 @@ export function cosineF32(u: Float32Array, v: Float32Array): number {
 export function dedupPreserveOrder<T>(arr: T[]): T[] {
   const seen = new Set<T>();
   return arr.filter(x => !seen.has(x) && (seen.add(x), true));
+}
+
+
+
+export async function saveFileByHash(
+  db: Database,
+  hash: string,
+  mediaDir: string,
+  downloadsPath: string      
+): Promise<boolean> {
+
+  try {
+    const [mediaFile] = await getMediaFilesByHash(db, [hash]);
+    if (!mediaFile) throw new Error('hash not found in DB');
+
+    const originalName = mediaFile.filename;
+    const subdir = getHashSubdirectory(hash);
+    const source = path.join(mediaDir, subdir, hash);
+    await fs.access(source);
+
+    const { name, ext } = path.parse(originalName);
+    let dest = path.join(downloadsPath, originalName);
+
+    for (let i = 1; i <= 9999 && await exists(dest); i++) {
+      dest = path.join(downloadsPath, `${name}_${i.toString().padStart(4, '0')}${ext}`);
+    }
+    for (let tries = 0; await exists(dest); tries++) {
+      if (tries >= 5) throw new Error('unable to find free filename');
+      const randHex = randomBytes(2).toString('hex');
+      dest = path.join(downloadsPath, `${name}_${randHex}${ext}`);
+    }
+
+    await fs.copyFile(source, dest);
+
+    return true;
+  } catch (err) {
+    console.error('save-file-by-hash failed:', err);
+    return false;
+  }
+}
+
+/* helper */
+async function exists(p: string) {
+  try { await fs.access(p); return true; }
+  catch { return false; }
 }

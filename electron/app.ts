@@ -11,7 +11,7 @@ import { processTempFiles } from "./main-functions/new-files/process-new-media";
 import { addNewPaths } from "./main-functions/new-files/file-queue";
 import { getRandomEntries } from "./main-functions/db-operations/random-entries";
 import { MediaFile } from "./types/dbConfig";
-import { getMediaFrontEndDirBase } from "./main-functions/utils/utils";
+import { getMediaFrontEndDirBase, saveFileByHash } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 import { getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
 import { SearchRow } from "./types/variousTypes";
@@ -286,5 +286,12 @@ ipcMain.handle( "mediafiles-by-hash", async (_event, hashes: string[] = []) => {
     return getMediaFilesByHash(db, hashes);
   }
 );
+
+
+ipcMain.handle('save-file-by-hash', async (_evt, hash: string) => {
+  const downloadsPath = app.getPath('downloads');   // renamed
+  return saveFileByHash(db, hash, mediaDir, downloadsPath);
+});
+
 
 //allowing the gpu

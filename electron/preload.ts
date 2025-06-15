@@ -40,6 +40,10 @@ export const CONTEXT_BRIDGE = {
     return ipcRenderer.invoke("mediafiles-by-hash", hashes)
   },
 
+  saveFileByHash: async (hash: string): Promise<boolean> => {
+    return await ipcRenderer.invoke('save-file-by-hash', hash);
+  },
+
 };
 
 contextBridge.exposeInMainWorld("bridge", CONTEXT_BRIDGE);
