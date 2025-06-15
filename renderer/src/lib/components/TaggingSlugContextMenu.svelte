@@ -1,61 +1,65 @@
 <script lang="ts">
-	export let saveFile: () => void;
+	/* --- props (runes style) --- */
+	const { saveFile } = $props<{ saveFile: () => void }>();
 
-	let show = false, x = 0, y = 0;
+	/* --- reactive state --- */
+	let menu = $state({ visible:false, x:0, y:0 });
+	let menuEl = $state<HTMLElement | null>(null);      // ← silences warning
 	let pressTimer: ReturnType<typeof setTimeout>;
-	let ignoreNextClick = false;
-	let menuEl: HTMLElement;
+	let skipNextClick = false;                           // internal flag
 
 	import { tick } from 'svelte';
 
-	//
-	async function open(cx: number, cy: number, skipFirstClick = false) {
-		x = cx; y = cy; show = true;
-		ignoreNextClick = skipFirstClick;        
-		await tick();
-		clampIntoViewport();
+	/* --- open / close --- */
+	async function open(cx: number, cy: number, swallowClick = false) {
+		menu.visible = true;
+		menu.x = cx; menu.y = cy;
+		skipNextClick = swallowClick;
+		await tick();            // DOM ready
+		keepInsideViewport();
 	}
-	const close = () => (show = false);
+	const close = () => (menu.visible = false);
 
-	function clampIntoViewport() {
+	function keepInsideViewport() {
 		if (!menuEl) return;
-		const W = innerWidth,  H = innerHeight;
+		const W = innerWidth, H = innerHeight;
 		const w = menuEl.offsetWidth, h = menuEl.offsetHeight;
-		if (x + w > W) x = Math.max(0, W - w);
-		if (y + h > H) y = Math.max(0, H - h);
+		if (menu.x + w > W) menu.x = Math.max(0, W - w);
+		if (menu.y + h > H) menu.y = Math.max(0, H - h);
 	}
 
-	//
-	function down(e: PointerEvent) {
+	/* --- pointer helpers --- */
+	function pointerDown(e: PointerEvent) {
 		pressTimer = setTimeout(
-			() => open(e.clientX, e.clientY, true),   // skip first click
+			() => open(e.clientX, e.clientY, true),   // long-press swallows 1st click
 			600
 		);
 	}
-	const cancel = () => clearTimeout(pressTimer);
+	const cancelPress = () => clearTimeout(pressTimer);
 
 	function clickOutside(e: MouseEvent) {
-		if (ignoreNextClick) { ignoreNextClick = false; return; }
+		if (skipNextClick) { skipNextClick = false; return; }
 		const el = e.target as HTMLElement | null;
-		if (show && !el?.closest('.ctx-menu')) close();
+		if (menu.visible && !el?.closest('.ctx-menu')) close();
 	}
 </script>
 
+<!-- global listeners: use classic on:  to keep language servers happy -->
 <svelte:window
 	on:contextmenu|preventDefault={(e) => open(e.clientX, e.clientY)}
-	on:pointerdown={down}
-	on:pointerup={cancel}
-	on:pointerleave={cancel}
+	on:pointerdown={pointerDown}
+	on:pointerup={cancelPress}
+	on:pointerleave={cancelPress}
 	on:click={clickOutside}
 	on:keydown={(e) => e.key === 'Escape' && close()}
 />
 
-{#if show}
-	<div class="ctx-menu border rounded bg-light shadow-sm"
-	     bind:this={menuEl}
-	     style="position:fixed; left:{x}px; top:{y}px; z-index:9999;">
+{#if menu.visible}
+	<div  class="ctx-menu border rounded bg-light shadow-sm"
+	      bind:this={menuEl}
+	      style="position:fixed; left:{menu.x}px; top:{menu.y}px; z-index:9999;">
 		<button class="dropdown-item"
-		        on:click={() => { saveFile(); close(); }}>
+		        onclick={() => { saveFile(); close(); }}>
 			💾 Save file
 		</button>
 	</div>
