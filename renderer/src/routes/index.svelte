@@ -27,9 +27,9 @@
     <Col md="6" xs="12">
       <Card>
         <CardBody>
-          <CardTitle >Stream</CardTitle>
-          <CardText>Use your webcam, or screen to search for people you know in real time or capture and save images/video.</CardText>
-          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
+          <CardTitle>Stream</CardTitle>
+          <CardText>Use your webcam, or screen to search for people you know in real time.</CardText>
+          <Button color="primary" outline size="lg" href="/streaming"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>

@@ -43,7 +43,24 @@ export const routes = {
         "ext": "",
         "name": "streaming"
       },
-      "children": []
+      "children": [
+        {
+          "meta": {
+            "isDefault": true
+          },
+          "id": "_default_streaming_index_svelte",
+          "name": "index",
+          "file": {
+            "path": "src/routes/streaming/index.svelte",
+            "dir": "src/routes/streaming",
+            "base": "index.svelte",
+            "ext": ".svelte",
+            "name": "index"
+          },
+          "asyncModule": () => import('../src/routes/streaming/index.svelte'),
+          "children": []
+        }
+      ]
     },
     {
       "meta": {},
