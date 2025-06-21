@@ -11,7 +11,7 @@ let videoEl: HTMLVideoElement | null = null;
 let canvasEl: HTMLCanvasElement | null = null;
 let isPaused = $state(false);
 let hasStream = $state(false);
-const placeholderUrl = new URL('./wide.jpg', import.meta.url).href;
+const placeholderUrl = new URL('./tall.jpg', import.meta.url).href;
 let  testRows = $state<SearchRow[]>([]);
 
 
@@ -34,7 +34,7 @@ onMount(async () => {
 
 <div class="d-flex flex-column flex-grow-1" style="flex-basis:75%; min-width:0; min-height:0; background-color: aqua;">
     <!-- Control Buttons -->
-    <div class="flex-shrink-0 border p-1" style="flex-basis:10%; min-height:0; background-color: yellow;">
+    <div class="flex-shrink-0 border p-1 util-controlbar" style="background-color: yellow;">
 
         <!-- Extra‑small screens ( <576 px ) -->
         <div class="d-block d-lg-none h-100">
@@ -44,9 +44,9 @@ onMount(async () => {
                         <Icon name="house-fill" class="fs-6"/>
                     </Button>
                 </Col>
-                <Col class="d-flex justify-content-center">
-                    <Input disabled={isPaused} type="select" class="w-auto ms-1 me-2">
-                    {#each ['edit', 'gallery'] as option}
+                <Col class="d-flex justify-content-center   ">
+                    <Input disabled={isPaused} type="select" class="  w-50   ms-1 me-2 ">
+                    {#each ['edit', 'gallery', 'long long long long long long screen name'] as option}
                         <option value={option} class="fs-6">{option}</option>
                     {/each}
                     </Input>
@@ -67,9 +67,9 @@ onMount(async () => {
                         <Icon name="house-fill" class="fs-3"/>
                     </Button>
                 </Col>
-                <Col class="d-flex justify-content-center">
-                    <Input disabled={isPaused} type="select" class="w-auto ms-2 me-2 fs-3">
-                    {#each ['edit', 'gallery'] as option}
+                <Col class="d-flex justify-content-center  ">
+                    <Input disabled={isPaused} type="select" class=" w-50   ms-2 me-2 fs-3   ">
+                    {#each ['edit', 'gallery', 'long long long long long long screen name'] as option}
                         <option value={option}>{option}</option>
                     {/each}
                     </Input>
@@ -89,6 +89,7 @@ onMount(async () => {
       <!-- VideoCapture  -->
        <div class="capture-wrapper">
         {#if hasStream}
+          <!-- svelte-ignore a11y_media_has_caption -->
           <video bind:this={videoEl} class="capture-object" autoplay playsinline></video>
           <canvas bind:this={canvasEl} class="capture-object"></canvas>
         {:else}
@@ -135,4 +136,22 @@ onMount(async () => {
         left: 0;
         pointer-events: none; /* overlay, no mouse capture */
     }
+
+    @property --controlbar-h {
+        syntax: "<length-percentage>";
+        inherits: false;
+        initial-value: 3rem;
+    }
+
+    .util-controlbar {
+        --controlbar-h: clamp(3rem, 10vh, 5.5rem);
+        height: var(--controlbar-h);
+        min-height: var(--controlbar-h);
+    }
+
+
+
+
+
+
 </style>
