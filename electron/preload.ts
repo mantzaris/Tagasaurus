@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, ipcMain, webUtils } from "electron";
+import { contextBridge, ipcRenderer, desktopCapturer, webUtils } from "electron";
 import { MediaFile } from "./types/dbConfig";
 import { SearchRow } from "./types/variousTypes";
 
@@ -43,6 +43,16 @@ export const CONTEXT_BRIDGE = {
   saveFileByHash: async (hash: string): Promise<boolean> => {
     return await ipcRenderer.invoke('save-file-by-hash', hash);
   },
+
+  // screens / windows
+  listDesktopSources: () => ipcRenderer.invoke("request-desktop-sources"),
+
+  // cameras / microphones
+  listMediaDevices: async () => {
+    const devs = await navigator.mediaDevices.enumerateDevices();    
+    return devs.map(({ deviceId, kind, label }) => ({ deviceId, kind, label }));
+  },
+
 
 };
 

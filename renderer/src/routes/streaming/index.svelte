@@ -3,7 +3,7 @@ import { getContext, onMount } from 'svelte';
 import { Button, Col, Container, Icon, Input, Row } from '@sveltestrap/sveltestrap';
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
-  import SearchResultCard from '$lib/components/SearchResultCard.svelte';
+
 
 let mediaDir: string = $state( getContext('mediaDir') );
 
@@ -15,11 +15,22 @@ const placeholderUrl = new URL('./tall.jpg', import.meta.url).href;
 let  testRows = $state<SearchRow[]>([]);
 
 
+  let webcams: string[] = [];
+  let desktopSources: string[] = [];
+
+
 onMount(async () => {
     try {
         // const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         // if (videoEl) videoEl.srcObject = stream;
-        
+    console.log('>>>>>>>>')
+       
+    const cams  = await window.bridge.listMediaDevices();
+  console.log("cams:", cams);
+
+  const srcs  = await window.bridge.listDesktopSources();
+  console.log("desktop sources:", srcs); 
+        console.log("<<<<<<<<")
     } catch (err) {
         console.error('Webcam access refused:', err);
     }
@@ -148,9 +159,6 @@ onMount(async () => {
         height: var(--controlbar-h);
         min-height: var(--controlbar-h);
     }
-
-
-
 
 
 

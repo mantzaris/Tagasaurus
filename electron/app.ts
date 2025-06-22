@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, ipcMain, desktopCapturer, Menu, MenuItemConstructorOptions } from "electron";
 import { once } from "node:events"; 
 import electronReload from "electron-reload";
 
@@ -92,6 +92,11 @@ async function main() {
     }
   });
 
+  //X11 systems
+  // app.commandLine.appendSwitch("enable-usermedia-screen-capturing");
+  //Wayland + PipeWire: xdg-desktop-portal plus a matching backend (xdg-desktop-portal-gnome, …-kde, …-wlr, …) are installed
+  // app.commandLine.appendSwitch("enable-features","WebRTCPipeWireCapturer")
+
   if(!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
@@ -163,6 +168,13 @@ app.on("activate", async () => {
   }
 }); //macOS
 
+
+ipcMain.handle("request-desktop-sources", async () => { 
+  const sources = await desktopCapturer.getSources({ 
+    types: ["screen", "window"], 
+    fetchWindowIcons: false, });
+    return sources.map(s => ({ id: s.id, name: s.name, display_id: s.display_id })); 
+});
 
 
 
