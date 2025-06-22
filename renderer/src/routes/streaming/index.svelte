@@ -1,10 +1,32 @@
 <script lang="ts">
-import { getContext, onMount } from 'svelte';
+import { getContext, onMount, tick } from 'svelte';
 import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 
 const optionLabels = ["none", "camera", "screen"];
+
+interface DesktopSource {
+  type: "screen";
+  id: string;
+  name: string;
+  display_id: string;
+}
+
+interface CameraSource {
+  type: "camera";
+  deviceId: string;
+  label: string;
+}
+
+interface RawDesktopSource {
+  id: string;
+  name: string;
+  display_id: string;
+}
+
+
+type SourceObject = DesktopSource | CameraSource;
 
 let mediaDir: string = $state( getContext('mediaDir') );
 
@@ -12,12 +34,19 @@ let videoEl: HTMLVideoElement | null = null;
 let canvasEl: HTMLCanvasElement | null = null;
 let isPaused = $state(false);
 let hasStream = $state(false);
-const placeholderUrl = new URL('./tall.jpg', import.meta.url).href;
-let  testRows = $state<SearchRow[]>([]);
+const placeholderUrl = new URL('./Taga.png', import.meta.url).href;
+let testRows = $state<SearchRow[]>([]);
 
 type SourceOption = "none"|"screen"|"camera";
-type ModalSourceSelect = { type: "camera"|"screen"|"none", source_options: string[] }
+type ModalSourceSelect = { type: SourceOption, source_options: string[] }
+type ModalSourceSource = null | { type: SourceOption, label?: string, deviceId?: string, id?: string, display_id?: string, name?: string }
+
 let sourceSelected: SourceOption = $state('none');
+let selectModalOptions = $state<ModalSourceSelect>({type: 'none', source_options: []});
+let newSelectedSource = $state<ModalSourceSource>(null);
+let lastListed: SourceObject[] = [];
+let newDeviceIndex = $state<null | number>(null);
+
 $effect(() => {
     handleSourceSelect(sourceSelected);
 });
@@ -38,55 +67,161 @@ onMount(async () => {
 
 
 function handleSourceSelect(input: SourceOption) {
+  if (wayland) return;            // you said you’ll handle that later
 
-    if(!wayland) {
-        if( input == 'camera') {
-            getCameraSources();
-        } else if( input == 'screen') {
-            getScreenSources();
-        } else {
-            // stop the stream
-        }
-    }
+  if (input === "camera") {
+    getCameraSources();
+  } else if (input === "screen") {
+    getScreenSources();
+  } else {
+    /* <-- user picked “none” */
+    newSelectedSource = null;     // clears the other effect
+    stopStream();                 // really stop the stream
+  }
 }
 
+
 async function getScreenSources() {
-    const srcs  = await window.bridge.listDesktopSources();
-    console.log("desktop sources:", srcs);
-    // @ts-ignore
-    selectModalOptions = { type: 'screen', source_options: srcs.map(s=> s.name)}
-    toggleSelectModal();
-    return srcs;
+  const raw: RawDesktopSource[] = await window.bridge.listDesktopSources();
+
+  const screenSources: DesktopSource[] = raw.map(
+    (s: RawDesktopSource): DesktopSource => ({
+      type: "screen",
+      id: s.id,
+      name: s.name,
+      display_id: s.display_id,
+    })
+  );
+
+  lastListed = screenSources;
+
+  selectModalOptions = {
+    type: "screen",
+    source_options: screenSources.map(src => src.name),
+  };
+  toggleSelectModal();
 }
 
 async function getCameraSources() {
-    const cams  = await window.bridge.listMediaDevices();
-    console.log("cams:", cams);
-    selectModalOptions = { type: 'camera', source_options: cams.map(c=> c.label)}
-    toggleSelectModal();
-    return cams;
+  const raw = await window.bridge.listMediaDevices();
+
+  const cameraSources: CameraSource[] = raw
+    .filter((d: any) => d.kind === "videoinput")
+    .map(
+      (d): CameraSource => ({
+        type: "camera",
+        label: d.label,
+        deviceId: d.deviceId
+      })
+    );
+
+  lastListed = cameraSources;
+
+  selectModalOptions = {
+    type: "camera",
+    source_options: cameraSources.map(cam => cam.label)
+  };
+  toggleSelectModal();
 }
 
-let newSource = $state([]);
-$effect(()=> console.log(newSource));
 let open = $state(false);
 const toggleSelectModal = () => (open = !open);
-let selectModalOptions = $state<ModalSourceSelect>({type: 'none', source_options: []});
+
+function closeModal(ok: boolean) {
+  open = false;
+
+  if (ok && newDeviceIndex !== null) {
+    newSelectedSource = lastListed[newDeviceIndex] ?? null;
+  } else {
+    sourceSelected = "none";
+    newSelectedSource = null;
+  }
+  newDeviceIndex = null;
+}
+
+let currentStream: MediaStream | null = null;
+
+
+$effect(() => {
+  handleSourceSelection(newSelectedSource);   // synchronous call
+});
+
+async function handleSourceSelection(src: ModalSourceSource) {
+  if (!src) {
+    stopStream();
+    return;
+  }
+
+  try {
+    if (src.type === "camera" && src.deviceId) {
+      await startCamera(src.deviceId);
+    }
+
+    if (src.type === "screen" && src.id) {
+      await startDesktop(src.id);
+    }
+  } catch (err) {
+    console.error("Stream failed:", err);
+    stopStream();
+  }
+}
+
+async function startCamera(deviceId: string) {
+  stopStream();
+  currentStream = await navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: deviceId } },
+    audio: false,
+  });
+  attachStream(currentStream);
+}
+
+async function startDesktop(sourceId: string) {
+  stopStream();
+  const constraints: any = {
+    audio: false,
+    video: {
+      mandatory: {
+        chromeMediaSource: "desktop",
+        chromeMediaSourceId: sourceId,
+      },
+    },
+  };
+  currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+  attachStream(currentStream);
+}
+
+async function attachStream(stream: MediaStream) {
+  hasStream = true;
+  await tick(); 
+
+  if (videoEl) {
+    videoEl.srcObject = stream;
+    videoEl.play();
+  }
+}
+
+function stopStream() {
+  currentStream?.getTracks().forEach(t => t.stop());
+  currentStream = null;
+  hasStream = false;
+  if (videoEl) videoEl.srcObject = null;   //  ← clears frame
+}
+
 </script>
 
 
 <Modal isOpen={open} toggle={toggleSelectModal} scrollable={true}>
     <ModalHeader toggle={toggleSelectModal}>Select Source</ModalHeader>
     <ModalBody>
-      {#each selectModalOptions.source_options as value}
-        <Input type="radio" {value} label={value} bind:group={newSource} />
-      {/each}
+        {#each selectModalOptions.source_options as label, idx}
+            <Input type="radio" value={idx} label={label} bind:group={newDeviceIndex} />
+        {/each}
     </ModalBody>
     <ModalFooter>
-      <!-- <Button color="primary" on:click={toggleSelectModal}>Do Something</Button> -->
-      <Button color="secondary" on:click={toggleSelectModal}>Cancel</Button>
+      <Button color="primary" on:click={()=>closeModal(true)}>Ok</Button>
+      <Button color="secondary" on:click={()=>closeModal(false)}>Cancel</Button>
     </ModalFooter>
-  </Modal>
+</Modal>
 
 
 
@@ -145,7 +280,7 @@ let selectModalOptions = $state<ModalSourceSelect>({type: 'none', source_options
     </div>
 
     <!-- Stream Display -->
-    <div class="flex-fill border p-1 overflow-auto" style="min-height:0; background-color: green;">
+    <div class="flex-fill border p-1 overflow-auto" style="min-height:0; ">
       <!-- VideoCapture  -->
        <div class="capture-wrapper">
         {#if hasStream}
