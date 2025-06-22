@@ -1,9 +1,10 @@
 <script lang="ts">
 import { getContext, onMount } from 'svelte';
-import { Button, Col, Container, Icon, Input, Row } from '@sveltestrap/sveltestrap';
+import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 
+const optionLabels = ["none", "camera", "screen"];
 
 let mediaDir: string = $state( getContext('mediaDir') );
 
@@ -14,31 +15,79 @@ let hasStream = $state(false);
 const placeholderUrl = new URL('./tall.jpg', import.meta.url).href;
 let  testRows = $state<SearchRow[]>([]);
 
+type SourceOption = "none"|"screen"|"camera";
+type ModalSourceSelect = { type: "camera"|"screen"|"none", source_options: string[] }
+let sourceSelected: SourceOption = $state('none');
+$effect(() => {
+    handleSourceSelect(sourceSelected);
+});
 
-  let webcams: string[] = [];
-  let desktopSources: string[] = [];
+let webcams: string[] = [];
+let desktopSources: string[] = [];
+
+let wayland = false;
 
 
 onMount(async () => {
-    try {
-        // const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        // if (videoEl) videoEl.srcObject = stream;
-    console.log('>>>>>>>>')
-       
-    const cams  = await window.bridge.listMediaDevices();
-  console.log("cams:", cams);
-
-  const srcs  = await window.bridge.listDesktopSources();
-  console.log("desktop sources:", srcs); 
-        console.log("<<<<<<<<")
+    try {        
+    
     } catch (err) {
         console.error('Webcam access refused:', err);
     }
 });
 
 
+function handleSourceSelect(input: SourceOption) {
 
+    if(!wayland) {
+        if( input == 'camera') {
+            getCameraSources();
+        } else if( input == 'screen') {
+            getScreenSources();
+        } else {
+            // stop the stream
+        }
+    }
+}
+
+async function getScreenSources() {
+    const srcs  = await window.bridge.listDesktopSources();
+    console.log("desktop sources:", srcs);
+    // @ts-ignore
+    selectModalOptions = { type: 'screen', source_options: srcs.map(s=> s.name)}
+    toggleSelectModal();
+    return srcs;
+}
+
+async function getCameraSources() {
+    const cams  = await window.bridge.listMediaDevices();
+    console.log("cams:", cams);
+    selectModalOptions = { type: 'camera', source_options: cams.map(c=> c.label)}
+    toggleSelectModal();
+    return cams;
+}
+
+let newSource = $state([]);
+$effect(()=> console.log(newSource));
+let open = $state(false);
+const toggleSelectModal = () => (open = !open);
+let selectModalOptions = $state<ModalSourceSelect>({type: 'none', source_options: []});
 </script>
+
+
+<Modal isOpen={open} toggle={toggleSelectModal} scrollable={true}>
+    <ModalHeader toggle={toggleSelectModal}>Select Source</ModalHeader>
+    <ModalBody>
+      {#each selectModalOptions.source_options as value}
+        <Input type="radio" {value} label={value} bind:group={newSource} />
+      {/each}
+    </ModalBody>
+    <ModalFooter>
+      <!-- <Button color="primary" on:click={toggleSelectModal}>Do Something</Button> -->
+      <Button color="secondary" on:click={toggleSelectModal}>Cancel</Button>
+    </ModalFooter>
+  </Modal>
+
 
 
 <Container fluid class="vh-100 d-flex p-2 gap-3 no-scroll" style="background-color: purple;">
@@ -56,8 +105,8 @@ onMount(async () => {
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center   ">
-                    <Input disabled={isPaused} type="select" class="  w-50   ms-1 me-2 ">
-                    {#each ['edit', 'gallery', 'long long long long long long screen name'] as option}
+                    <Input disabled={isPaused} type="select" class="w-50 ms-1 me-2" bind:value={sourceSelected}>
+                    {#each optionLabels as option}
                         <option value={option} class="fs-6">{option}</option>
                     {/each}
                     </Input>
@@ -80,7 +129,7 @@ onMount(async () => {
                 </Col>
                 <Col class="d-flex justify-content-center  ">
                     <Input disabled={isPaused} type="select" class=" w-50   ms-2 me-2 fs-3   ">
-                    {#each ['edit', 'gallery', 'long long long long long long screen name'] as option}
+                    {#each optionLabels as option}
                         <option value={option}>{option}</option>
                     {/each}
                     </Input>
