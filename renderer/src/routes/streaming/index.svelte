@@ -192,6 +192,7 @@ async function startDesktop(sourceId: string) {
 
 async function attachStream(stream: MediaStream) {
   hasStream = true;
+  isPaused  = false;
   await tick(); 
 
   if (videoEl) {
@@ -204,8 +205,22 @@ function stopStream() {
   currentStream?.getTracks().forEach(t => t.stop());
   currentStream = null;
   hasStream = false;
-  if (videoEl) videoEl.srcObject = null;   //  ← clears frame
+  isPaused  = false;
+  if (videoEl) videoEl.srcObject = null;   // clears frame
 }
+
+function togglePause() {
+  if (!hasStream || !videoEl) return;   // defensive guard
+
+  if (isPaused) {
+    videoEl.play();
+    isPaused = false;
+  } else {
+    videoEl.pause();
+    isPaused = true;
+  }
+}
+
 
 </script>
 
@@ -247,9 +262,15 @@ function stopStream() {
                     </Input>
                 </Col>
                 <Col xs="auto" class="d-flex justify-content-end">
-                    <Button color="primary" size="sm" href="/">
-                        <Icon name="pause" class="fs-6"/>
-                    </Button>
+                    {#if hasStream}
+                        <Button color="primary" size="sm" onclick={togglePause} >
+                            {#if isPaused}
+                            <Icon name="play"  class="fs-6" />
+                            {:else}
+                            <Icon name="pause" class="fs-6" />
+                            {/if}
+                        </Button>
+                    {/if}
                 </Col>
             </Row>
         </div>
@@ -270,9 +291,15 @@ function stopStream() {
                     </Input>
                 </Col>
                 <Col xs="auto" class="d-flex justify-content-end">
-                    <Button color="primary" size="md" href="/">
-                        <Icon name="pause" class="fs-3"/>
-                    </Button>
+                    {#if hasStream}
+                        <Button color="primary" size="sm" onclick={togglePause} >
+                            {#if isPaused}
+                            <Icon name="play"  class="fs-3" />
+                            {:else}
+                            <Icon name="pause" class="fs-3" />
+                            {/if}
+                        </Button>
+                    {/if}
                 </Col>
             </Row>
         </div>
