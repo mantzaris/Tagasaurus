@@ -388,20 +388,58 @@ const handleCanvasClick = async (event: MouseEvent) => {
 };
 
 
-
-
-
-
+const TRACK_MS    = 3000;  // ms  keep same face while unlocked
+const MOVE_THRESH = 250;   // px  tolerate this drift in blue mode
+const LOST_THRESH = 500;   // px  consider the face lost when locked
 
 function pickFace(): { id: number; box: number[] } {
-  // if locked, keep the current box
+  const now = Date.now();
+
+  /* A.  LOCKED (green) – glide with same person */
   if (isFixed && lastTrackedBox) {
-    return { id: -1, box: lastTrackedBox };
+    let best = detectedFaces[0];
+    let dist = boxDistance(lastTrackedBox, best.box);
+    for (const f of detectedFaces) {
+      const d = boxDistance(lastTrackedBox, f.box);
+      if (d < dist) { best = f; dist = d; }
+    }
+
+    /* ─── ❶  Bail-out if too far ───────────────────────────────────────── */
+    if (dist > LOST_THRESH) {
+      console.log('[track] lost face (', dist.toFixed(0), 'px ) → unlock');
+      isFixed = false;                       // drop back to blue mode
+      // no return; let code continue into branch B on this same call
+    } else {
+      lastTrackedBox = best.box;             // keep gliding
+      return { id: -1, box: best.box };      // -1 → skip embedding
+    }
   }
-  // otherwise choose a new one
-  const idx = Math.floor(Math.random() * detectedFaces.length);
-  return detectedFaces[idx];
+
+  /* B.  UNLOCKED (blue) – keep tracking for TRACK_MS or MOVE_THRESH */
+  if (lastTrackedBox && now - lastResetTime < TRACK_MS) {
+    let best = detectedFaces[0];
+    let dist = boxDistance(lastTrackedBox, best.box);
+    for (const f of detectedFaces) {
+      const d = boxDistance(lastTrackedBox, f.box);
+      if (d < dist) { best = f; dist = d; }
+    }
+    if (dist < MOVE_THRESH) {
+      lastTrackedBox = best.box;
+      lastResetTime  = now;                  // refresh window
+      return best;                           // keeps blue stroke
+    }
+    // else: drift too far → fall through to reset
+  }
+
+  /* C.  Need a fresh target */
+  const idx  = Math.floor(Math.random() * detectedFaces.length);
+  const face = detectedFaces[idx];
+  lastTrackedBox = face.box;
+  lastResetTime  = now;
+  return face;                               // triggers new embedding
 }
+
+
 
 
 async function maybeEmbed(faceId: number) {
