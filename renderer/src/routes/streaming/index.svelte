@@ -313,7 +313,7 @@ async function detectAndDraw(img: HTMLImageElement): Promise<void> {
     ctx.lineWidth = 6;
     ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-    if (!isFixed) lastResetTime = Date.now();               // used for timeouts
+    // if (!isFixed) lastResetTime = Date.now();               // used for timeouts
     lastTrackedBox = face.box;
     lastDrawnBox   = face.box;
 
@@ -340,52 +340,56 @@ $effect(() => {
 
 //effect for canvas click handler
 const handleCanvasClick = async (event: MouseEvent) => {
-  if (!canvasEl || detectedFaces.length === 0) {
-    return;
-  }
+  if (!canvasEl || detectedFaces.length === 0) return;
 
-  if(!canvasEl) return;
-
-  //click point in DISPLAY space
+  /* 1 Translate click into DISPLAY space */
   const rect = canvasEl.getBoundingClientRect();
   const dx   = event.clientX - rect.left;
   const dy   = event.clientY - rect.top;
 
-  //convert each face centre to DISPLAY space & keep the nearest
+  /* 2 Find the face whose CENTRE is closest to the click */
   const toDisplay = ([x1, y1, x2, y2]: number[]) => ({
     cx: ((x1 + x2) / 2) * rect.width  / canvasEl!.width,
     cy: ((y1 + y2) / 2) * rect.height / canvasEl!.height,
   });
 
-  let bestFace: { id: number; box: number[] } | null = null;
+  let best: { id: number; box: number[] } | null = null;
   let bestDist = Infinity;
 
   for (const f of detectedFaces) {
     const { cx, cy } = toDisplay(f.box);
     const dist = Math.hypot(dx - cx, dy - cy);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestFace = f;
-    }
+    if (dist < bestDist) { best = f; bestDist = dist; }
+  }
+  if (!best) return;
+
+  /* 3 Decide: unlock / switch / lock */
+  const SAME_FACE_CLICKED =
+    lastTrackedBox &&
+    boxDistance(lastTrackedBox, best.box) < 20;   // 20 px tolerance
+
+  if (isFixed && SAME_FACE_CLICKED) {
+    /* — click on the SAME green box → unlock — */
+    isFixed = false;
+    console.log('[click] unlock');
+  } else {
+    /* — either we were blue, or we clicked a DIFFERENT face — */
+    isFixed        = true;          // always lock
+    lastTrackedBox = best.box;
+    lastResetTime  = Date.now();
+    console.log('[click] lock face', best.id);
+    maybeEmbed(best.id);            // refresh embedding on every new lock
   }
 
-  if (!bestFace) return;           
-
-  //toggle lock and compute embedding every time we LOCK
-  isFixed        = !isFixed;
-  lastTrackedBox = bestFace.box;
-  // console.log('[click]', isFixed ? 'LOCKED' : 'UNLOCKED', 'face', bestFace.id);
-
-  if (isFixed) maybeEmbed(bestFace.id);
-
-  //immediate visual feedback
+  /* 4 Immediate visual feedback */
   try {
     const img = await captureFrame();
-    await detectAndDraw(img);   // green when locked, blue when not
+    await detectAndDraw(img);       // colour updates next frame
   } catch (err) {
-    console.error('[click] redraw failed:', err);
+    console.error('[click] redraw failed', err);
   }
 };
+
 
 
 const TRACK_MS    = 3000;  // ms  keep same face while unlocked
@@ -425,10 +429,10 @@ function pickFace(): { id: number; box: number[] } {
     }
     if (dist < MOVE_THRESH) {
       lastTrackedBox = best.box;
-      lastResetTime  = now;                  // refresh window
+      //lastResetTime  = now;                  // refresh window
       return best;                           // keeps blue stroke
     }
-    // else: drift too far → fall through to reset
+    // else: drift too far → fall through to reset TODO: 
   }
 
   /* C.  Need a fresh target */
