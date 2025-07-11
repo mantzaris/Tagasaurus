@@ -255,7 +255,7 @@ function togglePause() {
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center   ">
-                    <Input disabled={isPaused} type="select" class="w-50 ms-1 me-2" bind:value={sourceSelected}>
+                    <Input type="select" class="w-50 ms-1 me-2" bind:value={sourceSelected}>
                     {#each optionLabels as option}
                         <option value={option} class="fs-6">{option}</option>
                     {/each}
@@ -284,7 +284,7 @@ function togglePause() {
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center  ">
-                    <Input disabled={isPaused} type="select" class=" w-50   ms-2 me-2 fs-3   ">
+                    <Input type="select" class=" w-50   ms-2 me-2 fs-3" bind:value={sourceSelected}>
                     {#each optionLabels as option}
                         <option value={option}>{option}</option>
                     {/each}
