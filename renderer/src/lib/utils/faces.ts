@@ -57,7 +57,7 @@ export async function detectFacesInImage(imgEl: HTMLImageElement): Promise<{id:n
   lastImg = imgEl; //keep for embed step
   const {tensor, scale, dx, dy, side} = preprocessImage(imgEl);
 
-  console.log(`in detectFacesInImage, detectSession = ${detectSession}`);
+  // console.log(`in detectFacesInImage, detectSession = ${detectSession}`);
 
   const feeds: Record<string, any> = {};
   feeds[detectSession.inputNames[0]] = tensor;

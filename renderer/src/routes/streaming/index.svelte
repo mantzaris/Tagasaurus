@@ -3,6 +3,7 @@ import { getContext, onMount, tick } from 'svelte';
 import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
+import { facesSetUp, detectFacesInImage } from '$lib/utils/faces';
 
 const optionLabels = ["none", "camera", "screen"];
 
@@ -59,7 +60,11 @@ let wayland = false;
 
 onMount(async () => {
     try {        
-    
+      const setupSuccess = await facesSetUp();
+
+      if (!setupSuccess) {
+          console.error('Failed to set up face detection');
+      }
     } catch (err) {
         console.error('Webcam access refused:', err);
     }
@@ -67,7 +72,7 @@ onMount(async () => {
 
 
 function handleSourceSelect(input: SourceOption) {
-  if (wayland) return;            // you said you’ll handle that later
+  if (wayland) return;            // TODO: handle that later
 
   if (input === "camera") {
     getCameraSources();
@@ -198,6 +203,13 @@ async function attachStream(stream: MediaStream) {
   if (videoEl) {
     videoEl.srcObject = stream;
     videoEl.play();
+
+    videoEl.onloadedmetadata = () => {
+        if (canvasEl && videoEl) {
+            canvasEl.width = videoEl.videoWidth;
+            canvasEl.height = videoEl.videoHeight;
+        }
+    };
   }
 }
 
@@ -221,6 +233,67 @@ function togglePause() {
   }
 }
 
+
+let detectedFaces = $state<{id: number; box: number[]}[]>([]);
+
+// capture the current video frame as an HTMLImageElement
+async function captureFrame(): Promise<HTMLImageElement> {
+    if (!videoEl) throw new Error('No video element');
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = videoEl.videoWidth;
+    tempCanvas.height = videoEl.videoHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (tempCtx) {
+        tempCtx.drawImage(videoEl, 0, 0, tempCanvas.width, tempCanvas.height);
+    }
+
+    const img = new Image();
+    img.src = tempCanvas.toDataURL('image/png');
+    await new Promise(resolve => { img.onload = resolve; });
+    return img;
+}
+
+// detect faces in the image and draw a bounding box for a random face (or clear if none)
+async function detectAndDraw(img: HTMLImageElement): Promise<void> {
+    if (!canvasEl) return;
+
+    detectedFaces = await detectFacesInImage(img);
+
+    const ctx = canvasEl.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height); // Always clear first
+
+    if (detectedFaces.length > 0) {
+        const randomIndex = Math.floor(Math.random() * detectedFaces.length);
+        const randomFace = detectedFaces[randomIndex];
+        const [x1, y1, x2, y2] = randomFace.box;
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+        //later: For embedding...
+        // const embedding = await embedFace(randomFace.id);
+    }
+    //canvas is already cleared
+}
+
+// setup interval to capture, detect, and draw every second
+$effect(() => {
+    if (!hasStream || !videoEl || !canvasEl) return;
+
+    const interval = setInterval(async () => {
+        try {
+            const img = await captureFrame();
+            await detectAndDraw(img);
+        } catch (err) {
+            console.error('Face detection error:', err);
+        }
+    }, 1000);
+
+    return () => clearInterval(interval);
+});
 
 </script>
 
