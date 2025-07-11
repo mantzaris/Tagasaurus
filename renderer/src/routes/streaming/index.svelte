@@ -48,6 +48,12 @@ let newSelectedSource = $state<ModalSourceSource>(null);
 let lastListed: SourceObject[] = [];
 let newDeviceIndex = $state<null | number>(null);
 
+let detectionInterval = $state(1000);
+let detectedFaces = $state<{id: number; box: number[]}[]>([]);
+let lastTrackedBox = $state<number[] | null>(null); // [x1, y1, x2, y2] or null
+let lastResetTime = $state<number>(0); // Timestamp of last reset
+
+
 $effect(() => {
     handleSourceSelect(sourceSelected);
 });
@@ -55,7 +61,7 @@ $effect(() => {
 let webcams: string[] = [];
 let desktopSources: string[] = [];
 
-let wayland = false;
+let wayland = false; //TODO: handle!
 
 
 onMount(async () => {
@@ -79,7 +85,7 @@ function handleSourceSelect(input: SourceOption) {
   } else if (input === "screen") {
     getScreenSources();
   } else {
-    /* <-- user picked “none” */
+    // user picked none
     newSelectedSource = null;     // clears the other effect
     stopStream();                 // really stop the stream
   }
@@ -204,10 +210,33 @@ async function attachStream(stream: MediaStream) {
     videoEl.srcObject = stream;
     videoEl.play();
 
-    videoEl.onloadedmetadata = () => {
+    videoEl.onloadedmetadata = async () => {
         if (canvasEl && videoEl) {
             canvasEl.width = videoEl.videoWidth;
             canvasEl.height = videoEl.videoHeight;
+        }
+
+        try {
+            const startTime = performance.now();
+            const testImg = await captureFrame();
+            await detectFacesInImage(testImg); //just detect (no draw/embedding needed)
+            const endTime = performance.now();
+            const detectionTime = endTime - startTime;
+
+            if (detectionTime > 1000) {
+                const scaled = Math.min(3000, detectionTime * 1.5);
+                detectionInterval = Math.round(scaled / 100) * 100; //slow
+            } else if (detectionTime > 500) {
+                const scaled = Math.min(2000, detectionTime * 1.5);
+                detectionInterval = Math.round(scaled / 100) * 100; //medium
+            } else {
+                const scaled = Math.min(1000, detectionTime * 1.5);
+                detectionInterval = Math.round(scaled / 100) * 100; //fast
+            }
+            console.log(`Detection time: ${detectionTime}ms. Set interval to ${detectionInterval}ms.`);
+        } catch (err) {
+            console.error('Benchmark failed:', err);
+            detectionInterval = 1000; //fallback to default
         }
     };
   }
@@ -233,8 +262,6 @@ function togglePause() {
   }
 }
 
-
-let detectedFaces = $state<{id: number; box: number[]}[]>([]);
 
 // capture the current video frame as an HTMLImageElement
 async function captureFrame(): Promise<HTMLImageElement> {
@@ -276,8 +303,9 @@ async function detectAndDraw(img: HTMLImageElement): Promise<void> {
         const embedding = await embedFace(randomFace.id);
         
         if (embedding) {
-            console.log('Face embedding:', embedding);
+            // console.log('Face embedding:', embedding); 
 
+            //TODO: 
             // const results = await searchWithEmbedding(embedding);
             // testRows = results; // Update search results UI
         }
@@ -298,7 +326,7 @@ $effect(() => {
         } catch (err) {
             console.error('Face detection error:', err);
         }
-    }, 1000);
+    }, detectionInterval);
 
     return () => clearInterval(interval);
 });

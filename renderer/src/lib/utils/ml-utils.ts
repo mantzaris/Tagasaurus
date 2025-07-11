@@ -19,3 +19,13 @@ export function meanPool(tensor:any) {
     }
     return out;
 }
+
+
+// Helper: Calculate centroid distance between two boxes
+export function boxDistance(boxA: number[], boxB: number[]): number {
+    const cxA = (boxA[0] + boxA[2]) / 2;
+    const cyA = (boxA[1] + boxA[3]) / 2;
+    const cxB = (boxB[0] + boxB[2]) / 2;
+    const cyB = (boxB[1] + boxB[3]) / 2;
+    return Math.sqrt(Math.pow(cxA - cxB, 2) + Math.pow(cyA - cyB, 2));
+}
