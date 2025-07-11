@@ -4,6 +4,7 @@ import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, Mod
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 import { facesSetUp, detectFacesInImage, embedFace } from '$lib/utils/faces';
+  import { boxDistance } from '$lib/utils/ml-utils';
 
 const optionLabels = ["none", "camera", "screen"];
 
@@ -290,29 +291,71 @@ async function detectAndDraw(img: HTMLImageElement): Promise<void> {
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height); // Always clear first
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height); // Always clear
 
     if (detectedFaces.length > 0) {
-        const randomIndex = Math.floor(Math.random() * detectedFaces.length);
-        const randomFace = detectedFaces[randomIndex];
-        const [x1, y1, x2, y2] = randomFace.box;
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        let selectedFace: {id: number; box: number[]};
+        const now = Date.now();
+        const timeSinceReset = now - lastResetTime;
 
-        const embedding = await embedFace(randomFace.id);
-        
-        if (embedding) {
-            // console.log('Face embedding:', embedding); 
+        if (lastTrackedBox && timeSinceReset < 3000) { //track face if within 3s
+            //get closest box to lastTrackedBox
+            let minDist = Infinity;
+            let closestIndex = -1;
+            detectedFaces.forEach((face, index) => {
+                if(lastTrackedBox){
+                  const dist = boxDistance(lastTrackedBox, face.box);
+                  if (dist < minDist) {
+                      minDist = dist;
+                      closestIndex = index;
+                  }
+                }
+            });
 
-            //TODO: 
-            // const results = await searchWithEmbedding(embedding);
-            // testRows = results; // Update search results UI
+            if (closestIndex !== -1 && minDist < 200) { // Threshold (pixels; tweak based on res)
+                selectedFace = detectedFaces[closestIndex];
+            } else {
+                //no good match: force random face reset!
+                selectedFace = resetAndSelectRandom();
+            }
+        } else {
+            //time for reset (or first time)!
+            selectedFace = resetAndSelectRandom();
         }
 
+        //draw the selected box
+        const [x1, y1, x2, y2] = selectedFace.box;
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+        //update last tracked (always, for continuity)
+        lastTrackedBox = selectedFace.box;
+    } else {
+        //no faces: Reset tracking
+        lastTrackedBox = null;
+        lastResetTime = 0;
     }
 
-    //canvas is already cleared...
+    function resetAndSelectRandom(): {id: number; box: number[]} {
+        const randomIndex = Math.floor(Math.random() * detectedFaces.length);
+        const randomFace = detectedFaces[randomIndex];
+
+        // Compute embedding on reset
+        embedFace(randomFace.id).then(embedding => {
+            if (embedding) {
+                console.log('New tracked face embedding:', embedding.slice(0, 10));
+                // Update search: e.g., const results = await searchWithEmbedding(embedding);
+                // testRows = results;
+            }
+        }).catch(err => console.error('Embedding error:', err));
+
+        // Update reset time and box
+        lastResetTime = Date.now();
+        lastTrackedBox = randomFace.box;
+
+        return randomFace;
+    }
 }
 
 // setup interval to capture, detect, and draw every second
