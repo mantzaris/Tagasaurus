@@ -3,7 +3,7 @@ import { getContext, onMount, tick } from 'svelte';
 import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
-import { facesSetUp, detectFacesInImage } from '$lib/utils/faces';
+import { facesSetUp, detectFacesInImage, embedFace } from '$lib/utils/faces';
 
 const optionLabels = ["none", "camera", "screen"];
 
@@ -273,10 +273,18 @@ async function detectAndDraw(img: HTMLImageElement): Promise<void> {
         ctx.lineWidth = 2;
         ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-        //later: For embedding...
-        // const embedding = await embedFace(randomFace.id);
+        const embedding = await embedFace(randomFace.id);
+        
+        if (embedding) {
+            console.log('Face embedding:', embedding);
+
+            // const results = await searchWithEmbedding(embedding);
+            // testRows = results; // Update search results UI
+        }
+
     }
-    //canvas is already cleared
+
+    //canvas is already cleared...
 }
 
 // setup interval to capture, detect, and draw every second

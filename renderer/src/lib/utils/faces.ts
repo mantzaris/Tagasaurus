@@ -41,7 +41,7 @@ let lastFaces : FaceDetections[] = []; // result of getFaces()
 
 export async function facesSetUp() {
 
-  try {    
+  try {
     ({detectSession, embedSession} = await initializeOnnxRuntime());
 
     lastImg = null;
@@ -81,7 +81,7 @@ export async function embedFace(id: number): Promise<Float32Array|null> {
 
 
 function getFaces(detectionOut: Record<string, any>, sess : any, scale=1, dx=0, dy=0, side =640, confTh=0.55): FaceDetections[] {
-  console.log('getFaces start')
+  
   const σ = (x:number)=>1/(1+Math.exp(-x));
   const strides=[8,16,32];
   const faces: FaceDetections[] = [];
@@ -137,8 +137,6 @@ function getFaces(detectionOut: Record<string, any>, sess : any, scale=1, dx=0, 
 
 //canvas112->L2-normalised 512-D embedding
 async function getEmbedding(cnv: HTMLCanvasElement, session: any): Promise<Float32Array> {
-  
-  console.log(`in getEmbedding`);
 
   const tensor = canvasToTensor(cnv);
   const feeds: Record<string, any> = {};
@@ -175,7 +173,7 @@ function canvasToTensor(cnv: HTMLCanvasElement) {
 
 
 export function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanvasElement {
-  console.log('make112Face start')
+  
   //build source landmark list (detected points)
   const srcPts = [
     {x: kps10[0], y: kps10[1]},   // left eye
@@ -192,14 +190,14 @@ export function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanva
   const m = nudged.transform.toMatrix(tfm);
   
   const cv = document.createElement('canvas');
-  console.log("foo: ",cv.width, cv.height)
+  // console.log("foo: ",cv.width, cv.height)
   cv.width  = cv.height = 112;
-  console.log("bar: ",cv.width, cv.height)
+  // console.log("bar: ",cv.width, cv.height)
   const ctx = cv.getContext('2d')!;
   
   ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
   ctx.drawImage(image, 0, 0);
-  console.log("baz: ",cv.width, cv.height)
+  // console.log("baz: ",cv.width, cv.height);
   return cv;
 }
 
