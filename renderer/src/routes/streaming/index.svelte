@@ -4,7 +4,7 @@ import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, Mod
 import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 import { facesSetUp, detectFacesInImage, embedFace } from '$lib/utils/faces';
-  import { boxDistance } from '$lib/utils/ml-utils';
+import { boxDistance } from '$lib/utils/ml-utils';
 
 const optionLabels = ["none", "camera", "screen"];
 
@@ -52,15 +52,17 @@ let newDeviceIndex = $state<null | number>(null);
 let detectionInterval = $state(1000);
 let detectedFaces = $state<{id: number; box: number[]}[]>([]);
 let lastTrackedBox = $state<number[] | null>(null); // [x1, y1, x2, y2] or null
-let lastResetTime = $state<number>(0); // Timestamp of last reset
+let lastResetTime = $state<number>(0); //timestamp of last reset
+let isFixed = $state(false);
+let lastDrawnBox = $state<number[] | null>(null);
 
 
 $effect(() => {
     handleSourceSelect(sourceSelected);
 });
 
-let webcams: string[] = [];
-let desktopSources: string[] = [];
+let webcams: string[] = []; //TODO: remove?
+let desktopSources: string[] = []; //TODO: remove?
 
 let wayland = false; //TODO: handle!
 
@@ -282,6 +284,9 @@ async function captureFrame(): Promise<HTMLImageElement> {
     return img;
 }
 
+
+let isEmbedding = $state(false);
+
 // detect faces in the image and draw a bounding box for a random face (or clear if none)
 async function detectAndDraw(img: HTMLImageElement): Promise<void> {
     if (!canvasEl) return;
@@ -291,71 +296,29 @@ async function detectAndDraw(img: HTMLImageElement): Promise<void> {
     const ctx = canvasEl.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height); // Always clear
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height); //always clear
 
-    if (detectedFaces.length > 0) {
-        let selectedFace: {id: number; box: number[]};
-        const now = Date.now();
-        const timeSinceReset = now - lastResetTime;
-
-        if (lastTrackedBox && timeSinceReset < 3000) { //track face if within 3s
-            //get closest box to lastTrackedBox
-            let minDist = Infinity;
-            let closestIndex = -1;
-            detectedFaces.forEach((face, index) => {
-                if(lastTrackedBox){
-                  const dist = boxDistance(lastTrackedBox, face.box);
-                  if (dist < minDist) {
-                      minDist = dist;
-                      closestIndex = index;
-                  }
-                }
-            });
-
-            if (closestIndex !== -1 && minDist < 200) { // Threshold (pixels; tweak based on res)
-                selectedFace = detectedFaces[closestIndex];
-            } else {
-                //no good match: force random face reset!
-                selectedFace = resetAndSelectRandom();
-            }
-        } else {
-            //time for reset (or first time)!
-            selectedFace = resetAndSelectRandom();
-        }
-
-        //draw the selected box
-        const [x1, y1, x2, y2] = selectedFace.box;
-        ctx.strokeStyle = 'blue';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-
-        //update last tracked (always, for continuity)
-        lastTrackedBox = selectedFace.box;
-    } else {
-        //no faces: Reset tracking
-        lastTrackedBox = null;
-        lastResetTime = 0;
+    //no faces: reset state and bail
+    if (detectedFaces.length === 0) {
+      isFixed = false;
+      lastTrackedBox = lastDrawnBox = null;
+      lastResetTime = 0;
+      return;
     }
 
-    function resetAndSelectRandom(): {id: number; box: number[]} {
-        const randomIndex = Math.floor(Math.random() * detectedFaces.length);
-        const randomFace = detectedFaces[randomIndex];
+    const face = pickFace();
+    const [x1, y1, x2, y2] = face.box;
 
-        // Compute embedding on reset
-        embedFace(randomFace.id).then(embedding => {
-            if (embedding) {
-                console.log('New tracked face embedding:', embedding.slice(0, 10));
-                // Update search: e.g., const results = await searchWithEmbedding(embedding);
-                // testRows = results;
-            }
-        }).catch(err => console.error('Embedding error:', err));
+    ctx.strokeStyle = isFixed ? 'green' : 'blue';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-        // Update reset time and box
-        lastResetTime = Date.now();
-        lastTrackedBox = randomFace.box;
+    if (!isFixed) lastResetTime = Date.now();               // used for timeouts
+    lastTrackedBox = face.box;
+    lastDrawnBox   = face.box;
 
-        return randomFace;
-    }
+    //compute embedding only when we actually switch faces
+    await maybeEmbed(face.id);
 }
 
 // setup interval to capture, detect, and draw every second
@@ -373,6 +336,89 @@ $effect(() => {
 
     return () => clearInterval(interval);
 });
+
+
+//effect for canvas click handler
+const handleCanvasClick = async (event: MouseEvent) => {
+  if (!canvasEl || detectedFaces.length === 0) {
+    return;
+  }
+
+  if(!canvasEl) return;
+
+  //click point in DISPLAY space
+  const rect = canvasEl.getBoundingClientRect();
+  const dx   = event.clientX - rect.left;
+  const dy   = event.clientY - rect.top;
+
+  //convert each face centre to DISPLAY space & keep the nearest
+  const toDisplay = ([x1, y1, x2, y2]: number[]) => ({
+    cx: ((x1 + x2) / 2) * rect.width  / canvasEl!.width,
+    cy: ((y1 + y2) / 2) * rect.height / canvasEl!.height,
+  });
+
+  let bestFace: { id: number; box: number[] } | null = null;
+  let bestDist = Infinity;
+
+  for (const f of detectedFaces) {
+    const { cx, cy } = toDisplay(f.box);
+    const dist = Math.hypot(dx - cx, dy - cy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestFace = f;
+    }
+  }
+
+  if (!bestFace) return;           
+
+  //toggle lock and compute embedding every time we LOCK
+  isFixed        = !isFixed;
+  lastTrackedBox = bestFace.box;
+  // console.log('[click]', isFixed ? 'LOCKED' : 'UNLOCKED', 'face', bestFace.id);
+
+  if (isFixed) maybeEmbed(bestFace.id);
+
+  //immediate visual feedback
+  try {
+    const img = await captureFrame();
+    await detectAndDraw(img);   // green when locked, blue when not
+  } catch (err) {
+    console.error('[click] redraw failed:', err);
+  }
+};
+
+
+
+
+
+
+
+function pickFace(): { id: number; box: number[] } {
+  // if locked, keep the current box
+  if (isFixed && lastTrackedBox) {
+    return { id: -1, box: lastTrackedBox };
+  }
+  // otherwise choose a new one
+  const idx = Math.floor(Math.random() * detectedFaces.length);
+  return detectedFaces[idx];
+}
+
+
+async function maybeEmbed(faceId: number) {
+  if (faceId < 0 || isEmbedding) return;          // -1 means same face
+  isEmbedding = true;
+  try {
+    const embedding = await embedFace(faceId);
+    if (embedding) {
+      console.log('Tracked face embedding:', embedding.slice(0, 10));
+      //  testRows = await searchWithEmbedding(embedding);
+    }
+  } catch (err) {
+    console.error('Embedding error:', err);
+  } finally {
+    isEmbedding = false;
+  }
+}
 
 </script>
 
@@ -465,7 +511,7 @@ $effect(() => {
         {#if hasStream}
           <!-- svelte-ignore a11y_media_has_caption -->
           <video bind:this={videoEl} class="capture-object" autoplay playsinline></video>
-          <canvas bind:this={canvasEl} class="capture-object"></canvas>
+          <canvas onclick={handleCanvasClick} bind:this={canvasEl} class="capture-object"></canvas>
         {:else}
           <!-- Placeholder image for dev / no‑camera situations -->
           <img src={placeholderUrl} alt="dev placeholder" class="capture-object" />
@@ -503,12 +549,16 @@ $effect(() => {
         width: 100%;
         height: 100%;
         object-fit: contain; /* keep aspect ratio, touch at least one axis */
+        
+
     }
     canvas.capture-object {
         position: absolute;
         top: 0;
         left: 0;
-        pointer-events: none; /* overlay, no mouse capture */
+        /*pointer-events: none;*/
+        cursor: pointer;
+        pointer-events: auto;
     }
 
     @property --controlbar-h {
