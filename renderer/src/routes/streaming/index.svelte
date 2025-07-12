@@ -481,11 +481,11 @@ async function maybeEmbed(faceId: number) {
 
 
 
-<Container fluid class="vh-100 d-flex p-2 gap-3 no-scroll" style="background-color: purple;">
+<Container fluid class="vh-100 d-flex p-2 gap-3 no-scroll">
 
-<div class="d-flex flex-column flex-grow-1" style="flex-basis:75%; min-width:0; min-height:0; background-color: aqua;">
+<div class="d-flex flex-column flex-grow-1" style="flex-basis:75%; min-width:0; min-height:0;">
     <!-- Control Buttons -->
-    <div class="flex-shrink-0 border p-1 util-controlbar" style="background-color: yellow;">
+    <div class="flex-shrink-0 border p-1 util-controlbar">
 
         <!-- Extra‑small screens ( <576 px ) -->
         <div class="d-block d-lg-none h-100">
@@ -565,7 +565,7 @@ async function maybeEmbed(faceId: number) {
 </div>
 
 <!-- search results -->
-<div class="flex-grow-1 border p-1 overflow-auto" style="flex-basis:25%; min-width:0; min-height:0; background-color: blue;">
+<div class="flex-grow-1 border p-1 overflow-auto border-end-0 border-bottom-0 border-top-0 border-2 border-success" style="flex-basis:25%; min-width:0; min-height:0;">
     <!-- <Container fluid class="h-100 mt-2" style="background-color:bisque"> -->
         
             {#each searchRows as row (row.fileHash) }
