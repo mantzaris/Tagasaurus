@@ -16,6 +16,8 @@ import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 import { getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
 import { SearchRow } from "./types/variousTypes";
 
+import {getDisplayServer, getIsLinux, type DisplayServer} from './main-functions/initialization/system-info'
+
 app.commandLine.appendSwitch(
   'enable-features',
   'Vulkan,DefaultEnableUnsafeWebGPU'
@@ -34,6 +36,9 @@ let db_fileQueue: Database;
 let dbPath: string;
 let dbPath_fileQueue: string;
 let sampleMediaFiles: MediaFile[];
+
+let isLinux: boolean = false;
+let displayServer: DisplayServer = null; 
 
 //single initialization point
 async function initialize() {
@@ -55,6 +60,12 @@ async function initialize() {
   `);
   
   await initTagaFoldersAndDBSetups(db, db_fileQueue, created);
+
+  isLinux = getIsLinux();
+  if(isLinux) {
+    displayServer = await getDisplayServer();
+    if(displayServer == 'unknown') displayServer = 'wayland';
+  }
 
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }

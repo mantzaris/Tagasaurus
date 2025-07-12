@@ -433,7 +433,7 @@ function pickFace(): { id: number; box: number[] } {
       //lastResetTime  = now;                  // refresh window
       return best;                           // keeps blue stroke
     }
-    // else: drift too far  fall through to reset TODO: 
+    // else: drift too far  fall through to reset 
   }
 
   // need a fresh target
