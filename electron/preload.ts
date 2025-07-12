@@ -18,6 +18,10 @@ export const CONTEXT_BRIDGE = {
     return ipcRenderer.invoke("get-media-dir");
   },
 
+  requestSystemInfo: async () => {
+    return ipcRenderer.invoke("get-system-info");
+  },
+
   sendDroppedPaths: (paths: string[]) => {
     ipcRenderer.send('user-dropped-paths', paths);
   },

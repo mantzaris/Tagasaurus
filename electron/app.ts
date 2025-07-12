@@ -228,6 +228,10 @@ ipcMain.handle("get-media-dir", async (event) => {
   return getMediaFrontEndDirBase(mediaDir);
 });
 
+ipcMain.handle("get-system-info", (event) => {
+  return {isLinux,displayServer}
+});
+
 
 ipcMain.on('save-media-description', async (_evt, p: {
   fileHash: string;

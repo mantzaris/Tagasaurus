@@ -1,27 +1,30 @@
 <script lang="ts">
 import { onMount, setContext } from 'svelte';
-import { getMediaDir } from '$lib/utils/localStorageManager';
+import { getMediaDir, getSystemInfo } from '$lib/utils/localStorageManager';
 import { Toast, Icon } from '@sveltestrap/sveltestrap';
 import { fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
 import { detectGPU } from '$lib/utils/detect-gpu';
 import { type DeviceGPU } from './lib/types/general-types';
-
+import type { DisplayServer} from '$lib/utils/localStorageManager';
 
 let { children } = $props();
 
 let isOpen = $state(false);
 let mediaDir = $state<string | null>(null);
 let deviceGPU: DeviceGPU = $state('wasm'); //wasm is cpu
+let isLinux = $state(false);
+let displayServer = $state<DisplayServer>('unknown');
 
+
+setContext('isLinux', () => isLinux);
+setContext('displayServer', () => displayServer);
 setContext('mediaDir', () => mediaDir);
-// $effect(() => {
-//     setContext('mediaDir', mediaDir);
-//     console.log(mediaDir)
-// });
+setContext('gpuDevice', () => deviceGPU);
 
-$effect(() => {
-    setContext('gpuDevice', deviceGPU);
-});
+$effect(() => setContext('isLinux', () => isLinux));
+$effect(() => setContext('displayServer', () => displayServer));
+$effect(() => { setContext('gpuDevice', () => deviceGPU); });
+
 
 onMount(async () => {
   deviceGPU = await detectGPU();
@@ -29,7 +32,13 @@ onMount(async () => {
 
   fillSampleMediaFiles(); //fire n'4get
   mediaDir = await getMediaDir();
+
+  const info          = await getSystemInfo();
+	isLinux             = info.isLinux;
+	displayServer       = info.displayServer ?? 'unknown';
+  // console.log(`is linux = ${isLinux} and displayServer = ${displayServer}`)
 });
+
 
 function handleDragOver(event: DragEvent) {
   event.preventDefault(); 
