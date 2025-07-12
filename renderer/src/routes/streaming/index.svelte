@@ -5,6 +5,7 @@ import type { SearchRow } from '$lib/types/general-types';
 import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 import { facesSetUp, detectFacesInImage, embedFace } from '$lib/utils/faces';
 import { boxDistance } from '$lib/utils/ml-utils';
+import type { DisplayServer} from '$lib/utils/localStorageManager';
 
 const optionLabels = ["none", "camera", "screen"];
 
@@ -30,8 +31,15 @@ interface RawDesktopSource {
 
 type SourceObject = DesktopSource | CameraSource;
 
-const getMediaDir: () => string | null = getContext('mediaDir'); // $state( getContext('mediaDir') );
-let mediaDir = $derived.by(() => getMediaDir() ?? '');
+const readMediaDir      = getContext<() => string | null>('mediaDir');
+const readIsLinux       = getContext<() => boolean>('isLinux');
+const readDisplayServer = getContext<() => DisplayServer>('displayServer');
+
+/* reactive primitives */
+let mediaDir:  string   = $derived(readMediaDir() ?? '');
+let isLinux:   boolean  = $derived(readIsLinux());
+let isWayland: boolean  = $derived(readDisplayServer() === 'wayland');
+
 
 let videoEl: HTMLVideoElement | null = null;
 let canvasEl: HTMLCanvasElement | null = null;
@@ -62,16 +70,12 @@ $effect(() => {
     handleSourceSelect(sourceSelected);
 });
 
-let webcams: string[] = []; //TODO: remove?
-let desktopSources: string[] = []; //TODO: remove?
-
-let wayland = false; //TODO: handle!
-
 
 onMount(async () => {
     try {        
       const setupSuccess = await facesSetUp();
-            
+      console.log(`isWayland = ${isWayland}`);
+
       if (!setupSuccess) {
           console.error('Failed to set up face detection');
       }
@@ -82,21 +86,26 @@ onMount(async () => {
 
 
 function handleSourceSelect(input: SourceOption) {
-  if (wayland) return;            // TODO: handle that later
+  if (input === 'screen' && isWayland) {
+    // skip modal: portal picker will appear
+    startDesktop();
+    return;
+  }
 
-  if (input === "camera") {
+  if (input === 'camera') {
     getCameraSources();
-  } else if (input === "screen") {
+  } else if (input === 'screen') {
     getScreenSources();
   } else {
-    // user picked none
-    newSelectedSource = null;     // clears the other effect
-    stopStream();                 // really stop the stream
+    newSelectedSource = null;
+    stopStream();
   }
 }
 
 
 async function getScreenSources() {
+  if(isWayland) return; //system picker covers this
+
   const raw: RawDesktopSource[] = await window.bridge.listDesktopSources();
 
   const screenSources: DesktopSource[] = raw.map(
@@ -190,20 +199,41 @@ async function startCamera(deviceId: string) {
   attachStream(currentStream);
 }
 
-async function startDesktop(sourceId: string) {
+
+async function startDesktop(sourceId: string | undefined = undefined) {
   stopStream();
-  const constraints: any = {
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSource: "desktop",
-        chromeMediaSourceId: sourceId,
-      },
-    },
-  };
-  currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-  attachStream(currentStream);
+
+  try {
+    if (isWayland) {              // or use a boolean you keep updated
+      currentStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,           // {cursor:'always'} or 'motion' if you need the cursor
+        audio: false
+      });
+
+    } else {
+      //X11 / Win / macOS<14 path: still needs a sourceId chosen earlier
+      if (!sourceId) {
+        console.warn('called without sourceId on non-Wayland platform');
+        return;                                     // defensive guard
+      }
+      const constraints: any = {
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId
+          }
+        }
+      };
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    attachStream(currentStream);                    // common post-setup
+  } catch (err) {
+    console.error('User cancelled or capture failed:', err);
+  }
 }
+
 
 async function attachStream(stream: MediaStream) {
   hasStream = true;
@@ -214,6 +244,7 @@ async function attachStream(stream: MediaStream) {
     videoEl.srcObject = stream;
     videoEl.play();
 
+    //TODO:  new stream you overwrites but persists in memory, use once:true (future)
     videoEl.onloadedmetadata = async () => {
         if (canvasEl && videoEl) {
             canvasEl.width = videoEl.videoWidth;

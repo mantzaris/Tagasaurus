@@ -180,8 +180,12 @@ app.on("activate", async () => {
 }); //macOS
 
 
-ipcMain.handle("request-desktop-sources", async () => { 
-  const sources = await desktopCapturer.getSources({ 
+ipcMain.handle("request-desktop-sources", async () => {
+  if (displayServer == 'wayland') {
+    return [];
+  }
+
+  const sources = await desktopCapturer.getSources({
     types: ["screen", "window"], 
     fetchWindowIcons: false, });
     return sources.map(s => ({ id: s.id, name: s.name, display_id: s.display_id })); 

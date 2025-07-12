@@ -36,12 +36,12 @@ onMount(async () => {
   const info          = await getSystemInfo();
 	isLinux             = info.isLinux;
 	displayServer       = info.displayServer ?? 'unknown';
-  // console.log(`is linux = ${isLinux} and displayServer = ${displayServer}`)
+  console.log(`is linux = ${isLinux} and displayServer = ${displayServer}`)
 });
 
 
 function handleDragOver(event: DragEvent) {
-  event.preventDefault(); 
+  event.preventDefault();
 }
 
 function handleDrop(event: DragEvent) {
