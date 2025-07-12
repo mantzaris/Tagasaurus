@@ -202,7 +202,7 @@ export function make112Face(kps10: number[], image: HTMLImageElement): HTMLCanva
 }
 
 export function scaleFaceBox(img: HTMLImageElement, box: number[], kps: number[]) {
-  console.log('scaleFaceBox start')
+  // console.log('scaleFaceBox start')
   let [x1,y1,x2,y2] = box;
   const w = x2-x1, h = y2-y1; //TODO: make closer to 0.3 which is the backend
 

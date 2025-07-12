@@ -30,14 +30,15 @@ interface RawDesktopSource {
 
 type SourceObject = DesktopSource | CameraSource;
 
-let mediaDir: string = $state( getContext('mediaDir') );
+const getMediaDir: () => string | null = getContext('mediaDir'); // $state( getContext('mediaDir') );
+let mediaDir = $derived.by(() => getMediaDir() ?? '');
 
 let videoEl: HTMLVideoElement | null = null;
 let canvasEl: HTMLCanvasElement | null = null;
 let isPaused = $state(false);
 let hasStream = $state(false);
 const placeholderUrl = new URL('./Taga.png', import.meta.url).href;
-let testRows = $state<SearchRow[]>([]);
+let searchRows = $state<SearchRow[]>([]);
 
 type SourceOption = "none"|"screen"|"camera";
 type ModalSourceSelect = { type: SourceOption, source_options: string[] }
@@ -70,7 +71,7 @@ let wayland = false; //TODO: handle!
 onMount(async () => {
     try {        
       const setupSuccess = await facesSetUp();
-
+            
       if (!setupSuccess) {
           console.error('Failed to set up face detection');
       }
@@ -342,12 +343,12 @@ $effect(() => {
 const handleCanvasClick = async (event: MouseEvent) => {
   if (!canvasEl || detectedFaces.length === 0) return;
 
-  /* 1 Translate click into DISPLAY space */
+  //translate click into DISPLAY space
   const rect = canvasEl.getBoundingClientRect();
   const dx   = event.clientX - rect.left;
   const dy   = event.clientY - rect.top;
 
-  /* 2 Find the face whose CENTRE is closest to the click */
+  //find the face whose CENTRE is closest to the click
   const toDisplay = ([x1, y1, x2, y2]: number[]) => ({
     cx: ((x1 + x2) / 2) * rect.width  / canvasEl!.width,
     cy: ((y1 + y2) / 2) * rect.height / canvasEl!.height,
@@ -363,17 +364,17 @@ const handleCanvasClick = async (event: MouseEvent) => {
   }
   if (!best) return;
 
-  /* 3 Decide: unlock / switch / lock */
+  // Decide: unlock / switch / lock 
   const SAME_FACE_CLICKED =
     lastTrackedBox &&
     boxDistance(lastTrackedBox, best.box) < 20;   // 20 px tolerance
 
   if (isFixed && SAME_FACE_CLICKED) {
-    /* — click on the SAME green box → unlock — */
+    // click on the SAME green box 
     isFixed = false;
     console.log('[click] unlock');
   } else {
-    /* — either we were blue, or we clicked a DIFFERENT face — */
+    // either we were blue, or we clicked a DIFFERENT face 
     isFixed        = true;          // always lock
     lastTrackedBox = best.box;
     lastResetTime  = Date.now();
@@ -381,7 +382,7 @@ const handleCanvasClick = async (event: MouseEvent) => {
     maybeEmbed(best.id);            // refresh embedding on every new lock
   }
 
-  /* 4 Immediate visual feedback */
+  // Immediate visual feedback
   try {
     const img = await captureFrame();
     await detectAndDraw(img);       // colour updates next frame
@@ -399,7 +400,7 @@ const LOST_THRESH = 500;   // px  consider the face lost when locked
 function pickFace(): { id: number; box: number[] } {
   const now = Date.now();
 
-  /* A.  LOCKED (green) – glide with same person */
+  // LOCKED (green)  glide with same person 
   if (isFixed && lastTrackedBox) {
     let best = detectedFaces[0];
     let dist = boxDistance(lastTrackedBox, best.box);
@@ -408,18 +409,18 @@ function pickFace(): { id: number; box: number[] } {
       if (d < dist) { best = f; dist = d; }
     }
 
-    /* ─── ❶  Bail-out if too far ───────────────────────────────────────── */
+    // Bail-out if too far 
     if (dist > LOST_THRESH) {
       console.log('[track] lost face (', dist.toFixed(0), 'px ) → unlock');
       isFixed = false;                       // drop back to blue mode
       // no return; let code continue into branch B on this same call
     } else {
       lastTrackedBox = best.box;             // keep gliding
-      return { id: -1, box: best.box };      // -1 → skip embedding
+      return { id: -1, box: best.box };      // -1 to skip embedding
     }
   }
 
-  /* B.  UNLOCKED (blue) – keep tracking for TRACK_MS or MOVE_THRESH */
+  // UNLOCKED (blue)  keep tracking for TRACK_MS or MOVE_THRESH 
   if (lastTrackedBox && now - lastResetTime < TRACK_MS) {
     let best = detectedFaces[0];
     let dist = boxDistance(lastTrackedBox, best.box);
@@ -432,28 +433,27 @@ function pickFace(): { id: number; box: number[] } {
       //lastResetTime  = now;                  // refresh window
       return best;                           // keeps blue stroke
     }
-    // else: drift too far → fall through to reset TODO: 
+    // else: drift too far  fall through to reset TODO: 
   }
 
-  /* C.  Need a fresh target */
+  // need a fresh target
   const idx  = Math.floor(Math.random() * detectedFaces.length);
   const face = detectedFaces[idx];
   lastTrackedBox = face.box;
   lastResetTime  = now;
-  return face;                               // triggers new embedding
+  return face;     // triggers new embedding
 }
 
 
-
-
 async function maybeEmbed(faceId: number) {
-  if (faceId < 0 || isEmbedding) return;          // -1 means same face
+  if (faceId < 0 || isEmbedding) return;    // -1 means same face
   isEmbedding = true;
   try {
     const embedding = await embedFace(faceId);
     if (embedding) {
-      console.log('Tracked face embedding:', embedding.slice(0, 10));
-      //  testRows = await searchWithEmbedding(embedding);
+      // console.log('Tracked face embedding:', embedding.slice(0, 10));
+      searchRows = await window.bridge.searchEmbeddings( [], [embedding], 20 );
+
     }
   } catch (err) {
     console.error('Embedding error:', err);
@@ -461,6 +461,7 @@ async function maybeEmbed(faceId: number) {
     isEmbedding = false;
   }
 }
+
 
 </script>
 
@@ -567,11 +568,12 @@ async function maybeEmbed(faceId: number) {
 <div class="flex-grow-1 border p-1 overflow-auto" style="flex-basis:25%; min-width:0; min-height:0; background-color: blue;">
     <!-- <Container fluid class="h-100 mt-2" style="background-color:bisque"> -->
         
-            {#each testRows as row }
+            {#each searchRows as row (row.fileHash) }
                 
-                <StreamResultCard  />
-            
-            {/each}        
+                <StreamResultCard {row} {mediaDir} />
+
+            {/each}
+
     <!-- </Container> -->
 </div>
 

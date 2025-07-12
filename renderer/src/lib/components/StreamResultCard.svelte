@@ -3,26 +3,42 @@
   import type { SearchRow } from '$lib/types/general-types';
   import { getContext } from 'svelte';
 
-  export let row: SearchRow = {
-    fileHash: '281fe476540dff58cf5fdabec0e79a5fec6018feb1e79cdbdb2849b375aeb802',
-    fileType: 'image/jpeg',
-    description: null
-  };
+  interface Props {
+    row: SearchRow;
+    mediaDir?: string;
+  }
 
-  const mediaDir: string = getContext('mediaDir') ?? '';
-  console.log("fdsf"+mediaDir)
+  let { row, mediaDir = '' }: Props = $props();
+
+  
+  if (!mediaDir) {
+    mediaDir = getContext<string>('mediaDir') ?? '';
+  }
+
   const filePath = getMediaFilePath(mediaDir, row.fileHash);
+  const link = `/tagging/${row.fileHash}?fileType=${encodeURIComponent(row.fileType)}`;
+  // export let row: SearchRow = {
+  //   fileHash: '281fe476540dff58cf5fdabec0e79a5fec6018feb1e79cdbdb2849b375aeb802',
+  //   fileType: 'image/jpeg',
+  //   description: null
+  // };
+  // const mediaDir: string = getContext('mediaDir') ?? '';
+  // const filePath = getMediaFilePath(mediaDir, row.fileHash);
+
 
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 
 {#if row.fileType.startsWith('image/')}
-  <div class="result-card mb-2">
+  <div class="result-card mb-3">
+    <!-- svelte-ignore a11y_img_redundant_alt -->
     <img class="media" src={filePath} alt="Gallery image" />
   </div>
 
 {:else if row.fileType.startsWith('video/')}
-  <div class="result-card mb-2">
+  <div class="result-card mb-3">
+    <!-- svelte-ignore a11y_media_has_caption -->
     <video controls preload="metadata" class="media">
       <source src={filePath} type={row.fileType} />
     </video>
@@ -35,7 +51,7 @@
 
 <style>
  .result-card{
-    height: max(150px,30vh);
+    max-height: max(150px,30vh);
     width:100%;
     display:flex;               /* keeps captionable future additions easy */
     justify-content:center;

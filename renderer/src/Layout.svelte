@@ -10,12 +10,15 @@ import { type DeviceGPU } from './lib/types/general-types';
 let { children } = $props();
 
 let isOpen = $state(false);
-let mediaDir: string|null = $state(null);
+let mediaDir = $state<string | null>(null);
 let deviceGPU: DeviceGPU = $state('wasm'); //wasm is cpu
 
-$effect(() => {
-    setContext('mediaDir', mediaDir);
-});
+setContext('mediaDir', () => mediaDir);
+// $effect(() => {
+//     setContext('mediaDir', mediaDir);
+//     console.log(mediaDir)
+// });
+
 $effect(() => {
     setContext('gpuDevice', deviceGPU);
 });
