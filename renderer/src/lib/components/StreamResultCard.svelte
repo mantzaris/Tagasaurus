@@ -2,6 +2,8 @@
   import { getMediaFilePath } from '$lib/utils/utils';
   import type { SearchRow } from '$lib/types/general-types';
   import { getContext } from 'svelte';
+  import { goto } from '@roxi/routify';
+  import { get }  from 'svelte/store';
 
   interface Props {
     row: SearchRow;
@@ -25,11 +27,34 @@
   // const mediaDir: string = getContext('mediaDir') ?? '';
   // const filePath = getMediaFilePath(mediaDir, row.fileHash);
 
+  const navigate = get(goto);
+
+	function open() {
+		navigate(
+			'/tagging/[slug]',
+			{
+				slug:     row.fileHash,
+				fileType: row.fileType
+			}
+		);
+	}
 
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- <a href={$url('/tagging/[slug]', { slug: row.fileHash, fileType: row.fileType })}
+   use:$url
+   class="result-card mb-3">
+   media file
+</a> -->
 
+
+<!-- svelte-ignore event_directive_deprecated -->
+<div class="result-card mb-3"
+     role="button"
+     tabindex="0"
+     on:click={open}
+     on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && open()}>
+ 
 {#if row.fileType.startsWith('image/')}
   <div class="result-card mb-3">
     <!-- svelte-ignore a11y_img_redundant_alt -->
@@ -48,6 +73,7 @@
   Unsupported file type
 {/if}
 
+</div>
 
 <style>
  .result-card{
