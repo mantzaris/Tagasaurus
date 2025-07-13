@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, Menu, MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, ipcMain, desktopCapturer, session, Menu, MenuItemConstructorOptions } from "electron";
 import { once } from "node:events"; 
 import electronReload from "electron-reload";
 
@@ -16,13 +16,26 @@ import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 import { getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
 import { SearchRow } from "./types/variousTypes";
 
-import {getDisplayServer, getIsLinux, type DisplayServer} from './main-functions/initialization/system-info'
+import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
 
-app.commandLine.appendSwitch(
-  'enable-features',
-  'Vulkan,DefaultEnableUnsafeWebGPU'
-);
+const earlyDisplay = guessDisplaySync();
+
+if (earlyDisplay === 'wayland') {
+  app.commandLine.appendSwitch(
+    'enable-features',
+    'WebRTCPipeWireCapturer,UseOzonePlatform,Vulkan,DefaultEnableUnsafeWebGPU'                                     
+  );
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');   // ← change key
+} else {
+  app.commandLine.appendSwitch(
+    'enable-features',
+    'Vulkan,DefaultEnableUnsafeWebGPU'
+  );
+}
 app.commandLine.appendSwitch('enable-unsafe-webgpu');
+
+
+
 
 const sampleSize = 200;
 let mainWindow: BrowserWindow;
@@ -131,7 +144,11 @@ async function main() {
 
 app.once("ready", async () => {
   try {
+
     await initialize(); //initialize directories and DBs
+
+    registerDisplayMediaHandler();
+
     await main(); //create the BrowserWindow
 
     if(created) {
@@ -170,6 +187,8 @@ app.on("activate", async () => {
         enqueueIngest(db, tempDir, mediaDir, mainWindow);
       }
       
+      registerDisplayMediaHandler();
+
       await main();
     
       sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
@@ -178,6 +197,31 @@ app.on("activate", async () => {
     }
   }
 }); //macOS
+
+
+let handlerRegistered = false;
+function registerDisplayMediaHandler() {
+  if (handlerRegistered) return;
+  handlerRegistered = true;
+
+  session.defaultSession.setDisplayMediaRequestHandler(
+    async (_req, cb) => {
+      // Only called on X11 / Windows / macOS ≤ 13
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        fetchWindowIcons: false
+      });
+
+      const chosen = sources[0];            // TODO: show real modal
+      if (chosen) cb({ video: chosen });
+      else        cb(undefined as unknown as Electron.Streams); // user cancelled
+    },
+    { useSystemPicker: true }               // Wayland - skip handler
+  );
+}
+
+
+
 
 
 ipcMain.handle("request-desktop-sources", async () => {
