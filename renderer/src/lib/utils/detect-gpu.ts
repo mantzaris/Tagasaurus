@@ -3,7 +3,7 @@ import type { DeviceGPU } from "$lib/types/general-types";
 export async function detectGPU():
   Promise< DeviceGPU> {
 
-  /* ---------- 1. WebGPU ---------- */
+  //WebGPU
   if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
     try {
       const adapter = await (navigator as any).gpu.requestAdapter();
@@ -11,7 +11,7 @@ export async function detectGPU():
     } catch { /* ignore */ }
   }
 
-  /* ---------- 2. WebGL ---------- */
+  //WebGL
   const canvas: HTMLCanvasElement | OffscreenCanvas =
     typeof OffscreenCanvas !== 'undefined'
       ? new OffscreenCanvas(1, 1)
@@ -36,6 +36,6 @@ export async function detectGPU():
     } catch {/* fall through */}
   }
 
-  /* ---------- 3. Fallback ---------- */
+  //fallback
   return 'wasm';
 }

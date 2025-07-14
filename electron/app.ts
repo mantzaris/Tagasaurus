@@ -25,7 +25,7 @@ if (earlyDisplay === 'wayland') {
     'enable-features',
     'WebRTCPipeWireCapturer,UseOzonePlatform,Vulkan,DefaultEnableUnsafeWebGPU'                                     
   );
-  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');   // ← change key
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 } else {
   app.commandLine.appendSwitch(
     'enable-features',

@@ -35,7 +35,7 @@ const readMediaDir      = getContext<() => string | null>('mediaDir');
 const readIsLinux       = getContext<() => boolean>('isLinux');
 const readDisplayServer = getContext<() => DisplayServer>('displayServer');
 
-/* reactive primitives */
+//reactive primitives
 let mediaDir:  string   = $derived(readMediaDir() ?? '');
 let isLinux:   boolean  = $derived(readIsLinux());
 let isWayland: boolean  = $derived(readDisplayServer() === 'wayland');

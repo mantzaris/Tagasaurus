@@ -1,4 +1,3 @@
-// import '$lib/utils/transformers-init';
 
 import { pipeline, type FeatureExtractionPipeline, type Tensor } from '@huggingface/transformers';
 import { meanPool } from './ml-utils';
