@@ -10,7 +10,7 @@ import { computeFileHash, detectTypeFromPartialBuffer, getHashSubdirectory } fro
 import { convertMediaFile,  isAllowedFileType } from "../utils/media-conversion"; //detectAnimation
 import { MediaFile } from "../../types/dbConfig";
 
-import { faceSetupOnce, processFacesFromMedia } from "../utils/face-utils";
+import { faceSetupOnce, processFacesFromMedia, TimedEmbedding } from "../utils/face-utils";
 
 
 /**
@@ -65,8 +65,9 @@ export async function processTempFiles(
   const insertFaceStmt = await db.prepare(`
     INSERT INTO ${faceEmbeddings} (
         ${columns.faceEmbeddings.mediaFileId},
+        ${columns.faceEmbeddings.time},
         ${columns.faceEmbeddings.faceEmbedding}
-    ) VALUES (?, ?)
+    ) VALUES (?, ?, ?)
   `);
 
   const fetchStmt = await db.prepare(`
@@ -150,12 +151,12 @@ export async function processTempFiles(
 
 
         //FACE EMBEDDINGS---------
-        let allEmbeddings: Float32Array[] = [];
+        let timeEmbeddings: TimedEmbedding[] = [];
 
-        if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues, webp currently bypassed
-          allEmbeddings = await processFacesFromMedia(tempFilePath, inferredFileType);
+        if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues, webp currently bypassed empty for them
+          timeEmbeddings = await processFacesFromMedia(tempFilePath, inferredFileType);
           
-          allEmbeddings.forEach((emb, idx) => { console.log(`file ${hash}  face #${idx}  emb[0..10] =`, Array.from(emb.slice(0, 11))); });
+          timeEmbeddings.forEach((timeEmb, idx) => { console.log(`file ${hash}  face #${idx}  emb[0..10] =`, Array.from(timeEmb.emb.slice(0, 11))); });
         }
         //--------------------
         
@@ -172,14 +173,14 @@ export async function processTempFiles(
             null             //descriptionEmbedding
           );
 
-          if(allEmbeddings.length > 0) {
+          if(timeEmbeddings.length > 0) {
             const mediaFileRow = await fetchStmt.get<MediaFile>(hash);
 
             if (mediaFileRow) {
               const mediaFileId = mediaFileRow.id;
-              for (const emb of allEmbeddings) {
+              for (const timeEmbTemp of timeEmbeddings) {
                 // Store the raw Float32Array as a blob
-                await insertFaceStmt.run([mediaFileId, Buffer.from(emb.buffer)]);
+                await insertFaceStmt.run([mediaFileId, timeEmbTemp.t ?? null, Buffer.from(timeEmbTemp.emb.buffer)]);
               }
             }           
 

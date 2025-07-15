@@ -62,7 +62,7 @@ const Q_DESC_RERANK = `
 let stmtFaceHitsInsert: import('libsql/promise').Statement | null = null;
 let stmtDescRerank: import("libsql/promise").Statement | null = null;
 
-//TODO: deal with multiple faces
+//deals with multiple faces
 export async function searchTagging(
   db: Database,
   descrEmb: Float32Array[] = [],

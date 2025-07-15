@@ -10,6 +10,7 @@ export interface MediaFile {
 export interface FaceEmbedding {
   id?: number;
   mediaFileId: number;
+  time?: number | null; //seconds from the start of the video (NULL for still images/GIF frames)
   faceEmbedding: number[]; //faceEmbedding: Float32Array;
 }
 
@@ -44,6 +45,7 @@ export interface DBConfig {
     faceEmbeddings: {
       id: string;
       mediaFileId: string;
+      time: string;
       faceEmbedding: string;
     };
     dbStats: {

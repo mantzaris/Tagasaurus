@@ -40,6 +40,7 @@ export const defaultDBConfig: DBConfig = {
     faceEmbeddings: {
       id: "id",
       mediaFileId: "media_file_id",
+      time: "time_sec", //<---NEW
       faceEmbedding: "face_embedding"
     },
     dbStats: {
@@ -333,6 +334,7 @@ async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promis
       CREATE TABLE IF NOT EXISTS ${tables.faceEmbeddings} (
         ${columns.faceEmbeddings.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.faceEmbeddings.mediaFileId} INTEGER NOT NULL,
+        ${columns.faceEmbeddings.time}        INTEGER,
         ${columns.faceEmbeddings.faceEmbedding} ${faceVecDDL}, 
         FOREIGN KEY (${columns.faceEmbeddings.mediaFileId}) REFERENCES ${tables.mediaFiles}(${columns.mediaFiles.id}) ON DELETE CASCADE
       );

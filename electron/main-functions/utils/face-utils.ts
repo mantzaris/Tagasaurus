@@ -17,6 +17,12 @@ import { chooseTimes, extractVideoFrame, videoDurationSec } from './video';
 ffmpeg.setFfmpegPath(ffmpegPath || "");
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
 
+export interface TimedEmbedding {
+  t: number | null;        //null for still images or gifs/animated images
+  emb: Float32Array;
+}
+
+
 const MODELS_DIR  = path.join(__dirname, '..', '..', '..', '..', 'models', 'buffalo_l');
 
 const DEBUG = false;
@@ -103,12 +109,14 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
 
 
 //PUBLIC entry: detect & crop faces
-export async function processFacesFromMedia(filePath: string, inferredFileMimeType: string) {
+export async function processFacesFromMedia(filePath: string, inferredFileMimeType: string): Promise<TimedEmbedding[]> {
     const STEP_SEC = 1; 
     const MAX_SAMPLES = 36000;
      
     await faceSetupOnce();
     let allEmbeddings: Float32Array[] = [];
+    let times: number[] = [];
+    let timeEmbedding: TimedEmbedding[] = [];
 
     if (inferredFileMimeType.startsWith('video/')) {
       const dur    = await videoDurationSec(filePath);
@@ -124,22 +132,33 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
 
           const embThis = await processFacesOnImageData(frameBuf);
           embThis.forEach(l2Normalize);
+          
+          const startLen = allEmbeddings.length;
           addIfUnique(allEmbeddings, embThis);
+          const added = allEmbeddings.length - startLen;
+
+          // for every truly new embedding, record its t and the (t,emb) pair
+          for (let i = 0; i < added; i++) {
+            const emb = allEmbeddings[startLen + i];  // the fresh element(s)
+            times.push(t);                            // preserves existing times[]
+            timeEmbedding.push({ t, emb });           // build TimedEmbedding on the fly
+          }
+
         } catch (e) {
           console.warn(`frame @${t}s failed:`, (e as Error).message ?? e);
         }
       }
 
-      if(DEBUG) console.log(`${path.basename(filePath)} → ${allEmbeddings.length} unique face(s)`);
+      if(DEBUG) console.log(`${path.basename(filePath)} -> ${allEmbeddings.length} unique face(s)`);
 
-      return allEmbeddings;
+      return timeEmbedding;
     } else if(inferredFileMimeType.startsWith('image/')) { //image animated or still
             
       const animated = await detectAnimation(filePath, inferredFileMimeType);
       
-      if (animated) {       
+      if (animated) {
         if(inferredFileMimeType.startsWith('image/webp')) {
-          return allEmbeddings;
+          return timeEmbedding;
         }
 
         const info = await analyseAnimated(filePath, inferredFileMimeType);
@@ -161,33 +180,44 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
             try { //isolate per-frame errors
               const embForFrame = await processFacesOnImageData(frameBuf);
               embForFrame.forEach(l2Normalize);
+
+              const startLen = allEmbeddings.length;
               addIfUnique(allEmbeddings, embForFrame);
+              const added = allEmbeddings.length - startLen;
+
+              for (let i = 0; i < added; i++) {
+                const emb = allEmbeddings[startLen + i];
+                timeEmbedding.push({ t: null, emb });
+              }
+
             } catch (e) {
               console.warn(`  face processing failed (frame ${idx}):`,
                           (e as Error).message ?? e);
             }
           }
   
-          if(DEBUG) console.log(`${path.basename(filePath)} → ${allEmbeddings.length} face(s) (across ${frames.length} sampled frame${frames.length > 1 ? 's' : ''})`);
+          if(DEBUG) console.log(`${path.basename(filePath)} -> ${allEmbeddings.length} face(s) (across ${frames.length} sampled frame${frames.length > 1 ? 's' : ''})`);
 
-          return allEmbeddings;
+          return timeEmbedding;
         }
       } else { //still images
         if(inferredFileMimeType.startsWith('image/webp')) {
-          return allEmbeddings;
+          return []; //allEmbeddings;
         }
 
-        const imageBuf = await fs.readFile(filePath);    
+        const imageBuf = await fs.readFile(filePath);
         let embeddingsRaw = await processFacesOnImageData(imageBuf);
 
         embeddingsRaw = dedupEmbeddings(embeddingsRaw);
         // embeddingsRaw.forEach((emb, i) => console.log(`face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`));
 
-        return embeddingsRaw;
+        timeEmbedding = embeddingsRaw.map(emb => ({ t: null, emb }));
+
+        return timeEmbedding;
       }
     }
 
-    return allEmbeddings;
+    return timeEmbedding;
 }
 
 
