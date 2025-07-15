@@ -2,7 +2,7 @@
 import { onMount, setContext } from 'svelte';
 import { getMediaDir, getSystemInfo } from '$lib/utils/localStorageManager';
 import { Toast, Icon } from '@sveltestrap/sveltestrap';
-import { fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
+import { clearSessionMediaCache, fillSampleMediaFiles } from '$lib/utils/temp-mediafiles';
 import { detectGPU } from '$lib/utils/detect-gpu';
 import { type DeviceGPU } from './lib/types/general-types';
 import type { DisplayServer} from '$lib/utils/localStorageManager';
@@ -27,6 +27,9 @@ $effect(() => { setContext('gpuDevice', () => deviceGPU); });
 
 
 onMount(async () => {
+  await clearSessionMediaCache();
+
+
   deviceGPU = await detectGPU();
   console.log(`gpuDevice layout = ${deviceGPU}`)
 

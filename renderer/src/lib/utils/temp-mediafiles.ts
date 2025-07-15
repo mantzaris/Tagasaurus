@@ -26,6 +26,12 @@ export const localMediaFilesDB = new MediaFilesDexieDB();
 const MAX_SIZE = 10000;
 
 
+export async function clearSessionMediaCache(): Promise<void> {
+  await localMediaFilesDB.delete();   // drops the entire IndexedDB database
+  await localMediaFilesDB.open();     // recreates it so the singleton keeps working
+}
+
+
 /**
  * getMediaFile - returns a MediaFile by its fileHash from either newMediaFiles or sampleMediaFiles
  *
