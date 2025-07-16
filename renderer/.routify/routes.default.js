@@ -17,31 +17,31 @@ export const routes = {
   "children": [
     {
       "meta": {},
-      "id": "_default_face_map",
-      "name": "face-map",
+      "id": "_default_face_explore",
+      "name": "face-explore",
       "module": false,
       "file": {
-        "path": "src/routes/face-map",
+        "path": "src/routes/face-explore",
         "dir": "src/routes",
-        "base": "face-map",
+        "base": "face-explore",
         "ext": "",
-        "name": "face-map"
+        "name": "face-explore"
       },
       "children": [
         {
           "meta": {
             "isDefault": true
           },
-          "id": "_default_face_map_index_svelte",
+          "id": "_default_face_explore_index_svelte",
           "name": "index",
           "file": {
-            "path": "src/routes/face-map/index.svelte",
-            "dir": "src/routes/face-map",
+            "path": "src/routes/face-explore/index.svelte",
+            "dir": "src/routes/face-explore",
             "base": "index.svelte",
             "ext": ".svelte",
             "name": "index"
           },
-          "asyncModule": () => import('../src/routes/face-map/index.svelte'),
+          "asyncModule": () => import('../src/routes/face-explore/index.svelte'),
           "children": []
         }
       ]

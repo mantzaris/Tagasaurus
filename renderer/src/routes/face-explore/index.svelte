@@ -1,20 +1,71 @@
 <script lang="ts">
+import { onMount, tick } from 'svelte';
 import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
+import { kmeans } from 'ml-kmeans';
+import { distanceCosine0to2 } from '$lib/utils/ml-utils';
 
-const hasStream = false;
-const handleCanvasClick = () => undefined;
-let videoEl: HTMLVideoElement | null = null;
-let canvasEl: HTMLCanvasElement | null = null;
-const placeholderUrl = new URL('./Taga.png', import.meta.url).href;
+import type { Network, DataSet, Node, Edge } from 'vis-network';  // just types
+
+
+
+
+
+  let container: HTMLDivElement | null = null;
+  let network: Network | null = null;
+
+  onMount(async () => {
+    await tick();                         // wait for bind:this
+    if (!container) return;
+
+    const nodes = new vis.DataSet<Node>([{ id: 1, label: 'Hello' }]);
+    const edges = new vis.DataSet<Edge>([]);
+    network = new vis.Network(container, { nodes, edges }, {});
+  });
+
+
+
+
+
+
+
 let searchRows = $state([]);
 
 
 const initOptions = [10, 20, 30, 40] as const;
 let initSelected = $state<number>(initOptions[0]);
 let freshStart = $state(true);
+
+const kmeansOptions = {
+  initialization: 'kmeans++',
+  maxIterations: 50,
+  tolerance: 1e-4,
+  // distanceFunction: (a, b) => /* custom dist, e.g., cosine if normalized */
+};
+//const result = kmeans(data, k)
+
 function toggleRestart() {
     return undefined;
 }
+
+
+function medoidIndices(
+  data: number[][],
+  clusters: number[],
+  centroids: { centroid:number[] }[]
+): number[] {
+  const k = centroids.length;
+  const best = Array(k).fill(Infinity);
+  const idx  = Array(k).fill(-1);
+
+  data.forEach((vec, i) => {
+    const c = clusters[i];
+    const d = distanceCosine0to2(vec, centroids[c].centroid);
+    if (d < best[c]) { best[c] = d; idx[c] = i; }
+  });
+  return idx; //eg [42, 817, ...] : rows in `data`
+}
+//const medoids = medoidIndices(data, result.clusters, result.centroids);
+
 
 </script>
 
@@ -83,16 +134,10 @@ function toggleRestart() {
 
     <!-- Stream Display -->
     <div class="flex-fill border p-1 overflow-auto" style="min-height:0; ">
-      <!-- VideoCapture  -->
+       <!-- VideoCapture -->
        <div class="capture-wrapper">
-        {#if hasStream}
-          <!-- svelte-ignore a11y_media_has_caption -->
-          <video bind:this={videoEl} class="capture-object" autoplay playsinline></video>
-          <canvas onclick={handleCanvasClick} bind:this={canvasEl} class="capture-object"></canvas>
-        {:else}
-          <!-- Placeholder image for dev / no‑camera situations -->
-          <img src={placeholderUrl} alt="dev placeholder" class="capture-object" />
-        {/if}
+          
+        
       </div>
     </div>
   

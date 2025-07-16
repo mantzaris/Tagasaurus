@@ -30,10 +30,13 @@
     "dexie": "^4.0.11",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
+    "ml-kmeans": "^6.0.0",
     "nudged": "^2.1.1",
     "onnxruntime-web": "^1.22.0",
+    "skmeans": "^0.11.3",
     "svelte-loading-spinners": "^0.3.6",
     "svelte-pdf": "^1.0.28",
-    "svelte-pdf-simple": "^2.0.0"
+    "svelte-pdf-simple": "^2.0.0",
+    "vis-network": "^10.0.1"
   }
 }
