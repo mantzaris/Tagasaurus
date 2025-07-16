@@ -4,53 +4,99 @@ import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, Mod
 import { kmeans } from 'ml-kmeans';
 import { distanceCosine0to2 } from '$lib/utils/ml-utils';
 
-import type { Network, DataSet, Node, Edge } from 'vis-network';  // just types
+import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
 import type { MediaFile } from '$lib/types/general-types';
 
 
-const kmeansOptions = {
-  initialization: 'kmeans++',
-  maxIterations: 50,
-  tolerance: 1e-4,
-  // distanceFunction: (a, b) => /* custom dist, e.g., cosine if normalized */
-};
-
-const initOptions = [10, 20, 30, 40] as const;
-let initSelected = $state<number>(initOptions[0]);
-let freshStart = $state(true);
+const initOptions = [10, 20, 40, 60, 100] as const;
+let initNumberSelected = $state<number>(initOptions[0]);
+let initMedia: MediaFile[] = $state([]);
+let searchRows = $state([]);
 
 
 let container: HTMLDivElement | null = null;
 let network: Network | null = null;
 
 
-
 onMount(async () => {
-    await tick();                         // wait for bind:this
+    await tick(); //wait for bind:this
 
-    if (!container) return;
+    initMedia = await window.bridge.requestRandomEntries(initNumberSelected);
 
-    const nodes = new vis.DataSet<Node>([{ id: 1, label: 'Hello' }]);
-    const edges = new vis.DataSet<Edge>([]);
-    network = new vis.Network(container, { nodes, edges }, {});
-
-    const initMedia: MediaFile[] = await window.bridge.requestRandomEntries(initOptions[0]);
+    drawNetwork();    
 });
 
-
-
-
-let searchRows = $state([]);
-
-
-
-
-//const result = kmeans(data, k)
-
-function toggleRestart() {
-    return undefined;
+async function toggleRestart() {
+    initMedia = await window.bridge.requestRandomEntries(initNumberSelected);
+    return drawNetwork();
 }
 
+
+function drawNetwork() {
+  if (!container) return;
+
+  const nodes = new vis.DataSet<Node>(mediaToNodes(initMedia));
+  const edges = new vis.DataSet<Edge>([]);  
+  const data  = { nodes, edges };
+  const opts  = buildOptions();
+
+  if (network) {
+    network.setData(data);
+    network.setOptions(opts); 
+  } else {
+    network = new vis.Network(container, data, opts);
+  }
+}
+
+
+function mediaToNodes(media: MediaFile[]): Node[] {
+  const R = 250;
+  const n = media.length;
+  if (n === 0) return [];
+
+  return media.map((m, i) => {
+    const θ = (2 * Math.PI * i) / n;
+    const x = R * Math.cos(θ);
+    const y = R * Math.sin(θ);
+
+    return {
+      id: m.id ?? i,
+      label: m.filename,
+      shape: 'box', //change to 'image' later
+      size: 50,
+      fixed: false,
+      x, y
+    } satisfies Node;
+  });
+}
+
+function buildOptions(): Options {
+  return {
+    nodes: {
+      shape: 'box',  
+      size: 50
+    },
+    edges: {
+      arrows: 'to'
+    },
+    interaction: {
+      dragNodes: true,
+      zoomView: true
+    },
+    physics: { enabled: false },
+    layout:  { improvedLayout: false }
+  };
+}
+
+
+const kmeansOptions = {
+  initialization: 'kmeans++',
+  maxIterations: 50,
+  tolerance: 1e-4,
+  //distanceFunction: (a, b) => custom dist
+};
+
+//const result = kmeans(data, k)
 
 function medoidIndices(
   data: number[][],
@@ -70,7 +116,6 @@ function medoidIndices(
 }
 //const medoids = medoidIndices(data, result.clusters, result.centroids);
 
-
 </script>
 
 
@@ -89,7 +134,7 @@ function medoidIndices(
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center   ">
-                    <Input type="select" class="w-50 ms-1 me-2" bind:value={initSelected}>
+                    <Input type="select" class="w-50 ms-1 me-2" bind:value={initNumberSelected}>
                     {#each initOptions as option}
                         <option value={option} class="fs-6">Init: {option}</option>
                     {/each}
@@ -97,11 +142,7 @@ function medoidIndices(
                 </Col>
                 <Col xs="auto" class="d-flex justify-content-end">
                     <Button color="primary" size="sm" onclick={toggleRestart} >
-                        {#if freshStart} 
-                        <Icon name="play-circle-fill"  class="fs-6" />
-                        {:else}
                         <Icon name="recycle" class="fs-6" />
-                        {/if}
                     </Button>
                 </Col>
             </Row>
@@ -116,7 +157,7 @@ function medoidIndices(
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center  ">
-                    <Input type="select" class=" w-25   ms-2 me-2 fs-3" bind:value={initSelected}>
+                    <Input type="select" class=" w-25   ms-2 me-2 fs-3" bind:value={initNumberSelected}>
                     {#each initOptions as option}
                         <option value={option}>Init: {option}</option>
                     {/each}
@@ -124,11 +165,7 @@ function medoidIndices(
                 </Col>
                 <Col xs="auto" class="d-flex justify-content-end">
                     <Button color="primary" size="sm" onclick={toggleRestart} >
-                        {#if freshStart}
-                        <Icon name="play-circle-fill"  class="fs-3" />
-                        {:else}
                         <Icon name="recycle" class="fs-3" />
-                        {/if}
                     </Button>
                 </Col>
             </Row>
@@ -137,8 +174,9 @@ function medoidIndices(
     </div>
 
     <!-- Network Display -->
-    <div class="flex-fill border p-1 overflow-auto" style="min-height:0;">
+    <div bind:this={container} class="flex-fill border p-1 overflow-auto" style="min-height:0;">
        
+
         
     </div>
   
