@@ -16,6 +16,37 @@ export const routes = {
   "routifyDir": import.meta.url,
   "children": [
     {
+      "meta": {},
+      "id": "_default_face_map",
+      "name": "face-map",
+      "module": false,
+      "file": {
+        "path": "src/routes/face-map",
+        "dir": "src/routes",
+        "base": "face-map",
+        "ext": "",
+        "name": "face-map"
+      },
+      "children": [
+        {
+          "meta": {
+            "isDefault": true
+          },
+          "id": "_default_face_map_index_svelte",
+          "name": "index",
+          "file": {
+            "path": "src/routes/face-map/index.svelte",
+            "dir": "src/routes/face-map",
+            "base": "index.svelte",
+            "ext": ".svelte",
+            "name": "index"
+          },
+          "asyncModule": () => import('../src/routes/face-map/index.svelte'),
+          "children": []
+        }
+      ]
+    },
+    {
       "meta": {
         "isDefault": true
       },

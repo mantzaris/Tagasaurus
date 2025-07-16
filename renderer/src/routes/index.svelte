@@ -41,7 +41,7 @@
         <CardBody>
           <CardTitle >Face Map</CardTitle>
           <CardText>Explore and search through faces in the media stored.</CardText>
-          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
+          <Button color="primary" outline size="lg" href="/face-map"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
