@@ -1,11 +1,9 @@
 <script lang="ts">
 import { onMount, tick } from 'svelte';
 import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
-import { kmeans } from 'ml-kmeans';
-import { distanceCosine0to2 } from '$lib/utils/ml-utils';
 
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
-import type { MediaFile } from '$lib/types/general-types';
+import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
 
@@ -16,8 +14,8 @@ const initKOptions = [10, 20, 40, 60, 100] as const;
 const initSampleSize = [200, 400, 800, 1200, 2000] as const;
 const kToSampleMap = new Map<(typeof initKOptions)[number],(typeof initSampleSize)[number]>(initKOptions.map((k, i) => [k, initSampleSize[i]] as const));
 
-let initNumberSelected = $state(kToSampleMap.get(initKOptions[0]));
-let fitK = $derived( Math.round(initMedia.length / 20) )
+let initNumberSelected = $state<number|undefined>(kToSampleMap.get(initKOptions[0]));
+let fitK = $derived( Math.round(initMedia.length / 20) );
 
 
 let container: HTMLDivElement | null = null;
@@ -29,11 +27,13 @@ onMount(async () => {
 
     initMedia = await window.bridge.requestRandomEntries(initNumberSelected);
 
+
     drawNetwork();    
 });
 
 async function toggleRestart() {
     initMedia = await window.bridge.requestRandomEntries(initNumberSelected);
+
     return drawNetwork();
 }
 
@@ -100,32 +100,9 @@ function buildOptions(): Options {
 
 
 
-const kmeansOptions = {
-  initialization: 'kmeans++',
-  maxIterations: 50,
-  tolerance: 1e-4,
-  //distanceFunction: (a, b) => custom dist
-};
 
-//const result = kmeans(data, k)
 
-function medoidIndices(
-  data: number[][],
-  clusters: number[],
-  centroids: { centroid:number[] }[]
-): number[] {
-  const k = centroids.length;
-  const best = Array(k).fill(Infinity);
-  const idx  = Array(k).fill(-1);
 
-  data.forEach((vec, i) => {
-    const c = clusters[i];
-    const d = distanceCosine0to2(vec, centroids[c].centroid);
-    if (d < best[c]) { best[c] = d; idx[c] = i; }
-  });
-  return idx; //eg [42, 817, ...] : rows in `data`
-}
-//const medoids = medoidIndices(data, result.clusters, result.centroids);
 
 </script>
 

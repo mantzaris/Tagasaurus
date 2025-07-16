@@ -4,7 +4,7 @@ import { defaultDBConfig } from "../initialization/init";
 import { dedupPreserveOrder } from "../utils/utils";
 import { SearchRow } from "../../types/variousTypes";
 import { MediaFile } from "../../types/dbConfig";
-
+import { FaceEmbedding } from "../../types/dbConfig";
 
 
 const { tables, columns, indexes } = defaultDBConfig;
@@ -170,7 +170,7 @@ export async function getMediaFilesByHash(
     WHERE ${columns.mediaFiles.fileHash} IN ${placeholders};
   `;
 
-  /* prepare → all()  (instead of db.all) */
+  // prepare -> all()  (instead of db.all)
   const stmt = await db.prepare(sql);
   const rows = await stmt.all(hashes) as {
     id: number;
@@ -196,11 +196,65 @@ export async function getMediaFilesByHash(
       : null
   }));
 
-  // keep caller’s order
+  // keep caller's order
   const order = new Map(hashes.map((h, i) => [h, i]));
   mediaFiles.sort((a, b) => order.get(a.fileHash)! - order.get(b.fileHash)!);
 
   return mediaFiles;
+}
+
+
+
+/**
+ * Fetch all FaceEmbedding rows whose `media_file_id` is in `mediaIds`.
+ *
+ * @param db        open libsql/promise Database
+ * @param mediaIds  one or more media_files.id values
+ */
+export async function getFaceEmbeddingsByMediaIds(
+  db: Database,
+  mediaIds: number[]
+): Promise<FaceEmbedding[]> {
+
+  if (mediaIds.length === 0) return [];
+
+  const uniqIds      = [...new Set(mediaIds)];
+  const { tables, columns } = defaultDBConfig;
+  const placeholders = "(" + uniqIds.map(() => "?").join(",") + ")";
+
+  const sql = `
+    SELECT
+      fe.${columns.faceEmbeddings.id}            AS id,
+      fe.${columns.faceEmbeddings.mediaFileId}   AS mediaFileId,
+      fe.${columns.faceEmbeddings.time}          AS time,
+      fe.${columns.faceEmbeddings.faceEmbedding} AS faceEmbedding
+    FROM ${tables.faceEmbeddings} fe
+    WHERE fe.${columns.faceEmbeddings.mediaFileId} IN ${placeholders}
+    ORDER BY fe.media_file_id, fe.id;            -- optional
+  `;
+
+  const stmt = await db.prepare(sql);
+  const rows = await stmt.all(uniqIds) as {
+    id: number;
+    mediaFileId: number;
+    time: number | null;
+    faceEmbedding: Buffer | null;
+  }[];
+
+  return rows.map(r => ({
+    id:          r.id,
+    mediaFileId: r.mediaFileId,
+    time:        r.time,
+    faceEmbedding: r.faceEmbedding
+      ? Array.from(
+          new Float32Array(
+            r.faceEmbedding.buffer,
+            r.faceEmbedding.byteOffset,
+            r.faceEmbedding.byteLength / 4
+          )
+        )
+      : []
+  }));
 }
 
 

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, desktopCapturer, webUtils } from "electron";
-import { MediaFile } from "./types/dbConfig";
+import { FaceEmbedding, MediaFile } from "./types/dbConfig";
 import { SearchRow } from "./types/variousTypes";
 
 export const CONTEXT_BRIDGE = {
@@ -46,6 +46,10 @@ export const CONTEXT_BRIDGE = {
 
   getMediaFilesByHash: async (hashes: string[]): Promise<MediaFile[]> => {
     return ipcRenderer.invoke("mediafiles-by-hash", hashes)
+  },
+  
+  getFaceEmbeddingsById: async (ids: number[]): Promise<FaceEmbedding[]> => {
+    return ipcRenderer.invoke("face-embeddings-by-media-id", ids)
   },
 
   saveFileByHash: async (hash: string): Promise<boolean> => {

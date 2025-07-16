@@ -10,10 +10,10 @@ import { defaultDBConfig, defaultDBConfigFileQueue, initTagaFoldersAndDBSetups, 
 import { processTempFiles } from "./main-functions/new-files/process-new-media";
 import { addNewPaths } from "./main-functions/new-files/file-queue";
 import { getRandomEntries } from "./main-functions/db-operations/random-entries";
-import { MediaFile } from "./types/dbConfig";
+import { FaceEmbedding, MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase, saveFileByHash } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
-import { getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
+import { getFaceEmbeddingsByMediaIds, getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
 import { SearchRow } from "./types/variousTypes";
 
 import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
@@ -370,6 +370,11 @@ ipcMain.handle( "mediafiles-by-hash", async (_event, hashes: string[] = []) => {
 ipcMain.handle('save-file-by-hash', async (_evt, hash: string) => {
   const downloadsPath = app.getPath('downloads');   // renamed
   return saveFileByHash(db, hash, mediaDir, downloadsPath);
+});
+
+
+ipcMain.handle("face-embeddings-by-media-id", async (_event, mediaIds: number[] = []): Promise<FaceEmbedding[]> => {
+    return getFaceEmbeddingsByMediaIds(db, mediaIds);
 });
 
 

@@ -7,8 +7,19 @@ export interface MediaFile {
     fileType: string;
     description: string;
     descriptionEmbedding: Float32Array | number[] | null; //descriptionEmbedding: Float32Array | null;
-  }
+}
 
+export interface FaceEmbedding {
+  id?: number;
+  mediaFileId: number;
+  time?: number | null; //seconds from the start of the video (NULL for still images/GIF frames)
+  faceEmbedding: number[]; //faceEmbedding: Float32Array;
+}
+
+export interface FaceEmbeddingSample extends FaceEmbedding {
+  fileHash: string; //hash of the underlying media file
+  fileType: string; //image/video/image gif etc
+}
   
 export type DeviceGPU = 'gpu' | 'wasm';
 
