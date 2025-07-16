@@ -5,35 +5,8 @@ import { kmeans } from 'ml-kmeans';
 import { distanceCosine0to2 } from '$lib/utils/ml-utils';
 
 import type { Network, DataSet, Node, Edge } from 'vis-network';  // just types
+import type { MediaFile } from '$lib/types/general-types';
 
-
-
-
-
-  let container: HTMLDivElement | null = null;
-  let network: Network | null = null;
-
-  onMount(async () => {
-    await tick();                         // wait for bind:this
-    if (!container) return;
-
-    const nodes = new vis.DataSet<Node>([{ id: 1, label: 'Hello' }]);
-    const edges = new vis.DataSet<Edge>([]);
-    network = new vis.Network(container, { nodes, edges }, {});
-  });
-
-
-
-
-
-
-
-let searchRows = $state([]);
-
-
-const initOptions = [10, 20, 30, 40] as const;
-let initSelected = $state<number>(initOptions[0]);
-let freshStart = $state(true);
 
 const kmeansOptions = {
   initialization: 'kmeans++',
@@ -41,6 +14,37 @@ const kmeansOptions = {
   tolerance: 1e-4,
   // distanceFunction: (a, b) => /* custom dist, e.g., cosine if normalized */
 };
+
+const initOptions = [10, 20, 30, 40] as const;
+let initSelected = $state<number>(initOptions[0]);
+let freshStart = $state(true);
+
+
+let container: HTMLDivElement | null = null;
+let network: Network | null = null;
+
+
+
+onMount(async () => {
+    await tick();                         // wait for bind:this
+
+    if (!container) return;
+
+    const nodes = new vis.DataSet<Node>([{ id: 1, label: 'Hello' }]);
+    const edges = new vis.DataSet<Edge>([]);
+    network = new vis.Network(container, { nodes, edges }, {});
+
+    const initMedia: MediaFile[] = await window.bridge.requestRandomEntries(initOptions[0]);
+});
+
+
+
+
+let searchRows = $state([]);
+
+
+
+
 //const result = kmeans(data, k)
 
 function toggleRestart() {
@@ -132,13 +136,10 @@ function medoidIndices(
 
     </div>
 
-    <!-- Stream Display -->
-    <div class="flex-fill border p-1 overflow-auto" style="min-height:0; ">
-       <!-- VideoCapture -->
-       <div class="capture-wrapper">
-          
+    <!-- Network Display -->
+    <div class="flex-fill border p-1 overflow-auto" style="min-height:0;">
+       
         
-      </div>
     </div>
   
 </div>

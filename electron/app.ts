@@ -271,6 +271,10 @@ ipcMain.handle("get-random-sample", async (event) => {
   return newMedia;
 });
 
+ipcMain.handle("random-sample", async (event, count = sampleSize) => {
+  return await getRandomEntries(db, mediaDir, count);
+});
+
 ipcMain.handle("get-media-dir", async (event) => {
   // return mediaDir;
   return getMediaFrontEndDirBase(mediaDir);
