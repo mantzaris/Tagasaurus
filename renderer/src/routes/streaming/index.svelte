@@ -45,7 +45,7 @@ let videoEl: HTMLVideoElement | null = null;
 let canvasEl: HTMLCanvasElement | null = null;
 let isPaused = $state(false);
 let hasStream = $state(false);
-const placeholderUrl = new URL('./Taga.png', import.meta.url).href;
+const placeholderUrl = new URL('/assets/images/Taga.png', import.meta.url).href;
 let searchRows = $state<SearchRow[]>([]);
 
 type SourceOption = "none"|"screen"|"camera";
