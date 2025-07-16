@@ -7,11 +7,17 @@ import { distanceCosine0to2 } from '$lib/utils/ml-utils';
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
 import type { MediaFile } from '$lib/types/general-types';
 
+const VIDEO_ICON = '/assets/icons/videoplay512.png';
 
-const initOptions = [10, 20, 40, 60, 100] as const;
-let initNumberSelected = $state<number>(initOptions[0]);
 let initMedia: MediaFile[] = $state([]);
 let searchRows = $state([]);
+
+const initKOptions = [10, 20, 40, 60, 100] as const;
+const initSampleSize = [200, 400, 800, 1200, 2000] as const;
+const kToSampleMap = new Map<(typeof initKOptions)[number],(typeof initSampleSize)[number]>(initKOptions.map((k, i) => [k, initSampleSize[i]] as const));
+
+let initNumberSelected = $state(kToSampleMap.get(initKOptions[0]));
+let fitK = $derived( Math.round(initMedia.length / 20) )
 
 
 let container: HTMLDivElement | null = null;
@@ -61,8 +67,9 @@ function mediaToNodes(media: MediaFile[]): Node[] {
 
     return {
       id: m.id ?? i,
-      label: m.filename,
-      shape: 'box', //change to 'image' later
+      label: '',
+      image: VIDEO_ICON,
+      shape: 'image', //change to 'image' later
       size: 50,
       fixed: false,
       x, y
@@ -74,19 +81,23 @@ function buildOptions(): Options {
   return {
     nodes: {
       shape: 'box',  
-      size: 50
+      size: 50,
+      shapeProperties: { useImageSize: false }
     },
     edges: {
       arrows: 'to'
     },
     interaction: {
       dragNodes: true,
-      zoomView: true
+      zoomView: true,
+      hover: true,
+      multiselect: false
     },
     physics: { enabled: false },
     layout:  { improvedLayout: false }
   };
 }
+
 
 
 const kmeansOptions = {
@@ -135,7 +146,7 @@ function medoidIndices(
                 </Col>
                 <Col class="d-flex justify-content-center   ">
                     <Input type="select" class="w-50 ms-1 me-2" bind:value={initNumberSelected}>
-                    {#each initOptions as option}
+                    {#each initKOptions as option}
                         <option value={option} class="fs-6">Init: {option}</option>
                     {/each}
                     </Input>
@@ -158,7 +169,7 @@ function medoidIndices(
                 </Col>
                 <Col class="d-flex justify-content-center  ">
                     <Input type="select" class=" w-25   ms-2 me-2 fs-3" bind:value={initNumberSelected}>
-                    {#each initOptions as option}
+                    {#each initKOptions as option}
                         <option value={option}>Init: {option}</option>
                     {/each}
                     </Input>
