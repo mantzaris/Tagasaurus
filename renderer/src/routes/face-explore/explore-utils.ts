@@ -3,7 +3,6 @@ import { distanceCosine0to2 } from '$lib/utils/ml-utils';
 import type { MediaFile, FaceEmbedding, FaceEmbeddingSample } from '$lib/types/general-types';
 
 
-
 const kmeansOptions = {
   maxIterations: 50,
   tolerance: 1e-4,
@@ -30,27 +29,48 @@ export async function sampleClusterMedoids(
 
   const totalWanted = sample + augment;
   const faces = await fetchRandomFaceEmbeddings(totalWanted, maxAttempts);
-
+  console.log(faces)
   if (faces.length === 0) return [];
 
-  let kFinal = faces.length < sample ? Math.round(sample / 20) : k;
-  kFinal = Math.max(1, Math.min(kFinal, faces.length));
+  let kFinal = Math.min(k, Math.max(1, Math.floor(faces.length / 2)));
 
   const pool      = faces.slice(0, Math.min(sample, faces.length));
   const data      = pool.map(f => f.faceEmbedding);
   const km        = kmeans(data, kFinal, kmeansOptions);
+  console.log(km);
   const medoidIdx = medoidIndices(data, km.clusters, km.centroids);
-  const medoids   = medoidIdx.map(i => pool[i]);
+  console.log(medoidIdx);
+  const medoids   = medoidIdx.filter(i => i >= 0).map(i => pool[i]);
+  console.log(medoids);
 
-  const medoidSet = new Set(medoids); 
+  const keyOf = (x: FaceEmbeddingSample) =>
+  x.id !== undefined
+    ? String(x.id)                       // DB-row primary key
+    : `${x.mediaFileId}-${x.time ?? "null"}`; 
+
+  const medoidKeys = new Set(medoids.map(keyOf));
   const extras: FaceEmbeddingSample[] = [];
 
   for (const f of faces) {
     if (extras.length >= augment) break;
-    if (!medoidSet.has(f)) extras.push(f);
+    //if (!medoidSet.has(f)) extras.push(f);
+    if (!medoidKeys.has(keyOf(f))) extras.push(f);
   }
 
-  return [...medoids, ...extras];
+  //de-dup
+  const out: FaceEmbeddingSample[] = [];
+  const seen = new Set<string>();  //seen keys
+
+  for (const item of [...medoids, ...extras]) {
+    const key = keyOf(item);
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+
+  return out;
 }
 
 

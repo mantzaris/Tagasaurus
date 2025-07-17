@@ -230,7 +230,8 @@ export async function getFaceEmbeddingsByMediaIds(
       fe.${columns.faceEmbeddings.faceEmbedding} AS faceEmbedding
     FROM ${tables.faceEmbeddings} fe
     WHERE fe.${columns.faceEmbeddings.mediaFileId} IN ${placeholders}
-    ORDER BY fe.media_file_id, fe.id;            -- optional
+      AND fe.${columns.faceEmbeddings.faceEmbedding} IS NOT NULL
+    ORDER BY fe.media_file_id, fe.id;
   `;
 
   const stmt = await db.prepare(sql);
@@ -245,15 +246,9 @@ export async function getFaceEmbeddingsByMediaIds(
     id:          r.id,
     mediaFileId: r.mediaFileId,
     time:        r.time,
-    faceEmbedding: r.faceEmbedding
-      ? Array.from(
-          new Float32Array(
-            r.faceEmbedding.buffer,
-            r.faceEmbedding.byteOffset,
-            r.faceEmbedding.byteLength / 4
-          )
-        )
-      : []
+    faceEmbedding: Array.from(
+      new Float32Array(r.faceEmbedding) //works for ArrayBuffer
+    )
   }));
 }
 

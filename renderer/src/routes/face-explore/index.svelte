@@ -4,19 +4,26 @@ import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, Mod
 
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
 import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
+import { sampleClusterMedoids } from './explore-utils';
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
 
-let initMedia: MediaFile[] = $state([]);
+let initMedia: FaceEmbeddingSample[] = $state([]);
 let searchRows = $state([]);
 
 const initKOptions = [10, 20, 40, 60, 100] as const;
-const initSampleSize = [200, 400, 800, 1200, 2000] as const;
-const kToSampleMap = new Map<(typeof initKOptions)[number],(typeof initSampleSize)[number]>(initKOptions.map((k, i) => [k, initSampleSize[i]] as const));
+type KOption = (typeof initKOptions)[number]; // 10 | 20 | 40 | 60 | 100
 
-let initNumberSelected = $state<number|undefined>(kToSampleMap.get(initKOptions[0]));
-let fitK = $derived( Math.round(initMedia.length / 20) );
+const kToSampleObj: Record<KOption, number> = {
+  10: 200,
+  20: 400,
+  40: 800,
+  60: 1200,
+  100: 2000
+};
 
+let initKSelected = $state<KOption>(initKOptions[0]);
+let initSampleNumber = $derived(kToSampleObj[initKSelected]);
 
 let container: HTMLDivElement | null = null;
 let network: Network | null = null;
@@ -25,15 +32,14 @@ let network: Network | null = null;
 onMount(async () => {
     await tick(); //wait for bind:this
 
-    initMedia = await window.bridge.requestRandomEntries(initNumberSelected);
-
+    initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
 
     drawNetwork();    
 });
 
 async function toggleRestart() {
-    initMedia = await window.bridge.requestRandomEntries(initNumberSelected);
-
+    initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
+    console.log(initMedia)
     return drawNetwork();
 }
 
@@ -55,7 +61,7 @@ function drawNetwork() {
 }
 
 
-function mediaToNodes(media: MediaFile[]): Node[] {
+function mediaToNodes(media: FaceEmbeddingSample[]): Node[] {
   const R = 250;
   const n = media.length;
   if (n === 0) return [];
@@ -122,7 +128,7 @@ function buildOptions(): Options {
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center   ">
-                    <Input type="select" class="w-50 ms-1 me-2" bind:value={initNumberSelected}>
+                    <Input type="select" class="w-50 ms-1 me-2" bind:value={initKSelected}>
                     {#each initKOptions as option}
                         <option value={option} class="fs-6">Init: {option}</option>
                     {/each}
@@ -145,7 +151,7 @@ function buildOptions(): Options {
                     </Button>
                 </Col>
                 <Col class="d-flex justify-content-center  ">
-                    <Input type="select" class=" w-25   ms-2 me-2 fs-3" bind:value={initNumberSelected}>
+                    <Input type="select" class=" w-25   ms-2 me-2 fs-3" bind:value={initKSelected}>
                     {#each initKOptions as option}
                         <option value={option}>Init: {option}</option>
                     {/each}
