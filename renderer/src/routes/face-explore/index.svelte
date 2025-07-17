@@ -69,7 +69,7 @@ function drawNetwork() {
 function mediaToNodes(media: FaceEmbeddingSample[]): Node[] {
   if (media.length === 0) return [];
 
-  const R = 250;                           // circle radius
+  const R = 30 * media.length;                           // circle radius
   const n = media.length;                  // node count
 
   return media.map((sample, idx) => {
