@@ -41,3 +41,11 @@ export const distanceCosine0to2 = (a: number[], b: number[], eps = 1e-9): number
   }
   return 1 - dot / (Math.sqrt(na * nb) + eps);   // 1 - cosθ in [0, 2]
 };
+
+
+//cosine similarity on two Float32Array/number[]
+export function cosine(a: number[] | Float32Array, b: number[] | Float32Array) {
+  let dot = 0;
+  for (let i = 0; i < a.length; ++i) dot += a[i] * b[i];
+  return dot; // both vectors are L2-normed
+}

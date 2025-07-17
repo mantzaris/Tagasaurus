@@ -8,6 +8,9 @@ import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // ju
 import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
 import { sampleClusterMedoids } from './explore-utils';
 
+import { facesSetUp, detectFacesInImage, embedFace, make112Face, getFaceThumbnail } from '$lib/utils/faces';
+
+
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
 let mediaDir: string = $state(getContext('mediaDir')); 
 
@@ -34,25 +37,36 @@ let network: Network | null = null;
 // filePath={getMediaFilePath(mediaDir,card.fileHash)} 
 
 onMount(async () => {
+    try {        
+      const setupSuccess = await facesSetUp();
+
+      if (!setupSuccess) {
+          console.error('Failed to set up face detection');
+      }
+    } catch (err) {
+        console.error('Webcam access refused:', err);
+    }
+  
     await tick(); //wait for bind:this
     mediaDir = await getMediaDir();
 
     initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
 
-    drawNetwork();    
+    await drawNetwork();    
 });
 
 async function toggleRestart() {
     initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
     console.log(initMedia)
-    return drawNetwork();
+    await drawNetwork();     
 }
 
 
-function drawNetwork() {
+async function drawNetwork() {
   if (!container) return;
 
-  const nodes = new vis.DataSet<Node>(mediaToNodes(initMedia));
+  const nodesArr = await mediaToNodes(initMedia);
+  const nodes = new vis.DataSet<Node>(nodesArr);
   const edges = new vis.DataSet<Edge>([]);  
   const data  = { nodes, edges };
   const opts  = buildOptions();
@@ -66,24 +80,31 @@ function drawNetwork() {
 }
 
 
-function mediaToNodes(media: FaceEmbeddingSample[]): Node[] {
-  if (media.length === 0) return [];
 
-  const R = 30 * media.length;                           // circle radius
-  const n = media.length;                  // node count
 
-  return media.map((sample, idx) => {
-    const theta = (2 * Math.PI * idx) / n; // angle around the circle
-    const x = R * Math.cos(theta);
-    const y = R * Math.sin(theta);
+async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
+  const R = 30 * media.length;        // circle radius
+  const n = media.length;
 
-    const isImage = sample.fileType.startsWith("image");
-    const imgSrc  = isImage
-      ? getMediaFilePath(mediaDir, sample.fileHash) // real photo
-      : VIDEO_ICON;                                 // generic play button
+  const nodes: Node[] = [];
+  for (let idx = 0; idx < n; ++idx) {
+    const sample = media[idx];
+    const θ = (2 * Math.PI * idx) / n;
+    const x = R * Math.cos(θ);
+    const y = R * Math.sin(θ);
 
-    const node: Node = {
-      id: sample.id ?? idx,   // fallback ensures uniqueness
+    const imgSrc = sample.fileType.startsWith('video')
+      || sample.fileType.startsWith('image/gif')
+      || sample.fileType.startsWith('image/webp')
+        ? VIDEO_ICON
+        : await getFaceThumbnail(                 // awaited sequentially
+            getMediaFilePath(mediaDir, sample.fileHash),
+            sample.faceEmbedding
+          );
+    // console.log(imgSrc)
+
+    nodes.push({
+      id: sample.fileHash + '-' + (sample.id ?? idx), //sample.fileHash, // unique per media file
       label: '',
       image: imgSrc,
       shape: 'image',
@@ -91,11 +112,12 @@ function mediaToNodes(media: FaceEmbeddingSample[]): Node[] {
       fixed: false,
       x,
       y
-    };
-
-    return node;
-  });
+    } satisfies Node);
+  }
+  return nodes;
 }
+
+
 
 
 function buildOptions(): Options {

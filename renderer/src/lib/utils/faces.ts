@@ -11,6 +11,7 @@
 // Disable browser cache during development as mentioned in README
 import nudged from 'nudged';
 import { initializeOnnxRuntime, ort, env } from './onnx-init';
+import { cosine } from './ml-utils';
 
 //configuration
 
@@ -260,3 +261,41 @@ function preprocessImage(img: HTMLImageElement) {
 
 
 
+
+/**
+ * Returns a 112x112 data-URL of the face whose embedding is most similar to
+ * `targetEmb` inside `imgURL`.  Caches results by fileHash.
+ */
+export async function getFaceThumbnail(
+  imgURL: string,
+  targetEmb: number[]
+): Promise<string> {
+
+  //load image into an element
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = rej;
+    im.src = imgURL;
+  });
+
+  //detect faces
+  const dets = await detectFacesInImage(img);            // [{id,box,kps}, ...]
+  if (dets.length === 0) return imgURL;                  // fallback: full image
+
+  //embed each face and pick closest
+  let bestId = dets[0].id,   bestSim = -1;
+  for (const d of dets) {
+    const emb = await embedFace(d.id);
+    if (!emb) continue;
+    const sim = cosine(targetEmb, emb);
+    if (sim > bestSim) { bestSim = sim; bestId = d.id; }
+  }
+
+  //re-embed the winner to get its aligned 112x112 canvas
+  // const { kpsBigger } = scaleFaceBox(img,dets[bestId].box,dets[bestId].kps);const bestEmbCanvas = make112Face(kpsBigger, img);
+  const bestEmbCanvas = make112Face(dets[bestId].kps, img);
+  const dataURL       = bestEmbCanvas.toDataURL('image/png');
+
+  return dataURL;
+}
