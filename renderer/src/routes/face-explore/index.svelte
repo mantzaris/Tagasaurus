@@ -1,12 +1,16 @@
 <script lang="ts">
-import { onMount, tick } from 'svelte';
+import { getContext, onMount, tick } from 'svelte';
 import { Button, Col, Container, Icon, Input, Modal, ModalBody, ModalFooter, ModalHeader, Row } from '@sveltestrap/sveltestrap';
+import { getMediaDir } from '$lib/utils/localStorageManager';
+import { getMediaFilePath } from '$lib/utils/utils';
 
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
 import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
 import { sampleClusterMedoids } from './explore-utils';
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
+let mediaDir: string = $state(getContext('mediaDir')); 
+
 
 let initMedia: FaceEmbeddingSample[] = $state([]);
 let searchRows = $state([]);
@@ -27,10 +31,11 @@ let initSampleNumber = $derived(kToSampleObj[initKSelected]);
 
 let container: HTMLDivElement | null = null;
 let network: Network | null = null;
-
+// filePath={getMediaFilePath(mediaDir,card.fileHash)} 
 
 onMount(async () => {
     await tick(); //wait for bind:this
+    mediaDir = await getMediaDir();
 
     initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
 
@@ -62,26 +67,36 @@ function drawNetwork() {
 
 
 function mediaToNodes(media: FaceEmbeddingSample[]): Node[] {
-  const R = 250;
-  const n = media.length;
-  if (n === 0) return [];
+  if (media.length === 0) return [];
 
-  return media.map((m, i) => {
-    const θ = (2 * Math.PI * i) / n;
-    const x = R * Math.cos(θ);
-    const y = R * Math.sin(θ);
+  const R = 250;                           // circle radius
+  const n = media.length;                  // node count
 
-    return {
-      id: m.id ?? i,
+  return media.map((sample, idx) => {
+    const theta = (2 * Math.PI * idx) / n; // angle around the circle
+    const x = R * Math.cos(theta);
+    const y = R * Math.sin(theta);
+
+    const isImage = sample.fileType.startsWith("image");
+    const imgSrc  = isImage
+      ? getMediaFilePath(mediaDir, sample.fileHash) // real photo
+      : VIDEO_ICON;                                 // generic play button
+
+    const node: Node = {
+      id: sample.id ?? idx,   // fallback ensures uniqueness
       label: '',
-      image: VIDEO_ICON,
-      shape: 'image', //change to 'image' later
+      image: imgSrc,
+      shape: 'image',
       size: 50,
       fixed: false,
-      x, y
-    } satisfies Node;
+      x,
+      y
+    };
+
+    return node;
   });
 }
+
 
 function buildOptions(): Options {
   return {
