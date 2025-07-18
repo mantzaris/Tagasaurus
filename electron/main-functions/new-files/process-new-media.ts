@@ -66,8 +66,11 @@ export async function processTempFiles(
     INSERT INTO ${faceEmbeddings} (
         ${columns.faceEmbeddings.mediaFileId},
         ${columns.faceEmbeddings.time},
-        ${columns.faceEmbeddings.faceEmbedding}
-    ) VALUES (?, ?, ?)
+        ${columns.faceEmbeddings.faceEmbedding},
+        ${columns.faceEmbeddings.score},
+        ${columns.faceEmbeddings.bbox},
+        ${columns.faceEmbeddings.landmarks}
+    ) VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   const fetchStmt = await db.prepare(`
@@ -172,7 +175,7 @@ export async function processTempFiles(
             "",              //description
             null             //descriptionEmbedding
           );
-
+          
           if(timeEmbeddings.length > 0) {
             const mediaFileRow = await fetchStmt.get<MediaFile>(hash);
 
@@ -180,7 +183,15 @@ export async function processTempFiles(
               const mediaFileId = mediaFileRow.id;
               for (const timeEmbTemp of timeEmbeddings) {
                 // Store the raw Float32Array as a blob
-                await insertFaceStmt.run([mediaFileId, timeEmbTemp.t ?? null, Buffer.from(timeEmbTemp.emb.buffer)]);
+                // console.log(`BBOX = ${timeEmbTemp.bbox}`)
+                await insertFaceStmt.run([
+                  mediaFileId, 
+                  timeEmbTemp.t ?? null, 
+                  Buffer.from(timeEmbTemp.emb.buffer),
+                  timeEmbTemp.score,                          // REAL
+                  Buffer.from(timeEmbTemp.bbox.buffer),       // 4‑float bbox BLOB
+                  Buffer.from(timeEmbTemp.lms.buffer)
+                ]);
               }
             }           
 

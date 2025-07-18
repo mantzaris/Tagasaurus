@@ -12,8 +12,11 @@ export interface MediaFile {
 export interface FaceEmbedding {
   id?: number;
   mediaFileId: number;
-  time?: number | null; //seconds from the start of the video (NULL for still images/GIF frames)
-  faceEmbedding: number[]; //faceEmbedding: Float32Array;
+  time?: number | null;       //seconds from the start of the video (NULL for still images/GIF frames)
+  faceEmbedding: number[];    //faceEmbedding: Float32Array;
+  score?: number;              // SCRFD confidence
+  bbox:  number[];            // [x1, y1, x2, y2]  (len 4)
+  landmarks: number[];        // [x0, y0, ..., x4, y4] (len 10)
 }
 
 export interface FaceEmbeddingSample extends FaceEmbedding {

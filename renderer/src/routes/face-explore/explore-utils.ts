@@ -115,8 +115,7 @@ export async function fetchRandomFaceEmbeddings(
 
     if (newIds.length === 0) continue;
 
-    const faceBatch: FaceEmbedding[] =
-      await window.bridge.getFaceEmbeddingsById(newIds);
+    const faceBatch: FaceEmbedding[] = await window.bridge.getFaceEmbeddingsById(newIds);
 
     for (const f of faceBatch) {
       if (results.length >= target) break;

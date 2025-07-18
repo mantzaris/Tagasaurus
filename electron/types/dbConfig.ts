@@ -12,6 +12,9 @@ export interface FaceEmbedding {
   mediaFileId: number;
   time?: number | null; //seconds from the start of the video (NULL for still images/GIF frames)
   faceEmbedding: number[]; //faceEmbedding: Float32Array;
+  score?: number; //optional detector confidence
+  bbox: number[]; //4 floats [x1,y1,x2,y2]
+  landmarks: number[]; //10 floats (x0,y0, ... x4,y4)
 }
 
 export interface DBConfig {
@@ -47,6 +50,9 @@ export interface DBConfig {
       mediaFileId: string;
       time: string;
       faceEmbedding: string;
+      score: string;
+      bbox: string;
+      landmarks: string;
     };
     dbStats: {
       tableName: string;

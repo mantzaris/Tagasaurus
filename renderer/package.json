@@ -33,6 +33,7 @@
     "ml-kmeans": "^6.0.0",
     "nudged": "^2.1.1",
     "onnxruntime-web": "^1.22.0",
+    "p-limit": "^6.2.0",
     "skmeans": "^0.11.3",
     "svelte-loading-spinners": "^0.3.6",
     "svelte-pdf": "^1.0.28",

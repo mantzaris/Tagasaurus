@@ -20,6 +20,9 @@ ffmpeg.setFfmpegPath(ffmpegPath || "");
 export interface TimedEmbedding {
   t: number | null;        //null for still images or gifs/animated images
   emb: Float32Array;
+  score: number;             // SCRFD confidence
+  bbox:  Float32Array;  // length 4, [x1,y1,x2,y2] (orig px)
+  lms:   Float32Array;  // length 10 landmarks
 }
 
 
@@ -52,7 +55,7 @@ export async function faceSetupOnce(): Promise<void> {
 }
 
 
-async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' | 'png' = 'mjpeg'): Promise<Float32Array[]> {
+async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' | 'png' = 'mjpeg'): Promise<TimedEmbedding[]> {
     await faceSetupOnce();
 
     const { tensor, scale, dx, dy, side, width, height } =
@@ -66,7 +69,7 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
 
     if (faces.length === 0) return [];
 
-    const embeddings: Float32Array[] = [];
+    const result: TimedEmbedding[] = []; //const embeddings: Float32Array[] = [];
     const bufWhole = await ensureBuffer(data);
 
     for (let i = 0; i < faces.length; ++i) {
@@ -82,7 +85,13 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
         const embOut = await arcSess!.run({ [arcSess!.inputNames[0]]: tensor112 });
         const emb    = embOut[arcSess!.outputNames[0]].data as Float32Array;
         l2Normalize(emb);
-        embeddings.push(emb);
+        result.push({
+          t: null,  // caller will overwrite for video frames
+          emb,
+          score: face.score,
+          bbox:  new Float32Array(face.box),
+          lms:   new Float32Array(face.kps)
+        });
         
         const norm = Math.sqrt(emb.reduce((s,x) => s + x*x, 0));
         
@@ -104,7 +113,7 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
 
     }
 
-    return embeddings; //let caller know how many we saved
+    return result; //let caller know how many we saved
 }
 
 
@@ -115,7 +124,6 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
      
     await faceSetupOnce();
     let allEmbeddings: Float32Array[] = [];
-    let times: number[] = [];
     let timeEmbedding: TimedEmbedding[] = [];
 
     if (inferredFileMimeType.startsWith('video/')) {
@@ -130,28 +138,34 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
           const frameBuf = await extractVideoFrame(filePath, t, 'mjpeg');
           if (!frameBuf) continue;
 
-          const embThis = await processFacesOnImageData(frameBuf);
-          embThis.forEach(l2Normalize);
+          const detections = await processFacesOnImageData(frameBuf); //normalizes too
           
-          const startLen = allEmbeddings.length;
-          addIfUnique(allEmbeddings, embThis);
-          const added = allEmbeddings.length - startLen;
+          // const startLen = allEmbeddings.length;
+          // addIfUnique(allEmbeddings, detections.map(te => te.emb));
+          // const added = allEmbeddings.length - startLen;
 
           // for every truly new embedding, record its t and the (t,emb) pair
-          for (let i = 0; i < added; i++) {
-            const emb = allEmbeddings[startLen + i];  // the fresh element(s)
-            times.push(t);                            // preserves existing times[]
-            timeEmbedding.push({ t, emb });           // build TimedEmbedding on the fly
+          for (const det of detections) {
+            if (!allEmbeddings.some(u => isDuplicate(det.emb, u))) {
+              allEmbeddings.push(det.emb);
+              
+              timeEmbedding.push({
+                t,
+                emb: det.emb,
+                score: det.score,
+                bbox: det.bbox,
+                lms: det.lms
+              });
+            }
           }
-
         } catch (e) {
           console.warn(`frame @${t}s failed:`, (e as Error).message ?? e);
         }
-      }
+      }     
 
       if(DEBUG) console.log(`${path.basename(filePath)} -> ${allEmbeddings.length} unique face(s)`);
-
       return timeEmbedding;
+
     } else if(inferredFileMimeType.startsWith('image/')) { //image animated or still
             
       const animated = await detectAnimation(filePath, inferredFileMimeType);
@@ -162,57 +176,76 @@ export async function processFacesFromMedia(filePath: string, inferredFileMimeTy
         }
 
         const info = await analyseAnimated(filePath, inferredFileMimeType);
+        if (!info) return timeEmbedding;
         
         if (info) {
           const { frames } = info;  // indices chosen by chooseFrames
   
           for (const idx of frames) {
-            let frameBuf: Buffer;  
+            let frameBuf: Buffer;
             try {
               frameBuf = await extractGifFrame(filePath, idx);
             } catch {
-              // APNG or something else, FFmpeg fallback
-              frameBuf = await extractFrameViaFFmpeg(filePath, idx);            
+              frameBuf = await extractFrameViaFFmpeg(filePath, idx);
             }
-              
-            if(!frameBuf) continue;
+            if (!frameBuf) continue;
 
-            try { //isolate per-frame errors
-              const embForFrame = await processFacesOnImageData(frameBuf);
-              embForFrame.forEach(l2Normalize);
+            try {
+              const detections = await processFacesOnImageData(frameBuf);
+              // detections.forEach(d => l2Normalize(d.emb));
 
-              const startLen = allEmbeddings.length;
-              addIfUnique(allEmbeddings, embForFrame);
-              const added = allEmbeddings.length - startLen;
+              for (const det of detections) {
+                if (!allEmbeddings.some(u => isDuplicate(det.emb, u))) {
+                  allEmbeddings.push(det.emb);
 
-              for (let i = 0; i < added; i++) {
-                const emb = allEmbeddings[startLen + i];
-                timeEmbedding.push({ t: null, emb });
+                  timeEmbedding.push({
+                    t: null,
+                    emb: det.emb,
+                    score: det.score,
+                    bbox: det.bbox,
+                    lms: det.lms
+                  });
+                }
               }
-
             } catch (e) {
-              console.warn(`  face processing failed (frame ${idx}):`,
-                          (e as Error).message ?? e);
+              console.warn(
+                `  face processing failed (frame ${idx}):`,
+                (e as Error).message ?? e
+              );
             }
           }
-  
-          if(DEBUG) console.log(`${path.basename(filePath)} -> ${allEmbeddings.length} face(s) (across ${frames.length} sampled frame${frames.length > 1 ? 's' : ''})`);
+
+          if (DEBUG)
+            console.log(
+              `${path.basename(filePath)} -> ${allEmbeddings.length} face(s) (across ${frames.length} sampled frame${frames.length > 1 ? "s" : ""})`
+            );
 
           return timeEmbedding;
         }
       } else { //still images
-        if(inferredFileMimeType.startsWith('image/webp')) {
-          return []; //allEmbeddings;
+        if (inferredFileMimeType.startsWith("image/webp")) {
+          return timeEmbedding;                     // you were returning [] before
         }
 
         const imageBuf = await fs.readFile(filePath);
-        let embeddingsRaw = await processFacesOnImageData(imageBuf);
+        const detections = await processFacesOnImageData(imageBuf); // returns TimedEmbedding[]
+        // detections.forEach(d => l2Normalize(d.emb));
 
-        embeddingsRaw = dedupEmbeddings(embeddingsRaw);
-        // embeddingsRaw.forEach((emb, i) => console.log(`face ${i}: [${Array.from(emb.slice(0, 5)).join(', ')}…]`));
+        for (const det of detections) {
+          // dedup on the 512‑float vector only
+          if (!allEmbeddings.some(u => isDuplicate(det.emb, u))) {
+            allEmbeddings.push(det.emb);
 
-        timeEmbedding = embeddingsRaw.map(emb => ({ t: null, emb }));
-
+            // det.t is already null for still frames
+            timeEmbedding.push({
+              t:    null,
+              emb:  det.emb,
+              score: det.score,
+              bbox:  det.bbox,
+              lms:   det.lms
+            });
+          }
+        }
         return timeEmbedding;
       }
     }

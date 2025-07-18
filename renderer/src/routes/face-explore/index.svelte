@@ -51,7 +51,7 @@ onMount(async () => {
     mediaDir = await getMediaDir();
 
     initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
-
+    console.log(initMedia)
     await drawNetwork();    
 });
 

@@ -227,7 +227,10 @@ export async function getFaceEmbeddingsByMediaIds(
       fe.${columns.faceEmbeddings.id}            AS id,
       fe.${columns.faceEmbeddings.mediaFileId}   AS mediaFileId,
       fe.${columns.faceEmbeddings.time}          AS time,
-      fe.${columns.faceEmbeddings.faceEmbedding} AS faceEmbedding
+      fe.${columns.faceEmbeddings.faceEmbedding} AS faceEmbedding,
+      fe.${columns.faceEmbeddings.score}         AS score,
+      fe.${columns.faceEmbeddings.bbox}          AS bbox,
+      fe.${columns.faceEmbeddings.landmarks}     AS landmarks
     FROM ${tables.faceEmbeddings} fe
     WHERE fe.${columns.faceEmbeddings.mediaFileId} IN ${placeholders}
       AND fe.${columns.faceEmbeddings.faceEmbedding} IS NOT NULL
@@ -240,16 +243,30 @@ export async function getFaceEmbeddingsByMediaIds(
     mediaFileId: number;
     time: number | null;
     faceEmbedding: Buffer | null;
+    score: number | null;
+    bbox: Buffer;
+    landmarks: Buffer;
   }[];
 
   return rows.map(r => ({
-    id:          r.id,
-    mediaFileId: r.mediaFileId,
-    time:        r.time,
-    faceEmbedding: Array.from(
-      new Float32Array(r.faceEmbedding) //works for ArrayBuffer
-    )
+    id:            r.id,
+    mediaFileId:   r.mediaFileId,
+    time:          r.time,
+    faceEmbedding: toFloatArray(r.faceEmbedding), //Array.from(new Float32Array(r.faceEmbedding)),
+    score:         r.score,
+    bbox:          toFloatArray(r.bbox), //length 4
+    landmarks:     toFloatArray(r.landmarks) //length 10
   }));
 }
 
+const toFloatArray = (blob?: ArrayBuffer | Uint8Array | null): number[] => {
+  if (!blob) return [];
 
+  // normalise to a Uint8Array view
+  const u8 = blob instanceof Uint8Array ? blob : new Uint8Array(blob);
+
+  // each f32 = 4 bytes
+  return Array.from(
+    new Float32Array(u8.buffer, u8.byteOffset, u8.byteLength / 4)
+  );
+};

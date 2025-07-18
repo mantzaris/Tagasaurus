@@ -40,8 +40,11 @@ export const defaultDBConfig: DBConfig = {
     faceEmbeddings: {
       id: "id",
       mediaFileId: "media_file_id",
-      time: "time_sec", //<---NEW
-      faceEmbedding: "face_embedding"
+      time: "time_sec",
+      faceEmbedding: "face_embedding",
+      score: "score",
+      bbox: "bbox",
+      landmarks: "landmarks"
     },
     dbStats: {
       tableName: "table_name",
@@ -335,7 +338,10 @@ async function setupDB(db: Database, config: DBConfig = defaultDBConfig): Promis
         ${columns.faceEmbeddings.id} INTEGER PRIMARY KEY AUTOINCREMENT,
         ${columns.faceEmbeddings.mediaFileId} INTEGER NOT NULL,
         ${columns.faceEmbeddings.time}        INTEGER,
-        ${columns.faceEmbeddings.faceEmbedding} ${faceVecDDL}, 
+        ${columns.faceEmbeddings.faceEmbedding} ${faceVecDDL},
+        ${columns.faceEmbeddings.score}       REAL,
+        ${columns.faceEmbeddings.bbox}        BLOB,
+        ${columns.faceEmbeddings.landmarks}   BLOB,
         FOREIGN KEY (${columns.faceEmbeddings.mediaFileId}) REFERENCES ${tables.mediaFiles}(${columns.mediaFiles.id}) ON DELETE CASCADE
       );
     `);
