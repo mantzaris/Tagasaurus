@@ -12,6 +12,7 @@
 import nudged from 'nudged';
 import { initializeOnnxRuntime, ort, env } from './onnx-init';
 import { cosine } from './ml-utils';
+import type { FaceEmbedding, FaceEmbeddingSample } from '$lib/types/general-types';
 
 //configuration
 
@@ -263,15 +264,18 @@ function preprocessImage(img: HTMLImageElement) {
 
 
 /**
- * Returns a 112x112 data-URL of the face whose embedding is most similar to
- * `targetEmb` inside `imgURL`.  Caches results by fileHash.
+ * Build a 112 × 112 thumbnail for the face described by `sample`.
+ *
+ * Fast path uses sample.landmarks → aligned crop.
+ * Fallback path uses bbox.
+ * Final fallback = whole image.
  */
 export async function getFaceThumbnail(
   imgURL: string,
-  targetEmb: number[]
+  sample: FaceEmbedding | FaceEmbeddingSample,
+  boxScale = 1.0   
 ): Promise<string> {
 
-  //load image into an element
   const img = await new Promise<HTMLImageElement>((res, rej) => {
     const im = new Image();
     im.onload = () => res(im);
@@ -279,23 +283,32 @@ export async function getFaceThumbnail(
     im.src = imgURL;
   });
 
-  //detect faces
-  const dets = await detectFacesInImage(img);            // [{id,box,kps}, ...]
-  if (dets.length === 0) return imgURL;                  // fallback: full image
+  // bbox -> simple crop
+  if (sample.bbox?.length === 4) {
+    let [x1, y1, x2, y2] = sample.bbox;
+    if (boxScale !== 1) {    //enlarge around centre
+      const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+      const w  = (x2 - x1) * boxScale;
+      const h  = (y2 - y1) * boxScale;
+      x1 = cx - w / 2;  y1 = cy - h / 2;
+      x2 = cx + w / 2;  y2 = cy + h / 2;
+      //clamp to image area
+      x1 = Math.max(0, x1);  y1 = Math.max(0, y1);
+      x2 = Math.min(img.width , x2);
+      y2 = Math.min(img.height, y2);
+    }
 
-  //embed each face and pick closest
-  let bestId = dets[0].id,   bestSim = -1;
-  for (const d of dets) {
-    const emb = await embedFace(d.id);
-    if (!emb) continue;
-    const sim = cosine(targetEmb, emb);
-    if (sim > bestSim) { bestSim = sim; bestId = d.id; }
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 112;
+    cv.getContext("2d")!
+      .drawImage(img, x1, y1, x2 - x1, y2 - y1, 0, 0, 112, 112);
+    return cv.toDataURL("image/png");
   }
 
-  //re-embed the winner to get its aligned 112x112 canvas
-  // const { kpsBigger } = scaleFaceBox(img,dets[bestId].box,dets[bestId].kps);const bestEmbCanvas = make112Face(kpsBigger, img);
-  const bestEmbCanvas = make112Face(dets[bestId].kps, img);
-  const dataURL       = bestEmbCanvas.toDataURL('image/png');
+  if (sample.landmarks?.length === 10) {
+    const cv = make112Face(sample.landmarks, img);
+    return cv.toDataURL("image/png");
+  }
 
-  return dataURL;
+  return imgURL;
 }

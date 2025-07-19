@@ -97,10 +97,7 @@ async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
       || sample.fileType.startsWith('image/gif')
       || sample.fileType.startsWith('image/webp')
         ? VIDEO_ICON
-        : await getFaceThumbnail(                 // awaited sequentially
-            getMediaFilePath(mediaDir, sample.fileHash),
-            sample.faceEmbedding
-          );
+        : await getFaceThumbnail( getMediaFilePath(mediaDir, sample.fileHash), sample, 1.5 );
     // console.log(imgSrc)
 
     nodes.push({
