@@ -6,7 +6,7 @@ import { getMediaFilePath } from '$lib/utils/utils';
 
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
 import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
-import { sampleClusterMedoids } from './explore-utils';
+import { midpointEmbedding, sampleClusterMedoids } from './explore-utils';
 
 import { facesSetUp, getFaceThumbnail } from '$lib/utils/faces';
 
@@ -41,11 +41,13 @@ type FaceId = number; //the FaceEmbedding.id from the DB table for face embeddin
 type NodeId = number; //may, or may not, coincide with SampleId if 1‑to‑1
 
 interface NodeConn {
-  nodeId   : NodeId; // unique in vis‑network
-  faceId   : FaceId; // foreign‑key into facesById
-  parent?  : NodeId; // undefined for roots
-  siblings?: NodeId[];
-  spawned  : boolean;
+  nodeId          : NodeId; // unique in vis‑network
+  faceId          : FaceId; // foreign‑key into facesById
+  parentNodeId?   : NodeId; // undefined for roots
+  parentFaceId?   : FaceId; // undefined for roots
+  siblingNodeIds : NodeId[];
+  siblingFaceIds : FaceId[];
+  spawned         : boolean;
 }
 
 const facesById = new Map<FaceId, FaceEmbeddingSample>();
@@ -62,21 +64,35 @@ async function initNetwork() {
   nextNodeId = 1;
 
   initSamples = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
-  const initFaceIds: FaceId[] = initSamples.map(s => s.id).filter((id): id is number => id !== undefined);
+  console.log(initSamples)
+  const faceIds: FaceId[] = [];
+  const nodeIds: NodeId[] = [];
 
-  for(const sample of initSamples) {
+  for (const sample of initSamples) {
     if (sample.id === undefined) continue;
 
     const nodeId = mintNodeId();
-    const faceId = sample.id!;
+    const faceId = sample.id;
+
+    nodeIds.push(nodeId);
+    faceIds.push(faceId);
+
     facesById.set(faceId, sample);
 
     mapNodeId2Connections.set(nodeId, {
       nodeId,
       faceId,
-      spawned : false,  //a root node for now
-      siblings: initFaceIds, 
+      siblingNodeIds: [],
+      siblingFaceIds: [],
+      spawned: false, // root
+      // siblings filled after the loop
     });
+  }
+
+  // fill sibling lists as all nodeIds are ok
+  for (const conn of mapNodeId2Connections.values()) {
+    conn.siblingNodeIds = nodeIds.filter(id  => id  !== conn.nodeId);
+    conn.siblingFaceIds = faceIds.filter(fid => fid !== conn.faceId);
   }
 
   await drawInitNetwork();  
@@ -104,11 +120,36 @@ onMount(async () => {
         if (params.nodes.length) {
           const id = params.nodes[0];
           console.log('clicked node:', id);
+          const midPoints = computeSiblingMidpoints(id);
+          console.log(midPoints);
         }
       });
     }
-
 });
+
+
+function computeSiblingMidpoints(clickedNodeId: NodeId): Float32Array[] {
+  const conn = mapNodeId2Connections.get(clickedNodeId);
+  if (!conn) return [];
+
+  const baseEmb = facesById.get(conn.faceId)?.faceEmbedding;
+  if (!baseEmb?.length) return [];
+
+  const mids: Float32Array[] = [];
+
+  for (const sibFaceId of conn.siblingFaceIds) { 
+    const sibEmb = facesById.get(sibFaceId)?.faceEmbedding;
+    if (sibEmb && sibEmb.length === baseEmb.length) {
+      mids.push(midpointEmbedding(baseEmb, sibEmb, 0.6));
+    }
+  }
+  return mids;
+}
+
+
+
+
+
 
 
 async function drawInitNetwork() {

@@ -127,3 +127,11 @@ export async function fetchRandomFaceEmbeddings(
 
   return results; // may be < target if dataset is sparse
 }
+
+
+export function midpointEmbedding(a: number[] | Float32Array, b: number[] | Float32Array, point = 0.5): Float32Array {
+  const len = a.length;
+  const out = new Float32Array(len);
+  for (let i = 0; i < len; ++i) out[i] = a[i] + (b[i] - a[i]) * point;
+  return out;
+}
