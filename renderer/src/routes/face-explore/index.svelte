@@ -5,7 +5,7 @@ import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
 
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
-import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
+import type { MediaFile, FaceEmbeddingSample, FaceHit } from '$lib/types/general-types';
 import { midpointEmbedding, sampleClusterMedoids } from './explore-utils';
 
 import { facesSetUp, getFaceThumbnail } from '$lib/utils/faces';
@@ -45,9 +45,10 @@ interface NodeConn {
   faceId          : FaceId; // foreign‑key into facesById
   parentNodeId?   : NodeId; // undefined for roots
   parentFaceId?   : FaceId; // undefined for roots
-  siblingNodeIds : NodeId[];
-  siblingFaceIds : FaceId[];
-  spawned         : boolean;
+  siblingNodeIds  : NodeId[];
+  siblingFaceIds  : FaceId[];
+  root            : boolean;
+  clicked         : boolean;
 }
 
 const facesById = new Map<FaceId, FaceEmbeddingSample>();
@@ -84,7 +85,8 @@ async function initNetwork() {
       faceId,
       siblingNodeIds: [],
       siblingFaceIds: [],
-      spawned: false, // root
+      root: true, // root
+      clicked: false
       // siblings filled after the loop
     });
   }
@@ -118,14 +120,38 @@ onMount(async () => {
     if(network) {
       network.on('click', (params) => {
         if (params.nodes.length) {
-          const id = params.nodes[0];
-          console.log('clicked node:', id);
-          const midPoints = computeSiblingMidpoints(id);
-          console.log(midPoints);
+          const nodeId = params.nodes[0];
+          handleNodeClick(nodeId);
         }
       });
     }
 });
+
+
+async function handleNodeClick(nodeId: NodeId) {
+  console.log('clicked node:', nodeId);
+
+  const midPoints = computeSiblingMidpoints(nodeId);
+  console.log(midPoints);
+
+  if (!midPoints.length) return;
+
+  const perfaceMidPointCandidates = await searchEachMidpoint(midPoints,20);
+  console.log('perfaceMidPointCandidates: ', perfaceMidPointCandidates);
+
+}
+
+async function searchEachMidpoint(midPoints: Float32Array[], k = 20): Promise<FaceHit[][]> {
+  const perMidHits: FaceHit[][] = [];
+
+  for (const vec of midPoints) {
+    const hits = await window.bridge.searchFace([vec], k);   // pass *one* vec
+    perMidHits.push(hits);                                   // hits.length <= k
+  }
+
+  return perMidHits;   // array‑of‑arrays [[hit1-1, hit1-20], [hitK-1, hitK-20]]
+}
+
 
 
 function computeSiblingMidpoints(clickedNodeId: NodeId): Float32Array[] {
@@ -137,7 +163,7 @@ function computeSiblingMidpoints(clickedNodeId: NodeId): Float32Array[] {
 
   const mids: Float32Array[] = [];
 
-  for (const sibFaceId of conn.siblingFaceIds) { 
+  for (const sibFaceId of conn.siblingFaceIds) {
     const sibEmb = facesById.get(sibFaceId)?.faceEmbedding;
     if (sibEmb && sibEmb.length === baseEmb.length) {
       mids.push(midpointEmbedding(baseEmb, sibEmb, 0.6));

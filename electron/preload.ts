@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, desktopCapturer, webUtils } from "electron";
 import { FaceEmbedding, MediaFile } from "./types/dbConfig";
-import { SearchRow } from "./types/variousTypes";
+import { FaceHit, SearchRow } from "./types/variousTypes";
 
 export const CONTEXT_BRIDGE = {
 
@@ -42,6 +42,10 @@ export const CONTEXT_BRIDGE = {
 
   searchEmbeddings: async (descrEmb: Float32Array[] = [], faceEmb: Float32Array[] = [], k: number = 100): Promise<SearchRow[]> => {
     return await ipcRenderer.invoke('search-embeddings', descrEmb, faceEmb, k);
+  },
+
+  searchFace: async (vectors: Float32Array[], k = 50): Promise<FaceHit[]> => {
+    return ipcRenderer.invoke("face-search", vectors, k);
   },
 
   getMediaFilesByHash: async (hashes: string[]): Promise<MediaFile[]> => {

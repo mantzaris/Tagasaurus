@@ -34,5 +34,11 @@ export type SearchRow = {
 };
 
 
+export type FaceHit = {
+  media  : MediaFile;
+  face   : FaceEmbedding;
+  dist   : number;         // cosine distance (lower = closer)
+};
+
 
  

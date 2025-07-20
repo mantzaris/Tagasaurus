@@ -13,8 +13,8 @@ import { getRandomEntries } from "./main-functions/db-operations/random-entries"
 import { FaceEmbedding, MediaFile } from "./types/dbConfig";
 import { getMediaFrontEndDirBase, saveFileByHash } from "./main-functions/utils/utils";
 import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
-import { getFaceEmbeddingsByMediaIds, getMediaFilesByHash, searchTagging } from "./main-functions/db-operations/search";
-import { SearchRow } from "./types/variousTypes";
+import { getFaceEmbeddingsByMediaIds, getMediaFilesByHash, searchFaceVectors, searchTagging } from "./main-functions/db-operations/search";
+import { FaceHit, SearchRow } from "./types/variousTypes";
 
 import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
 
@@ -375,6 +375,15 @@ ipcMain.handle('save-file-by-hash', async (_evt, hash: string) => {
 
 ipcMain.handle("face-embeddings-by-media-id", async (_event, mediaIds: number[] = []): Promise<FaceEmbedding[]> => {
     return getFaceEmbeddingsByMediaIds(db, mediaIds);
+});
+
+
+ipcMain.handle("face-search", async (
+  _evt,
+  queryVecs: Float32Array[],   // one or more mid‑point vectors
+  k: number = 50               // top‑k per query vec
+): Promise<FaceHit[]> => {
+  return searchFaceVectors(db, queryVecs, k);
 });
 
 

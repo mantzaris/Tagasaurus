@@ -2,7 +2,7 @@
 import { type Database} from "libsql/promise";
 import { defaultDBConfig } from "../initialization/init";
 import { dedupPreserveOrder } from "../utils/utils";
-import { SearchRow } from "../../types/variousTypes";
+import { FaceHit, SearchRow } from "../../types/variousTypes";
 import { MediaFile } from "../../types/dbConfig";
 import { FaceEmbedding } from "../../types/dbConfig";
 
@@ -270,3 +270,78 @@ const toFloatArray = (blob?: ArrayBuffer | Uint8Array | null): number[] => {
     new Float32Array(u8.buffer, u8.byteOffset, u8.byteLength / 4)
   );
 };
+
+
+/**
+ * Run top‑k ANN search for each query vector, join straight to MediaFile,
+ * return FaceHit[] (duplicates de‑duped).
+ */
+export async function searchFaceVectors(
+  db: Database,
+  queryVecs: Float32Array[],
+  k: number
+): Promise<FaceHit[]> {
+
+  if (queryVecs.length === 0) return [];
+
+  const { tables, columns, indexes } = defaultDBConfig;
+
+
+  const sql = `
+    SELECT
+      mf.${columns.mediaFiles.fileHash}          AS fileHash,
+      mf.${columns.mediaFiles.fileType}          AS fileType,
+      mf.${columns.mediaFiles.description}       AS description,
+
+      fe.${columns.faceEmbeddings.id}            AS faceId,
+      fe.${columns.faceEmbeddings.mediaFileId}   AS mediaFileId,
+      fe.${columns.faceEmbeddings.time}          AS time,
+      fe.${columns.faceEmbeddings.faceEmbedding} AS faceEmbedding,
+      fe.${columns.faceEmbeddings.score}         AS score,
+      fe.${columns.faceEmbeddings.bbox}          AS bbox,
+      fe.${columns.faceEmbeddings.landmarks}     AS landmarks,
+
+      vector_distance_cos(fe.${columns.faceEmbeddings.faceEmbedding}, ?1) AS dist
+    FROM   vector_top_k('${indexes.faceEmbeddingsVector}', ?1, ?2) AS v
+    JOIN   ${tables.faceEmbeddings} fe ON fe.id = v.id
+    JOIN   ${tables.mediaFiles}     mf ON mf.id = fe.media_file_id
+    ORDER  BY dist ASC;
+  `;
+  const stmt = await db.prepare(sql);
+
+  // ---------- run once per query vector ----------
+  const hits: FaceHit[] = [];
+  for (const q of queryVecs) {
+    const rows = await stmt.all([toBuf(q), k]) as any[];
+    for (const r of rows) {
+      hits.push({
+        dist : r.dist,
+        media: {
+          id                 : r.mediaFileId,
+          fileHash           : r.fileHash,
+          filename           : "",                 // fill if needed
+          fileType           : r.fileType,
+          description        : r.description,
+          descriptionEmbedding: null
+        },
+        face : {
+          id            : r.faceId,
+          mediaFileId   : r.mediaFileId,
+          time          : r.time,
+          faceEmbedding : toFloatArray(r.faceEmbedding),
+          score         : r.score,
+          bbox          : toFloatArray(r.bbox),
+          landmarks     : toFloatArray(r.landmarks)
+        }
+      });
+    }
+  }
+
+  // 
+  const bestByFaceId = new Map<number, FaceHit>();
+  for (const h of hits) {
+    const prev = bestByFaceId.get(h.face.id!);
+    if (!prev || h.dist < prev.dist) bestByFaceId.set(h.face.id!, h);
+  }
+  return [...bestByFaceId.values()];
+}
