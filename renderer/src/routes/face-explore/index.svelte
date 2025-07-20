@@ -15,7 +15,7 @@ const VIDEO_ICON = '/assets/icons/videoplay512.png';
 let mediaDir: string = $state(getContext('mediaDir')); 
 
 
-let initMedia: FaceEmbeddingSample[] = $state([]);
+let initSamples: FaceEmbeddingSample[] = $state([]);
 let searchRows = $state([]);
 
 const initKOptions = [10, 20, 40, 60, 100] as const;
@@ -56,6 +56,32 @@ function mintNodeId(): NodeId {
   return nextNodeId++;
 }
 
+async function initNetwork() {
+  facesById.clear();
+  mapNodeId2Connections.clear();
+  nextNodeId = 1;
+
+  initSamples = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
+  const initFaceIds: FaceId[] = initSamples.map(s => s.id).filter((id): id is number => id !== undefined);
+
+  for(const sample of initSamples) {
+    if (sample.id === undefined) continue;
+
+    const nodeId = mintNodeId();
+    const faceId = sample.id!;
+    facesById.set(faceId, sample);
+
+    mapNodeId2Connections.set(nodeId, {
+      nodeId,
+      faceId,
+      spawned : false,  //a root node for now
+      siblings: initFaceIds, 
+    });
+  }
+
+  await drawInitNetwork();  
+}
+
 
 onMount(async () => {
     try {        
@@ -70,10 +96,8 @@ onMount(async () => {
   
     await tick(); //wait for bind:this
     mediaDir = await getMediaDir();
-
-    initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
-    console.log(initMedia)
-    await drawNetwork();    
+  
+    await initNetwork();
 
     if(network) {
       network.on('click', (params) => {
@@ -86,17 +110,11 @@ onMount(async () => {
 
 });
 
-async function toggleRestart() {
-    initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
-    console.log(initMedia)
-    await drawNetwork();     
-}
 
-
-async function drawNetwork() {
+async function drawInitNetwork() {
   if (!container) return;
 
-  const nodesArr = await mediaToNodes(initMedia);
+  const nodesArr = await initSamplesToNodes();
   const nodes = new vis.DataSet<Node>(nodesArr);
   const edges = new vis.DataSet<Edge>([]);  
   const data  = { nodes, edges };
@@ -107,25 +125,25 @@ async function drawNetwork() {
     network.setOptions(opts); 
   } else {
     network = new vis.Network(container, data, opts);
-  }
-
-  
+  }  
 }
 
-
-
-
-async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
-  const R = 30 * media.length;        // circle radius
-  const n = media.length;
+async function initSamplesToNodes(): Promise<Node[]> {
+  const R = 30 * mapNodeId2Connections.size;        // circle radius
+  const n = mapNodeId2Connections.size;
+  if(n==0) return [];
 
   const nodes: Node[] = [];
+  let ind = 0;
 
-  for (let idx = 0; idx < n; ++idx) {
-    const sample = media[idx];
-    const θ = (2 * Math.PI * idx) / n;
+  for (const conn of mapNodeId2Connections.values()) {
+    const θ = (2 * Math.PI * ind) / n;
     const x = R * Math.cos(θ);
     const y = R * Math.sin(θ);
+    ind++;
+
+    const sample = facesById.get(conn.faceId)!;
+    if (!sample) continue;  
 
     const imgSrc = sample.fileType.startsWith('video')
       || sample.fileType.startsWith('image/gif')
@@ -135,7 +153,7 @@ async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
     // console.log(imgSrc)
 
     nodes.push({
-      id: sample.id, //sample.fileHash, // unique per media file
+      id:  conn.nodeId, //sample.fileHash, // unique per media file
       label: '',
       image: imgSrc,
       shape: 'image',
@@ -200,7 +218,7 @@ function buildOptions(): Options {
                     </Input>
                 </Col>
                 <Col xs="auto" class="d-flex justify-content-end">
-                    <Button color="primary" size="sm" onclick={toggleRestart} >
+                    <Button color="primary" size="sm" onclick={initNetwork} >
                         <Icon name="recycle" class="fs-6" />
                     </Button>
                 </Col>
@@ -223,7 +241,7 @@ function buildOptions(): Options {
                     </Input>
                 </Col>
                 <Col xs="auto" class="d-flex justify-content-end">
-                    <Button color="primary" size="sm" onclick={toggleRestart} >
+                    <Button color="primary" size="sm" onclick={initNetwork} >
                         <Icon name="recycle" class="fs-3" />
                     </Button>
                 </Col>
