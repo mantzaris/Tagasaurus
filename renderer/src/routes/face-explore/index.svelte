@@ -8,7 +8,7 @@ import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // ju
 import type { MediaFile, FaceEmbeddingSample } from '$lib/types/general-types';
 import { sampleClusterMedoids } from './explore-utils';
 
-import { facesSetUp, detectFacesInImage, embedFace, make112Face, getFaceThumbnail } from '$lib/utils/faces';
+import { facesSetUp, getFaceThumbnail } from '$lib/utils/faces';
 
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
@@ -34,7 +34,28 @@ let initSampleNumber = $derived(kToSampleObj[initKSelected]);
 
 let container: HTMLDivElement | null = null;
 let network: Network | null = null;
-// filePath={getMediaFilePath(mediaDir,card.fileHash)} 
+// filePath={getMediaFilePath(mediaDir,card.fileHash)}
+
+//node network metadata
+type FaceId = number; //the FaceEmbedding.id from the DB table for face embeddings
+type NodeId = number; //may, or may not, coincide with SampleId if 1‑to‑1
+
+interface NodeConn {
+  nodeId   : NodeId; // unique in vis‑network
+  faceId   : FaceId; // foreign‑key into facesById
+  parent?  : NodeId; // undefined for roots
+  siblings?: NodeId[];
+  spawned  : boolean;
+}
+
+const facesById = new Map<FaceId, FaceEmbeddingSample>();
+const mapNodeId2Connections = new Map<NodeId, NodeConn>();
+
+let nextNodeId = 1;
+function mintNodeId(): NodeId {
+  return nextNodeId++;
+}
+
 
 onMount(async () => {
     try {        
@@ -53,6 +74,16 @@ onMount(async () => {
     initMedia = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
     console.log(initMedia)
     await drawNetwork();    
+
+    if(network) {
+      network.on('click', (params) => {
+        if (params.nodes.length) {
+          const id = params.nodes[0];
+          console.log('clicked node:', id);
+        }
+      });
+    }
+
 });
 
 async function toggleRestart() {
@@ -77,6 +108,8 @@ async function drawNetwork() {
   } else {
     network = new vis.Network(container, data, opts);
   }
+
+  
 }
 
 
@@ -87,6 +120,7 @@ async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
   const n = media.length;
 
   const nodes: Node[] = [];
+
   for (let idx = 0; idx < n; ++idx) {
     const sample = media[idx];
     const θ = (2 * Math.PI * idx) / n;
@@ -101,7 +135,7 @@ async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
     // console.log(imgSrc)
 
     nodes.push({
-      id: sample.fileHash + '-' + (sample.id ?? idx), //sample.fileHash, // unique per media file
+      id: sample.id, //sample.fileHash, // unique per media file
       label: '',
       image: imgSrc,
       shape: 'image',
@@ -111,6 +145,7 @@ async function mediaToNodes(media: FaceEmbeddingSample[]): Promise<Node[]> {
       y
     } satisfies Node);
   }
+
   return nodes;
 }
 
@@ -137,10 +172,6 @@ function buildOptions(): Options {
     layout:  { improvedLayout: false }
   };
 }
-
-
-
-
 
 
 
