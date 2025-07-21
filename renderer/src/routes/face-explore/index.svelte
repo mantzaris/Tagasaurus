@@ -133,7 +133,7 @@ onMount(async () => {
 async function handleNodeClick(nodeId: NodeId) {
   console.log('clicked node:', nodeId);
   
-  //if clicked return TODO:
+  //if clicked return ..? currently re-midpoint clicks ok 
 
   const midPoints = computeSiblingMidpoints(nodeId);
   console.log(midPoints);
@@ -147,7 +147,6 @@ async function handleNodeClick(nodeId: NodeId) {
 
   addChildrenToNetwork(nodeId, childrenNodeIds);
 
-  //nodeId is now clicked TODO:
 
 
   //TODO: parent is included as sibling
@@ -209,6 +208,7 @@ async function addChildrenToNetwork(
       size: 40,
       x, y,
       label: '',
+      fixed: false
     });
 
     newVisEdges.push({ from: parentNodeId, to: childId });
@@ -301,20 +301,6 @@ async function searchEachMidpoint(midPoints: Float32Array[], k = 20): Promise<Fa
 }
 
 
-function pickUniqueFaces(perMidHits: FaceHit[][], existingFaceIds: Set<FaceId>): FaceHit[] {
-  const chosen: FaceHit[] = [];
-  const usedFaceIds = new Set(existingFaceIds);
-
-  for (const hits of perMidHits) {
-    const choice = hits.find(h => !usedFaceIds.has(h.face.id!));
-    if (choice) {
-      chosen.push(choice);
-      usedFaceIds.add(choice.face.id!);
-    }
-  }
-  return chosen;         // <= one FaceHit per midpoint, all unique
-}
-
 
 function computeSiblingMidpoints(clickedNodeId: NodeId): Float32Array[] {
   const conn = mapNodeId2Connections.get(clickedNodeId);
@@ -400,7 +386,7 @@ async function initSamplesToNodes(): Promise<Node[]> {
 function buildOptions(): Options {
   const newWidth = container!.offsetWidth;
   const newSpringLength = newWidth * 0.4;
-  //TODO: window.addEventListener('resize', () => { needs when the window is resized
+  //TODO window.addEventListener('resize', () => { needs when the window is resized
 
   return {
     nodes: {
@@ -418,9 +404,14 @@ function buildOptions(): Options {
       multiselect: false
     },
     physics: { 
-      enabled: false,
+      enabled: true,
       barnesHut: {
+        gravitationalConstant: -500,
+        centralGravity: 0.05,
         springLength: newSpringLength,
+        springConstant: 0.5,
+        damping: 0.25,
+        avoidOverlap: 0.8,
       }
     },
     layout:  { improvedLayout: false }
