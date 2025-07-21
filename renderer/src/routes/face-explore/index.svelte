@@ -34,6 +34,8 @@ let initSampleNumber = $derived(kToSampleObj[initKSelected]);
 
 let container: HTMLDivElement | null = null;
 let network: Network | null = null;
+let nodes!: DataSet<Node>;   
+let edges!: DataSet<Edge>;
 // filePath={getMediaFilePath(mediaDir,card.fileHash)}
 
 //node network metadata
@@ -130,6 +132,8 @@ onMount(async () => {
 
 async function handleNodeClick(nodeId: NodeId) {
   console.log('clicked node:', nodeId);
+  
+  //if clicked return TODO:
 
   const midPoints = computeSiblingMidpoints(nodeId);
   console.log(midPoints);
@@ -139,19 +143,177 @@ async function handleNodeClick(nodeId: NodeId) {
   const perfaceMidPointCandidates = await searchEachMidpoint(midPoints,20);
   console.log('perfaceMidPointCandidates: ', perfaceMidPointCandidates);
 
+  const childrenNodeIds = addUniqueChildren(nodeId, perfaceMidPointCandidates);
+
+  addChildrenToNetwork(nodeId, childrenNodeIds);
+
+  //nodeId is now clicked TODO:
+
+
+  //TODO: parent is included as sibling
 }
+
+
+/**
+ * Add visual nodes + edges for the freshly‑minted children
+ * Preconditions:
+ *  - facesById     already has an entry for every child faceId
+ *  - mapNodeId2Connections has a NodeConn for every childNodeId
+ *  - network.body.data.nodes / edges are the vis‑DataSets you created
+ *
+ * Behaviour:
+ *   - Skips any child that (for whatever reason) is already present in vis‑nodes
+ *   - Adds exactly ONE edge parent -> child
+ *   - Lays children in a circle of radius `R` around the parent's current position
+ */
+async function addChildrenToNetwork(
+  parentNodeId   : NodeId,
+  childrenNodeIds: NodeId[],
+  R = 160                               // radius for layout
+) {
+  if (!childrenNodeIds.length) return;
+
+  // parent position (optional manual layout)
+  const parent = nodes.get(parentNodeId) as Node | null;   
+  const px = parent?.x ?? 0;
+  const py = parent?.y ?? 0;
+
+  const newVisNodes: Node[] = [];
+  const newVisEdges: Edge[] = [];
+
+  const n = childrenNodeIds.length;
+  for (let i = 0; i < n; i++) {
+    const childId = childrenNodeIds[i];
+    if (nodes.get(childId)) continue;    
+
+    const conn   = mapNodeId2Connections.get(childId)!;
+    const sample = facesById.get(conn.faceId)!;
+
+    const imgSrc =
+      sample.fileType.startsWith('video')
+        ? VIDEO_ICON
+        : await getFaceThumbnail(
+            getMediaFilePath(mediaDir, sample.fileHash),
+            sample,
+            1.5,
+          );
+
+    const θ = (2 * Math.PI * i) / n;
+    const x = px + R * Math.cos(θ);
+    const y = py + R * Math.sin(θ);
+
+    newVisNodes.push({
+      id: childId,
+      shape: 'image',
+      image: imgSrc,
+      size: 40,
+      x, y,
+      label: '',
+    });
+
+    newVisEdges.push({ from: parentNodeId, to: childId });
+  }
+
+  // bulk‑insert into the same DataSets used when creating the network
+  if (newVisNodes.length) nodes.add(newVisNodes);
+  if (newVisEdges.length) edges.add(newVisEdges);
+}
+
+
+
+
+/**
+ * Given per‑midpoint hit buckets, pick <= 1 unique face from each bucket,
+ * add those faces as child nodes, and return the newly minted NodeIds.
+ *
+ * - Skips a midpoint if none of its hits are unique.
+ * - Updates facesById, mapNodeId2Connections, sibling arrays.
+ * - Does NOT touch vis‑network; caller decides when/how to render.
+ */
+function addUniqueChildren(parentNodeId: NodeId, perMidHits: FaceHit[][]): NodeId[] {
+  const newNodeIds: NodeId[] = [];
+  const existingFaceIds = new Set<FaceId>(facesById.keys()); //global graph
+
+  //choose at most one face per midpoint
+  for (const hits of perMidHits) {
+    const pick = hits.find(h => !existingFaceIds.has(h.face.id!));
+    if (!pick) continue; // all dupes
+
+    //mark so subsequent midpoints don't pick the same face
+    existingFaceIds.add(pick.face.id!);
+
+    //mint NodeId and maps
+    const nodeId = mintNodeId();
+    const { face, media } = pick;
+
+    facesById.set(face.id!, {
+      id            : face.id,
+      mediaFileId   : face.mediaFileId,
+      time          : face.time,
+      faceEmbedding : face.faceEmbedding,
+      score         : face.score,
+      bbox          : face.bbox,
+      landmarks     : face.landmarks,
+      fileHash      : media.fileHash,
+      fileType      : media.fileType,
+    });
+
+    mapNodeId2Connections.set(nodeId, {
+      nodeId,
+      faceId       : face.id!,
+      parentNodeId : parentNodeId,
+      siblingNodeIds : [],          // will fill later if desired
+      siblingFaceIds : [],
+      root     : false,
+      clicked  : false,
+    });
+
+    newNodeIds.push(nodeId);
+  }
+
+  //new children to be siblings of each other
+  if (newNodeIds.length > 1) {
+    const newFaceIds = newNodeIds.map(id => mapNodeId2Connections.get(id)!.faceId);
+
+    for (let i = 0; i < newNodeIds.length; i++) {
+      const nodeId = newNodeIds[i];
+      const conn   = mapNodeId2Connections.get(nodeId)!;
+
+      // every other new child except self
+      conn.siblingNodeIds = newNodeIds.filter(id => id !== nodeId);
+      conn.siblingFaceIds = newFaceIds.filter(fid => fid !== conn.faceId);
+    }
+  }
+
+  return newNodeIds;   // caller will add nodes + edges visually
+}
+
 
 async function searchEachMidpoint(midPoints: Float32Array[], k = 20): Promise<FaceHit[][]> {
   const perMidHits: FaceHit[][] = [];
 
   for (const vec of midPoints) {
-    const hits = await window.bridge.searchFace([vec], k);   // pass *one* vec
+    const hits = await window.bridge.searchFace([vec], k);   // pass one vec of a face a time
     perMidHits.push(hits);                                   // hits.length <= k
   }
 
   return perMidHits;   // array‑of‑arrays [[hit1-1, hit1-20], [hitK-1, hitK-20]]
 }
 
+
+function pickUniqueFaces(perMidHits: FaceHit[][], existingFaceIds: Set<FaceId>): FaceHit[] {
+  const chosen: FaceHit[] = [];
+  const usedFaceIds = new Set(existingFaceIds);
+
+  for (const hits of perMidHits) {
+    const choice = hits.find(h => !usedFaceIds.has(h.face.id!));
+    if (choice) {
+      chosen.push(choice);
+      usedFaceIds.add(choice.face.id!);
+    }
+  }
+  return chosen;         // <= one FaceHit per midpoint, all unique
+}
 
 
 function computeSiblingMidpoints(clickedNodeId: NodeId): Float32Array[] {
@@ -175,15 +337,13 @@ function computeSiblingMidpoints(clickedNodeId: NodeId): Float32Array[] {
 
 
 
-
-
-
 async function drawInitNetwork() {
   if (!container) return;
 
   const nodesArr = await initSamplesToNodes();
-  const nodes = new vis.DataSet<Node>(nodesArr);
-  const edges = new vis.DataSet<Edge>([]);  
+  nodes = new vis.DataSet<Node>(nodesArr);
+  edges = new vis.DataSet<Edge>([]);
+  
   const data  = { nodes, edges };
   const opts  = buildOptions();
 
@@ -238,6 +398,10 @@ async function initSamplesToNodes(): Promise<Node[]> {
 
 
 function buildOptions(): Options {
+  const newWidth = container!.offsetWidth;
+  const newSpringLength = newWidth * 0.4;
+  //TODO: window.addEventListener('resize', () => { needs when the window is resized
+
   return {
     nodes: {
       shape: 'box',  
@@ -253,7 +417,12 @@ function buildOptions(): Options {
       hover: true,
       multiselect: false
     },
-    physics: { enabled: false },
+    physics: { 
+      enabled: false,
+      barnesHut: {
+        springLength: newSpringLength,
+      }
+    },
     layout:  { improvedLayout: false }
   };
 }
