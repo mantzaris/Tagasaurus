@@ -130,26 +130,23 @@ onMount(async () => {
 });
 
 
-async function handleNodeClick(nodeId: NodeId) {
-  console.log('clicked node:', nodeId);
+async function handleNodeClick(parentNodeId: NodeId) {
+  const parentFaceId = mapNodeId2Connections.get(parentNodeId)!.faceId;
+  const rawEmb       = facesById.get(parentFaceId)!.faceEmbedding;
+
+  const baseEmb = rawEmb instanceof Float32Array ? rawEmb : new Float32Array(rawEmb);
   
-  //if clicked return ..? currently re-midpoint clicks ok 
+  const midPoints = computeSiblingMidpoints(parentNodeId);
+  
+  const queryVectors: Float32Array[] = [baseEmb, ...midPoints];
+  if (!queryVectors.length) return;
 
-  const midPoints = computeSiblingMidpoints(nodeId);
-  console.log(midPoints);
-
-  if (!midPoints.length) return;
-
-  const perfaceMidPointCandidates = await searchEachMidpoint(midPoints,20);
+  const perfaceMidPointCandidates = await searchEachMidpoint(queryVectors,20);
   console.log('perfaceMidPointCandidates: ', perfaceMidPointCandidates);
 
-  const childrenNodeIds = addUniqueChildren(nodeId, perfaceMidPointCandidates);
+  const childrenNodeIds = addUniqueChildren(parentNodeId, perfaceMidPointCandidates);
 
-  addChildrenToNetwork(nodeId, childrenNodeIds);
-
-
-
-  //TODO: parent is included as sibling
+  addChildrenToNetwork(parentNodeId, childrenNodeIds);
 }
 
 
