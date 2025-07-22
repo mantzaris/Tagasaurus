@@ -32,8 +32,8 @@ const DEBUG = false;
 const OUT_DIR = '/home/resort/Pictures/temp'; // make sure it exists!
 
 const MARGIN = 0.3; //for the face outline rang is 0.2 - 0.35
-const FACE_SIM_THR = 0.5; //higher value -> fewer considered similar -> more faces
-const DET_CONF_THR = 0.60;
+const FACE_SIM_THR = 0.65; //higher value -> fewer considered similar -> more faces
+const DET_CONF_THR = 0.65;
 
 let scrfdSess: ort.InferenceSession;
 let arcSess  : ort.InferenceSession;
