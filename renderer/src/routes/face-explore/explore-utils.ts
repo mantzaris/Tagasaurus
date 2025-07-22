@@ -29,7 +29,7 @@ export async function sampleClusterMedoids(
 
   const totalWanted = sample + augment;
   const faces = await fetchRandomFaceEmbeddings(totalWanted, maxAttempts);
-  console.log(faces)
+  // console.log(faces)
   if (faces.length === 0) return [];
 
   let kFinal = Math.min(k, Math.max(1, Math.floor(faces.length / 2)));
@@ -37,11 +37,11 @@ export async function sampleClusterMedoids(
   const pool      = faces.slice(0, Math.min(sample, faces.length));
   const data      = pool.map(f => f.faceEmbedding);
   const km        = kmeans(data, kFinal, kmeansOptions);
-  console.log(km);
+  // console.log(km);
   const medoidIdx = medoidIndices(data, km.clusters, km.centroids);
-  console.log(medoidIdx);
+  // console.log(medoidIdx);
   const medoids   = medoidIdx.filter(i => i >= 0).map(i => pool[i]);
-  console.log(medoids);
+  // console.log(medoids);
 
   const keyOf = (x: FaceEmbeddingSample) =>
   x.id !== undefined

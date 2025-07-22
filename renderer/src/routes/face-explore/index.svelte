@@ -5,10 +5,11 @@ import { getMediaDir } from '$lib/utils/localStorageManager';
 import { getMediaFilePath } from '$lib/utils/utils';
 
 import type { Network, DataSet, Node, Edge, Options } from 'vis-network';  // just types
-import type { MediaFile, FaceEmbeddingSample, FaceHit } from '$lib/types/general-types';
+import type { MediaFile, FaceEmbeddingSample, FaceHit, SearchRow } from '$lib/types/general-types';
 import { midpointEmbedding, sampleClusterMedoids } from './explore-utils';
 
 import { facesSetUp, getFaceThumbnail } from '$lib/utils/faces';
+  import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
@@ -16,7 +17,7 @@ let mediaDir: string = $state(getContext('mediaDir'));
 
 
 let initSamples: FaceEmbeddingSample[] = $state([]);
-let searchRows = $state([]);
+let searchRows = $state<SearchRow[]>([]);
 
 const initKOptions = [10, 20, 40, 60, 100] as const;
 type KOption = (typeof initKOptions)[number]; // 10 | 20 | 40 | 60 | 100
@@ -67,7 +68,7 @@ async function initNetwork() {
   nextNodeId = 1;
 
   initSamples = await sampleClusterMedoids(initSampleNumber, initKSelected, Math.round(initKSelected/5));
-  console.log(initSamples)
+  // console.log(initSamples)
   const faceIds: FaceId[] = [];
   const nodeIds: NodeId[] = [];
 
@@ -142,11 +143,23 @@ async function handleNodeClick(parentNodeId: NodeId) {
   if (!queryVectors.length) return;
 
   const perfaceMidPointCandidates = await searchEachMidpoint(queryVectors,20);
-  console.log('perfaceMidPointCandidates: ', perfaceMidPointCandidates);
+  // console.log('perfaceMidPointCandidates: ', perfaceMidPointCandidates);
 
   const childrenNodeIds = addUniqueChildren(parentNodeId, perfaceMidPointCandidates);
 
   addChildrenToNetwork(parentNodeId, childrenNodeIds);
+
+  searchRows = await window.bridge.searchEmbeddings( [], [baseEmb], 20 );
+
+}
+
+
+function hitsToSearchRows(hits: FaceHit[]): SearchRow[] {
+  return hits.map(h => ({
+    fileHash   : h.media.fileHash,
+    fileType   : h.media.fileType,
+    description: h.media.description,
+  }));
 }
 
 
@@ -487,9 +500,9 @@ function buildOptions(): Options {
 <div class="flex-grow-1 border p-1 overflow-auto border-end-0 border-bottom-0 border-top-0 border-2 border-success" style="flex-basis:25%; min-width:0; min-height:0;">
     <!-- <Container fluid class="h-100 mt-2" style="background-color:bisque"> -->
         
-            {#each searchRows as row}
+            {#each searchRows as row (row.fileHash) }
                 
-            Hello
+            <StreamResultCard {row} {mediaDir} />
 
             {/each}
 
