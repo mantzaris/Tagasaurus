@@ -30,6 +30,8 @@ export const CONTEXT_BRIDGE = {
     ipcRenderer.send('user-dropped-paths', paths);
   },
 
+  selectFiles: (): Promise<string[]> => ipcRenderer.invoke('dialog:select-files'),
+
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   deleteMediaFile: (fileHash: string) => {

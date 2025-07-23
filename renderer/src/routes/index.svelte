@@ -48,9 +48,9 @@
     <Col md="4">
       <Card>
         <CardBody>
-          <CardTitle >Export / Import</CardTitle>
-          <CardText>Export your data to be used elsewhere or uploaded, or import new data.</CardText>
-          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
+          <CardTitle >Upload / Export / Import</CardTitle>
+          <CardText>Upload your files / Export your data to be used elsewhere / Import.</CardText>
+          <Button color="primary" outline size="lg" href="/import-export"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>

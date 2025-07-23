@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, session, Menu, MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, ipcMain, desktopCapturer, session, Menu, MenuItemConstructorOptions, dialog } from "electron";
 import { once } from "node:events"; 
 import electronReload from "electron-reload";
 
@@ -304,6 +304,15 @@ ipcMain.on('save-media-description', async (_evt, p: {
       descriptionEmbedding:  Array.from(p.embedding)
     };
   }
+});
+
+
+ipcMain.handle('dialog:select-files', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Select media files',
+    properties: ['openFile', 'multiSelections', 'dontAddToRecent']
+  });
+  return canceled ? [] : filePaths;
 });
 
 

@@ -47,6 +47,37 @@ export const routes = {
       ]
     },
     {
+      "meta": {},
+      "id": "_default_import_export",
+      "name": "import-export",
+      "module": false,
+      "file": {
+        "path": "src/routes/import-export",
+        "dir": "src/routes",
+        "base": "import-export",
+        "ext": "",
+        "name": "import-export"
+      },
+      "children": [
+        {
+          "meta": {
+            "isDefault": true
+          },
+          "id": "_default_import_export_index_svelte",
+          "name": "index",
+          "file": {
+            "path": "src/routes/import-export/index.svelte",
+            "dir": "src/routes/import-export",
+            "base": "index.svelte",
+            "ext": ".svelte",
+            "name": "index"
+          },
+          "asyncModule": () => import('../src/routes/import-export/index.svelte'),
+          "children": []
+        }
+      ]
+    },
+    {
       "meta": {
         "isDefault": true
       },
