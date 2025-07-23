@@ -27,7 +27,7 @@ async function upload() {
 </Button>
 
 
-<Container fluid class="vh-100 d-flex p-2 gap-3 no-scroll">
+<Container fluid class="vh-80 d-flex p-2 gap-3 no-scroll">
 
 
     <TabContent  on:tab={(e) => (status = e.detail)}>
@@ -52,17 +52,39 @@ async function upload() {
 
 
         <TabPane tabId="Export" tab="Export">
+            <br/>
+            <div class="d-block d-md-none h-100">
+                <h5>Tagasaurus Export: All your Tagasaurus data will be exported to the selected destination.</h5>
+            </div>
+            <div class="d-none d-md-block h-100 m-4">
+                <h2>Tagasaurus Export: All your Tagasaurus data will be exported to the selected destination.</h2>
+            </div>
+            <br/>
 
-            <h2 class="text-content">Bravo</h2>
-            <img alt="Johnny Bravo" src="assets/images/Taga.png"/>
+            <div class="d-flex justify-content-center">
+                <Button color="primary" size="lg" onclick={upload}>
+                <Icon name="database-fill-down" class="fs-1" /> Export Taga Data
+                </Button>
+            </div>           
         
         </TabPane>
 
 
         <TabPane tabId="Import" tab="Import">
+            <br/>
+            <div class="d-block d-md-none h-100">
+                <h5>Tagasaurus Import: Select a Tagasaurus export to merge with your data. Warning make sure the export is good.</h5>
+            </div>
+            <div class="d-none d-md-block h-100 m-4">
+                <h2>Tagasaurus Import: Select a Tagasaurus export to merge with your data. Warning make sure the export is good.</h2>
+            </div>
+            <br/>
 
-            <h2 class="text-content">Charlie</h2>
-            <img alt="Charlie Brown" src="assets/images/Taga.png"/>
+            <div class="d-flex justify-content-center">
+                <Button color="primary" size="lg" onclick={upload}>
+                <Icon name="database-fill-add" class="fs-1" /> Import Taga Data
+                </Button>
+            </div>
 
         </TabPane>
 
