@@ -3,12 +3,23 @@ import { Button, Col, Container, Icon, Input, Row,  TabContent, TabPane, Toast }
 
 let status: string|number = 'alpha';
 let isOpen = $state(false);
+let toastMessage = "";
 
 async function upload() {
   const paths = await window.bridge.selectFiles();
 
   if (paths.length) {
     window.bridge.sendDroppedPaths(paths);
+    toastMessage = "Import Started..."
+    isOpen = true;
+  }
+}
+
+async function exportTaga() {
+  const path = await window.bridge.selectExportPath("tagasaurusExport.tar");
+  console.log(`path = ${path}`);
+  if (typeof path == 'string') {
+    toastMessage = "Export Started..."
     isOpen = true;
   }
 }
@@ -17,9 +28,10 @@ async function upload() {
 
 <div class="toast-container">
     <Toast autohide fade={true} duration={200} delay={1200} body {isOpen} on:close={() => (isOpen = false)}>
-      <Icon name="upload" /> Import started...
+      <Icon name="upload" /> {toastMessage}
     </Toast>
 </div>
+
 
 
 <Button color="primary" size="lg" href="/" class="ms-3 mt-3 mb-4">
@@ -62,7 +74,7 @@ async function upload() {
             <br/>
 
             <div class="d-flex justify-content-center">
-                <Button color="primary" size="lg" onclick={upload}>
+                <Button color="primary" size="lg" onclick={exportTaga}>
                 <Icon name="database-fill-down" class="fs-1" /> Export Taga Data
                 </Button>
             </div>           

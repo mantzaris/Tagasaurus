@@ -34,6 +34,10 @@ export const CONTEXT_BRIDGE = {
 
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
+  selectExportPath: async (suggestedFileName: string, filters?: Electron.FileFilter[]): Promise<string|boolean> => {
+    return ipcRenderer.invoke('dialog:select-save-path', {suggestedFileName, fileFilters: filters});
+  },
+
   deleteMediaFile: (fileHash: string) => {
     ipcRenderer.send('delete-media-hash', fileHash);
   },

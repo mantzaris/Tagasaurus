@@ -307,6 +307,23 @@ ipcMain.on('save-media-description', async (_evt, p: {
 });
 
 
+
+ipcMain.handle('dialog:select-save-path', async (_evt, options: {
+  suggestedFileName: string;
+  fileFilters?: Electron.FileFilter[];
+}) => {
+  const result = await dialog.showSaveDialog({
+    title: 'Choose where to save your export',
+    defaultPath: options.suggestedFileName,   //eg ~/Downloads/tagasaurus_export.car
+    buttonLabel: 'Save Export',
+    filters: options.fileFilters,             //optional: [{ name: 'Tagasaurus export', extensions: ['car'] }]
+    properties: ['showOverwriteConfirmation'],
+  });
+  return result.canceled ? undefined : result.filePath;
+});
+
+
+
 ipcMain.handle('dialog:select-files', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     title: 'Select media files',
