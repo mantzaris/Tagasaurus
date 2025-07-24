@@ -17,6 +17,7 @@ import { getFaceEmbeddingsByMediaIds, getMediaFilesByHash, searchFaceVectors, se
 import { FaceHit, SearchRow } from "./types/variousTypes";
 
 import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
+import { createTarArchive } from "./main-functions/utils/export";
 
 const earlyDisplay = guessDisplaySync();
 
@@ -308,19 +309,26 @@ ipcMain.on('save-media-description', async (_evt, p: {
 
 
 
-ipcMain.handle('dialog:select-save-path', async (_evt, options: {
-  suggestedFileName: string;
-  fileFilters?: Electron.FileFilter[];
-}) => {
-  const result = await dialog.showSaveDialog({
+ipcMain.handle('dialog:select-save-path', async (_evt, opts) => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
     title: 'Choose where to save your export',
-    defaultPath: options.suggestedFileName,   //eg ~/Downloads/tagasaurus_export.car
+    defaultPath: opts.suggestedFileName,   //eg ~/Downloads/tagasaurus_backup.tar.gz
     buttonLabel: 'Save Export',
-    filters: options.fileFilters,             //optional: [{ name: 'Tagasaurus export', extensions: ['car'] }]
+    filters: opts.fileFilters,
     properties: ['showOverwriteConfirmation'],
   });
-  return result.canceled ? undefined : result.filePath;
+
+  if (canceled || !filePath) return false;
+  console.log(`filepath is: ${filePath}`)
+  try {
+    await createTarArchive(tagaDir, filePath);
+    return filePath;
+  } catch (err) {
+    console.error('Backup failed:', err);
+    return false;
+  }
 });
+
 
 
 
@@ -411,6 +419,7 @@ ipcMain.handle("face-search", async (
 ): Promise<FaceHit[]> => {
   return searchFaceVectors(db, queryVecs, k);
 });
+
 
 
 //allowing the gpu

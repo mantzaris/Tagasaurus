@@ -1,12 +1,14 @@
 <script lang="ts">
+import SpinnerSimple from "$lib/components/SpinnerSimple.svelte";
 import { Button, Col, Container, Icon, Input, Row,  TabContent, TabPane, Toast } from "@sveltestrap/sveltestrap";
 
 let status: string|number = 'alpha';
 let isOpen = $state(false);
 let toastMessage = "";
+let processingSpinner = $state(false);
 
 async function upload() {
-  const paths = await window.bridge.selectFiles();
+  const paths = await window.bridge.selectFiles();   
 
   if (paths.length) {
     window.bridge.sendDroppedPaths(paths);
@@ -15,16 +17,19 @@ async function upload() {
   }
 }
 
+
 async function exportTaga() {
-  const path = await window.bridge.selectExportPath("tagasaurusExport.tar");
-  console.log(`path = ${path}`);
-  if (typeof path == 'string') {
-    toastMessage = "Export Started..."
+    processingSpinner = true;
+
+    const path = await window.bridge.exportTagasaurus("tagasaurusExport.tar");      
+        
+    processingSpinner = false;
+    path ? toastMessage = `Export Ok at ${path}` : `Export Failed`;
     isOpen = true;
-  }
 }
 
 </script>
+
 
 <div class="toast-container">
     <Toast autohide fade={true} duration={200} delay={1200} body {isOpen} on:close={() => (isOpen = false)}>
@@ -32,6 +37,8 @@ async function exportTaga() {
     </Toast>
 </div>
 
+
+<SpinnerSimple busy={processingSpinner} message="Processing..." color="rgba(0,255,128,.9)" block={true}/>
 
 
 <Button color="primary" size="lg" href="/" class="ms-3 mt-3 mb-4">
