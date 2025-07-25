@@ -38,6 +38,10 @@ export const CONTEXT_BRIDGE = {
     return ipcRenderer.invoke('dialog:select-save-path', {suggestedFileName, fileFilters: filters});
   },
 
+  importTagasaurus: async (): Promise<boolean> => {
+    return ipcRenderer.invoke('dialog:select-import-tar');
+  },
+
   deleteMediaFile: (fileHash: string) => {
     ipcRenderer.send('delete-media-hash', fileHash);
   },

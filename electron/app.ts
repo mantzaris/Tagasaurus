@@ -18,6 +18,7 @@ import { FaceHit, SearchRow } from "./types/variousTypes";
 
 import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
 import { createTarArchive } from "./main-functions/utils/export";
+import { demo } from "./main-functions/utils/import";
 
 const earlyDisplay = guessDisplaySync();
 
@@ -424,5 +425,17 @@ ipcMain.handle("face-search", async (
 });
 
 
+
+
+ipcMain.handle('dialog:select-import-tar', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Select Tagasaurus .tar to import',
+    properties: ['openFile', 'dontAddToRecent']
+  });
+
+  if(!canceled) {
+    demo(filePaths[0])
+  }
+});
 
 //allowing the gpu

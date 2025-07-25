@@ -21,12 +21,24 @@ async function upload() {
 async function exportTaga() {
     processingSpinner = true;
 
-    const path = await window.bridge.exportTagasaurus("tagasaurusExport.tar");      
+    const success = await window.bridge.exportTagasaurus("tagasaurusExport.tar");      
+        
+    processingSpinner = false;
+    success ? toastMessage = `Import Ok` : `Import Failed`;
+    isOpen = true;
+}
+
+
+async function importTaga() {
+    processingSpinner = true;
+
+    const path = await window.bridge.importTagasaurus();      
         
     processingSpinner = false;
     path ? toastMessage = `Export Ok at ${path}` : `Export Failed`;
     isOpen = true;
 }
+
 
 </script>
 
@@ -100,7 +112,7 @@ async function exportTaga() {
             <br/>
 
             <div class="d-flex justify-content-center">
-                <Button color="primary" size="lg" onclick={upload}>
+                <Button color="primary" size="lg" onclick={importTaga}>
                 <Icon name="database-fill-add" class="fs-1" /> Import Taga Data
                 </Button>
             </div>
