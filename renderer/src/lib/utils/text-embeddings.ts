@@ -43,7 +43,7 @@ export async function embedText(
 
 //TODO: in dev also import 'env' and do, 'env.useBrowserCache = false;'
 /**
- * OPTIONAL – turn off the WASM/ONNX browser cache in dev only.
+ * OPTIONAL: turn off the WASM/ONNX browser cache in dev only.
  * Remove or wrap in `if (import.meta.env.DEV)` for production.
  */
 // env.useBrowserCache = false;

@@ -81,6 +81,9 @@ async function initialize() {
     if(displayServer == 'unknown') displayServer = 'wayland';
   }
 
+
+
+
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }
 

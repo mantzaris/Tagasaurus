@@ -13,6 +13,7 @@ import {embedText} from '$lib/utils/text-embeddings';
 import {facesSetUp, detectFacesInImage, embedFace, scaleFaceBox, make112Face} from '$lib/utils/faces';
 import SearchResultCard from '$lib/components/SearchResultCard.svelte';
 import TaggingSlugContextMenu from '$lib/components/TaggingSlugContextMenu.svelte';
+  import { l2NormalizeReturn } from '$lib/utils/ml-utils';
 
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
@@ -163,6 +164,8 @@ async function saveDescription() {
   
   try {
     const vec32 = (await embedText(mediaFile.description, device))[0]; //F32 array (384)
+    const vec32Normed = l2NormalizeReturn(vec32);
+    console.log({vec32})
     //const [vec32] = await embedText(mediaFile.description, device);
     // console.log(vec32);
 
@@ -172,13 +175,13 @@ async function saveDescription() {
 
     if (idx !== -1) {
       seenMediaFiles[idx].description = mediaFile.description;
-      seenMediaFiles[idx].descriptionEmbedding = Array.from(vec32);
+      seenMediaFiles[idx].descriptionEmbedding = Array.from(vec32Normed);
     }
 
     window.bridge.saveMediaFileDescription(
       mediaFile.fileHash,
       mediaFile.description,
-      vec32
+      vec32Normed
     );
 
     await removeMediaFileSequential(mediaFile.fileHash)

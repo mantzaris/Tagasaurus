@@ -98,7 +98,7 @@
   },
   "dependencies": {
     "@frsource/is-animated": "^1.0.5",
-    "@huggingface/transformers": "^3.5.0",
+    "@huggingface/transformers": "^3.7.0",
     "@types/sharp": "^0.31.1",
     "dexie": "^4.0.11",
     "electron-reload": "^2.0.0-alpha.1",
@@ -114,7 +114,7 @@
     "node-webpmux": "^3.2.1",
     "nudged": "^2.1.1",
     "omggif": "^1.0.10",
-    "onnxruntime-node": "1.21.1",
+    "onnxruntime-node": "^1.21.1",
     "pngjs": "^7.0.0",
     "readdirp": "^4.1.2",
     "sharp": "^0.34.0",

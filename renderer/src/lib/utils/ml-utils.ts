@@ -49,3 +49,12 @@ export function cosine(a: number[] | Float32Array, b: number[] | Float32Array) {
   for (let i = 0; i < a.length; ++i) dot += a[i] * b[i];
   return dot; // both vectors are L2-normed
 }
+
+
+export function l2NormalizeReturn(v: Float32Array) {
+  let sum = 0;
+  for (let i = 0; i < v.length; ++i) sum += v[i] * v[i];
+  const inv = 1 / Math.sqrt(sum || 1);
+  for (let i = 0; i < v.length; ++i) v[i] *= inv;
+  return v;
+}

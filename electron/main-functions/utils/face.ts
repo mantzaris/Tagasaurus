@@ -16,6 +16,14 @@ export function l2Normalize(v: Float32Array) {
   for (let i = 0; i < v.length; ++i) v[i] *= inv;
 }
 
+export function l2NormalizeReturn(v: Float32Array) {
+  let sum = 0;
+  for (let i = 0; i < v.length; ++i) sum += v[i] * v[i];
+  const inv = 1 / Math.sqrt(sum || 1);
+  for (let i = 0; i < v.length; ++i) v[i] *= inv;
+  return v;
+}
+
 
 export function nonMaxSup(faces: FaceDet[], threshold = 0.3): FaceDet[] {
     const iou = (a:number[], b:number[]) => {
