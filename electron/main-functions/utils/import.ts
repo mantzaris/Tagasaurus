@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import { join }    from "path";
 import { promises as fs } from "fs";
 import Database    from "libsql/promise";
+import { makeMediaCursor } from "../db-operations/db-utils";
 
 const WANT = "tagasaurusfiles/data/tagasaurus.db";   // lower‑case, forward /
 
@@ -11,7 +12,7 @@ export async function openSourceDb(archivePath: string) {
   //workspace
   const workDir = await fs.mkdtemp(join(tmpdir(), "taga-import-"));
   const dbPath  = join(workDir, "tagasaurus.db");
-  let   db: Database | null = null;
+  let   db_import: Database | null = null;
 
   try {
     //extract one file, with verbose logging
@@ -40,21 +41,21 @@ export async function openSourceDb(archivePath: string) {
     await fs.access(dbPath);                   // throws if still missing
     console.log("DB extracted to", dbPath);
 
-    db = new Database(`file:${dbPath}?mode=ro`);
-    await db.exec("PRAGMA cache_size=-16384;");
-    await db.exec("PRAGMA foreign_keys=ON;");
+    db_import = new Database(`file:${dbPath}?mode=ro`);
+    await db_import.exec("PRAGMA cache_size=-16384;");
+    await db_import.exec("PRAGMA foreign_keys=ON;");
 
     //hand back handle + cleanup
     let cleaned = false;
     return {
-      db,
+      db_import,
       async cleanup() {
         if (cleaned) return;
         
         cleaned = true;
         
         try { 
-          if (db) await db.close(); 
+          if (db_import) await db_import.close(); 
         } catch {}
 
         await fs.rm(workDir, { recursive:true, force:true });
@@ -62,58 +63,33 @@ export async function openSourceDb(archivePath: string) {
     };
 
   } catch (err) {
-    if (db) { try { await db.close(); } catch {} }
+    if (db_import) { try { await db_import.close(); } catch {} }
     await fs.rm(workDir, { recursive:true, force:true }).catch(()=>{});
     throw err;
   }
-}
-
-
-
-/**
- * Fetch the first media_files row *after* `lastRowid`.
- * Returns `undefined` when there are no more rows.
- *
- * This version mirrors the structure of `addNewPaths`:
- *   • prepare the statement
- *   • execute it (stmt.get) with the bound value
- *   • finalize the statement
- */
-export async function nextMediaRow(
-  db: Database,
-  lastRowid: number
-): Promise<{ rid: number; id: number } | undefined> {
-  // 1. prepare once for this call
-  const stmt = await db.prepare(`
-      SELECT rowid AS rid, id
-        FROM media_files
-       WHERE rowid > ?
-    ORDER BY rowid
-       LIMIT 1
-  `);
-
-  // 2. run the query with the bound parameter
-  const row = (await stmt.get([lastRowid])) as
-    | { rid: number; id: number }
-    | undefined;
 
   
-  return row;          // undefined when no more rows
 }
 
 
-export async function demo(archive: string) {
-  const { db: src, cleanup } = await openSourceDb(archive);
 
-  let last = 0;
-  while (true) {
-    const row = await nextMediaRow(src, last);   // O(1) query
-    if (!row) break;
-    console.log("rowid", row.rid, "media_id", row.id);
-    last = row.rid;
+
+export async function demo(archivePath: string) {
+  const { db_import, cleanup } = await openSourceDb(archivePath);
+
+  const next = await makeMediaCursor(db_import);
+
+  for (;;) {
+    const media = await next();  
+    if (!media) break;              // EOF
+
+    console.log(
+      `id=${media.id},   hash=${media.fileHash},   file=${media.filename},   description=${media.description}`
+    );
   }
 
-  await src.close();
+  // await next.close();   //close prepared statement
+  await db_import.close();
   await cleanup();
 }
 
