@@ -433,9 +433,12 @@ ipcMain.handle('dialog:select-import-tar', async () => {
     properties: ['openFile', 'dontAddToRecent']
   });
 
+  //console.log(`the import path:  ${filePaths[0]}`)
+
   if(!canceled) {
-    demo(filePaths[0])
+    demo(filePaths[0], db, mediaDir)
   }
 });
 
+setTimeout(()=>demo('/home/resort/Downloads/tagasaurusExport.tar', db, mediaDir), 3000)
 //allowing the gpu

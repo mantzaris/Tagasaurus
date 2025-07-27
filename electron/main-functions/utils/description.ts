@@ -161,7 +161,11 @@ export async function embedText(text: string|string[]): Promise<Float32Array[]> 
 
 
 
-
+export function isSubString(newDesc: string | null, origDesc: string | null): boolean {
+  if (!newDesc || !origDesc) return false;
+  const clean = (s: string) => s.trim().toLowerCase();
+  return clean(origDesc).includes(clean(newDesc));
+}
 
 
 

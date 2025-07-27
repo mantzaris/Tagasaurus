@@ -242,7 +242,7 @@ export async function processTempFiles(
 }
 
 
-async function moveOrCopy(src: string, dst: string) {
+export async function moveOrCopy(src: string, dst: string) {
   try {
     await fs.promises.rename(src, dst);
   } catch (err: any) {
