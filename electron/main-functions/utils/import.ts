@@ -130,7 +130,7 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
 
         console.log(`is visual = ${isVisual}`);
 
-        const embeddingBlob = newMedia.descriptionEmbedding
+        const descriptionEmbeddingBlob = newMedia.descriptionEmbedding
                 ? Buffer.from(
                     (newMedia.descriptionEmbedding instanceof Float32Array
                         ? newMedia.descriptionEmbedding
@@ -139,14 +139,18 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
                     )
                 : null;
              
-        console.log(`embedding blob: ${Array.from(embeddingBlob).slice(0, 11)}`);
+        if (descriptionEmbeddingBlob) {
+          console.log(`embedding blob: ${Array.from(descriptionEmbeddingBlob).slice(0, 11)}`);
+        } else {
+          console.log(`embedding blob: null`);
+        }
 
         await insertMediaStmt.run([
           newMedia.fileHash,
           newMedia.filename,
           newMedia.fileType,
           newMedia.description,
-          embeddingBlob
+          descriptionEmbeddingBlob
         ]);
 
         console.log('inserted new media file');
@@ -174,18 +178,22 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
           }
         }
 
-        // copy physical file from tempDir to MediaFiles/<hex tree>
-        const subPath   = getHashSubdirectory(newMedia.fileHash); //eg a/3/e/7
-        const finalDir  = join(mediaDir, subPath);
-        const finalPath = join(finalDir, newMedia.fileHash); //no extension
+        try {
+          // copy physical file from tempDir to MediaFiles/<hex tree>
+          const subPath   = getHashSubdirectory(newMedia.fileHash); //eg a/3/e/7
+          const finalDir  = join(mediaDir, subPath);
+          const finalPath = join(finalDir, newMedia.fileHash); //no extension
 
-        console.log(`subPath = ${subPath}, finalDir = ${finalDir}, finalPath = ${finalPath}`);
-
-        await fs.mkdir(finalDir, { recursive: true });
-        const tmpFilePath = await extractOneMediaFile(archivePath, newMedia.fileHash, workDir);
-        console.log("about to move or copy");
-        await moveOrCopy(tmpFilePath, finalPath);   // your EXDEV‑safe helper
-        console.log("moved or copied complete");
+          await fs.mkdir(finalDir, { recursive: true });
+          const tmpFilePath = await extractOneMediaFile(archivePath, newMedia.fileHash, workDir);       
+          
+          console.log("about to move or copy");
+          await moveOrCopy(tmpFilePath, finalPath);   // your EXDEV‑safe helper
+          console.log("moved or copied complete");
+        } catch (error) { 
+          console.error(`skipping ${newMedia.fileHash} due to error:`, error);
+          continue; // optionally retry later or record this file hash in a failed set
+        }
       }
 
     }
@@ -222,7 +230,7 @@ async function extractOneMediaFile(
     cwd : destDir,     // file will land here
     gzip: /\.(?:tgz|tar\.gz)$/i.test(archivePath),
     filter: p => p === tarPath,
-    strip: 3           // drop TagasaurusFiles/MediaFiles/<sub>/
+    strip: 6
   });
 
   return join(destDir, hash);

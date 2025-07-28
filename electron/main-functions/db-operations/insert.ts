@@ -49,18 +49,19 @@ export async function getLastIdStmt(db: Database) {
 
 
 export async function getFacesForMedia(db: Database, mediaId: number): Promise<TimedEmbedding[]> {
-  const rows = await db.all<{
+  const stmt = await db.prepare(`
+    SELECT time_sec, face_embedding, score, bbox, landmarks
+      FROM face_embeddings
+     WHERE media_file_id = ?
+  `);
+
+  const rows = await stmt.all([mediaId]) as {
     time_sec: number | null;
     face_embedding: Buffer;
     score: number;
     bbox: Buffer;
     landmarks: Buffer;
-  }>(
-    `SELECT time_sec, face_embedding, score, bbox, landmarks
-       FROM face_embeddings
-      WHERE media_file_id = ?`,
-    [mediaId]
-  );
+  }[];
 
   return rows.map(r => ({
     t:    r.time_sec,
