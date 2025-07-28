@@ -51,3 +51,22 @@ export async function makeMediaCursor(db: Database): Promise<MediaCursor> {
 }
 
 
+export async function prepareDatabaseForExport(db: Database): Promise<void> {
+  try {
+    await db.exec(`
+      PRAGMA wal_checkpoint(FULL);   -- flush all WAL changes into db.sqlite
+      PRAGMA journal_mode = DELETE;  -- switch to non-WAL for clean backup
+    `);
+    console.log("Database flushed and switched to DELETE mode for export.");
+  } catch (error) {
+    console.error("Error preparing DB for export:", error);
+  }
+}
+
+
+export async function setupWalDB(db: Database): Promise<void> {
+  await db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+  `);
+}

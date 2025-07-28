@@ -325,7 +325,7 @@ ipcMain.handle('dialog:select-save-path', async (_evt, opts) => {
   if (canceled || !filePath) return false;
   console.log(`filepath is: ${filePath}`)
   try {
-    await createTarArchive(tagaDir, filePath);
+    await createTarArchive(db, tagaDir, filePath);
     return filePath;
   } catch (err) {
     console.error('Backup failed:', err);
