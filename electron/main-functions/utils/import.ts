@@ -130,27 +130,30 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
 
         console.log(`is visual = ${isVisual}`);
 
-        const descriptionEmbeddingBlob = newMedia.descriptionEmbedding
-                ? Buffer.from(
-                    (newMedia.descriptionEmbedding instanceof Float32Array
-                        ? newMedia.descriptionEmbedding
-                        : new Float32Array(newMedia.descriptionEmbedding) //convert number[]
-                    ).buffer
-                    )
-                : null;
-             
-        if (descriptionEmbeddingBlob) {
-          console.log(`embedding blob: ${Array.from(descriptionEmbeddingBlob).slice(0, 11)}`);
-        } else {
-          console.log(`embedding blob: null`);
+        let descriptionEmbeddingTemp: Buffer | null = null;
+
+        if (newMedia.descriptionEmbedding) {
+          const embArray =
+            newMedia.descriptionEmbedding instanceof Float32Array
+              ? newMedia.descriptionEmbedding
+              : new Float32Array(newMedia.descriptionEmbedding);
+
+
+          descriptionEmbeddingTemp = Buffer.from(
+            embArray.buffer,
+            embArray.byteOffset,
+            embArray.byteLength / 4
+          );
         }
+
+        console.log(`length descriptionEmbeddingBlob = ${descriptionEmbeddingTemp.length}`)
 
         await insertMediaStmt.run([
           newMedia.fileHash,
           newMedia.filename,
           newMedia.fileType,
           newMedia.description,
-          descriptionEmbeddingBlob
+          descriptionEmbeddingTemp
         ]);
 
         console.log('inserted new media file');

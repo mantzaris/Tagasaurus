@@ -48,6 +48,7 @@ export async function getLastIdStmt(db: Database) {
 }
 
 
+//get all the already processed face embeddings
 export async function getFacesForMedia(db: Database, mediaId: number): Promise<TimedEmbedding[]> {
   const stmt = await db.prepare(`
     SELECT time_sec, face_embedding, score, bbox, landmarks
@@ -62,14 +63,20 @@ export async function getFacesForMedia(db: Database, mediaId: number): Promise<T
     bbox: Buffer;
     landmarks: Buffer;
   }[];
+  
+  return rows.map(r => {
+    const faceBuf = Buffer.from(r.face_embedding);
+    const bboxBuf = Buffer.from(r.bbox);
+    const lmsBuf  = Buffer.from(r.landmarks);
 
-  return rows.map(r => ({
-    t:    r.time_sec,
-    emb:  new Float32Array(r.face_embedding.buffer, r.face_embedding.byteOffset, r.face_embedding.byteLength / 4),
-    score: r.score,
-    bbox:  new Float32Array(r.bbox.buffer, r.bbox.byteOffset, r.bbox.byteLength / 4),
-    lms:   new Float32Array(r.landmarks.buffer, r.landmarks.byteOffset, r.landmarks.byteLength / 4)
-  }));
+    return {
+      t: r.time_sec,
+      emb: new Float32Array(faceBuf.buffer, faceBuf.byteOffset, faceBuf.byteLength / 4),
+      score: r.score,
+      bbox: new Float32Array(bboxBuf.buffer, bboxBuf.byteOffset, bboxBuf.byteLength / 4),
+      lms: new Float32Array(lmsBuf.buffer, lmsBuf.byteOffset, lmsBuf.byteLength / 4)
+    };
+  });
 }
 
 
