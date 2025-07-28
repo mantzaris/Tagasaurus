@@ -1,6 +1,7 @@
 <script lang="ts">
 import SpinnerSimple from "$lib/components/SpinnerSimple.svelte";
-  import { clearSessionMediaCache } from "$lib/utils/temp-mediafiles";
+  import { assignFreshImport } from "$lib/state/states.svelte";
+import { clearSessionMediaCache } from "$lib/utils/temp-mediafiles";
 import { Button, Col, Container, Icon, Input, Row,  TabContent, TabPane, Toast } from "@sveltestrap/sveltestrap";
 
 let status: string|number = 'alpha';
@@ -40,6 +41,8 @@ async function importTaga() {
     isOpen = true;
 
     await clearSessionMediaCache();
+    await window.bridge.resetSamples();
+    assignFreshImport(true);
 }
 
 

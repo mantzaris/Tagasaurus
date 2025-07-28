@@ -1,9 +1,13 @@
 
-<script lang="ts">
- 
+<script lang="ts"> 
   // import { Container } from '@sveltestrap/sveltestrap';
   import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand, Icon } from '@sveltestrap/sveltestrap';
+  import { onMount } from 'svelte';
     
+
+  onMount(() => {
+    console.log('main index')
+  })
   </script>
   
 

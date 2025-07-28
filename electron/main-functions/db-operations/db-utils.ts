@@ -68,5 +68,6 @@ export async function setupWalDB(db: Database): Promise<void> {
   await db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
+    PRAGMA synchronous = FULL;
   `);
 }

@@ -15,7 +15,6 @@ let deviceGPU: DeviceGPU = $state('wasm'); //wasm is cpu
 let isLinux = $state(false);
 let displayServer = $state<DisplayServer>('unknown');
 
-
 setContext('isLinux', () => isLinux);
 setContext('displayServer', () => displayServer);
 setContext('mediaDir', () => mediaDir);

@@ -18,6 +18,10 @@ export const CONTEXT_BRIDGE = {
     return await ipcRenderer.invoke("random-sample", count);
   },
 
+  resetSamples: async (): Promise<void> => {
+    return await ipcRenderer.invoke("reset-samples");
+  },
+
   requestMediaDir: async () => {
     return ipcRenderer.invoke("get-media-dir");
   },

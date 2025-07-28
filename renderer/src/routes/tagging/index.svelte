@@ -8,6 +8,8 @@ import { getContext, onMount } from 'svelte';
 
 import { type MediaFile } from '$lib/types/general-types';
 import { fillSampleMediaFiles, getNewMediaFiles } from '$lib/utils/temp-mediafiles';
+  import { assignFreshImport, freshImport } from '$lib/state/states.svelte';
+  
 
 
 let mediaDir: string = $state(getContext('mediaDir')); 
@@ -19,9 +21,21 @@ let isMounting: boolean = $state(true);
 
 let isProcessing = $state(false);
 
+
 onMount(async () => {
-  console.log("cards mounting")
+  console.log("cards mounting");
   mediaDir = await getMediaDir();
+
+  console.log(`is FeshImport = ${freshImport.value}`);
+  if(freshImport.value) {
+    newMedia = [];
+    sampleMedia = [];
+    assignFreshImport(false);
+    await setCards();
+  }
+
+  
+
   await setCards();
   isMounting = false;
 });
