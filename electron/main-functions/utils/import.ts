@@ -126,7 +126,7 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
       } else { //db does not have the same hash INSERT NEW media file with face embeddings (NEW)
         console.log(`NON-EXISTING: import media hash NOT found`)
 
-        const isVisual = newMedia.fileType.startsWith("image/") || newMedia.fileType.startsWith("video/");
+        const isVisual = (newMedia.fileType.startsWith("image/") && newMedia.fileType !== "image/webp") || newMedia.fileType.startsWith("video/");
 
         console.log(`is visual = ${isVisual}`);
 
@@ -146,7 +146,7 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
           );
         }
 
-        console.log(`length descriptionEmbeddingBlob = ${descriptionEmbeddingTemp.length}`)
+        if(descriptionEmbeddingTemp) console.log(`length descriptionEmbeddingBlob = ${descriptionEmbeddingTemp.length}`)
 
         await insertMediaStmt.run([
           newMedia.fileHash,
