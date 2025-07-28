@@ -1,5 +1,6 @@
 <script lang="ts">
 import SpinnerSimple from "$lib/components/SpinnerSimple.svelte";
+  import { clearSessionMediaCache } from "$lib/utils/temp-mediafiles";
 import { Button, Col, Container, Icon, Input, Row,  TabContent, TabPane, Toast } from "@sveltestrap/sveltestrap";
 
 let status: string|number = 'alpha';
@@ -24,7 +25,7 @@ async function exportTaga() {
     const success = await window.bridge.exportTagasaurus("tagasaurusExport.tar");      
         
     processingSpinner = false;
-    success ? toastMessage = `Import Ok` : `Import Failed`;
+    success ? toastMessage = `Export Ok` : `Export Failed`;
     isOpen = true;
 }
 
@@ -32,11 +33,13 @@ async function exportTaga() {
 async function importTaga() {
     processingSpinner = true;
 
-    const path = await window.bridge.importTagasaurus();      
-        
+    const path = await window.bridge.importTagasaurus();
+    
     processingSpinner = false;
-    path ? toastMessage = `Export Ok at ${path}` : `Export Failed`;
+    path ? toastMessage = `Import Ok at ${path}` : `Import Failed`;
     isOpen = true;
+
+    await clearSessionMediaCache();
 }
 
 

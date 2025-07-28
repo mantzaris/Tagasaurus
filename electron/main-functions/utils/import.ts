@@ -6,7 +6,7 @@ import { promises as fs } from "fs";
 import Database    from "libsql/promise";
 import { makeMediaCursor } from "../db-operations/db-utils";
 import { getMediaFilesByHash } from "../db-operations/search";
-import { embedText, isSubString } from "./description";
+import { embedText, mergeDescription } from "./description";
 import { updateDescription } from "../db-operations/update";
 import { getFacesForMedia, getInsertFaceStmt, getInsertMediaStmt, getLastIdStmt } from "../db-operations/insert";
 import { getHashSubdirectory } from "./utils";
@@ -96,23 +96,39 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
       const newMedia = await next();  
       if (!newMedia) break;              // EOF
 
-      console.log(
-        `id=${newMedia.id},  hash=${newMedia.fileHash},  file=${newMedia.filename},  description=${newMedia.description}`
-      );
+      console.log("---------------------------------------------------");
+      console.log("--------NEW IMPORT ENTRY---------------------------");
+      console.log(`id=${newMedia.id},  hash=${newMedia.fileHash},  file=${newMedia.filename},  description=${newMedia.description}`);
 
-      const origMedia = await  getMediaFilesByHash(db, [newMedia.fileHash]);
+      const origMedia = await getMediaFilesByHash(db, [newMedia.fileHash]);
+      console.log(`origMedia length = ${origMedia.length}`);
 
-      if(origMedia.length) { //db has the same hash
+      if(origMedia.length) { //db has the same hash (NOT NEW)
+        console.log(`EXISTING: import media hash found`);
+
         const origDescription = origMedia[0].description;
         const newDescription  = newMedia.description;
 
-        if(!isSubString(origDescription, newDescription)) {
-          const mergedDescription = `${origDescription ?? ""}<import>${newDescription}</import>`;
-          const [mergedDescriptionEmbedding] = await embedText(mergedDescription);
-          await updateDescription(db, mergedDescription, mergedDescriptionEmbedding, origMedia[0].fileHash);
+        console.log(`original desciption = ${origDescription},  new description = ${newDescription}`);
+        
+        const { desc, changed } = mergeDescription(origDescription, newMedia.description);
+
+        if(changed) {
+          console.log(`new description not a subset, appending`)
+          console.log(`merged description = ${desc}`);
+
+          const [mergedDescriptionEmbedding] = await embedText(desc);
+          console.log(`got merged description embedding`);
+          await updateDescription(db, desc, mergedDescriptionEmbedding, origMedia[0].fileHash);
+          console.log(`updated Description to merged description`);
         } //else ignore no other meta data there
 
-      } else { //db does not have the same hash INSERT NEW media file with face embeddings
+      } else { //db does not have the same hash INSERT NEW media file with face embeddings (NEW)
+        console.log(`NON-EXISTING: import media hash NOT found`)
+
+        const isVisual = newMedia.fileType.startsWith("image/") || newMedia.fileType.startsWith("video/");
+
+        console.log(`is visual = ${isVisual}`);
 
         const embeddingBlob = newMedia.descriptionEmbedding
                 ? Buffer.from(
@@ -123,6 +139,8 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
                     )
                 : null;
              
+        console.log(`embedding blob: ${Array.from(embeddingBlob).slice(0, 11)}`);
+
         await insertMediaStmt.run([
           newMedia.fileHash,
           newMedia.filename,
@@ -131,19 +149,29 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
           embeddingBlob
         ]);
 
-        const { id: mediaFileId } = await lastIdStmt.get() as { id: number };
-        
-        const faces = await getFacesForMedia(dbImport, newMedia.id!);
+        console.log('inserted new media file');
 
-        for (const f of faces) {
-          await insertFaceStmt.run([
-            mediaFileId,
-            f.t ?? null,
-            Buffer.from(f.emb.buffer),
-            f.score,
-            Buffer.from(f.bbox.buffer),
-            Buffer.from(f.lms.buffer)
-          ]);
+        const { id: mediaFileId } = await lastIdStmt.get() as { id: number };
+
+        console.log(`got new id inserted= ${mediaFileId}`);
+        
+        if (isVisual) {
+          const faces = await getFacesForMedia(dbImport, newMedia.id!);
+
+          console.log(`faces length = ${faces.length}`);
+
+          for (const f of faces) {
+            await insertFaceStmt.run([
+              mediaFileId,
+              f.t ?? null,
+              Buffer.from(f.emb.buffer),
+              f.score,
+              Buffer.from(f.bbox.buffer),
+              Buffer.from(f.lms.buffer)
+            ]);
+
+            console.log(`inserted new face`);
+          }
         }
 
         // copy physical file from tempDir to MediaFiles/<hex tree>
@@ -151,29 +179,32 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
         const finalDir  = join(mediaDir, subPath);
         const finalPath = join(finalDir, newMedia.fileHash); //no extension
 
+        console.log(`subPath = ${subPath}, finalDir = ${finalDir}, finalPath = ${finalPath}`);
+
         await fs.mkdir(finalDir, { recursive: true });
         const tmpFilePath = await extractOneMediaFile(archivePath, newMedia.fileHash, workDir);
+        console.log("about to move or copy");
         await moveOrCopy(tmpFilePath, finalPath);   // your EXDEV‑safe helper
-
+        console.log("moved or copied complete");
       }
 
     }
 
+    console.log("import complete");
+
     await db.exec("COMMIT");
-    await insertMediaStmt.finalize();
-    await insertFaceStmt.finalize();
-    await lastIdStmt.finalize();
+
+    console.log("db operations complete");
 
   } catch (e) {
     await db.exec("ROLLBACK");
     throw e;
   } finally {
-    await next.close(); //calls stmt.finalize()
     await dbImport.close();
     await cleanup();
   }
-  //await next.close();   //close prepared statement
-  await dbImport.close();
+
+  // await dbImport.close();
   await cleanup();
 }
 

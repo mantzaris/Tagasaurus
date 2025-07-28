@@ -161,11 +161,35 @@ export async function embedText(text: string|string[]): Promise<Float32Array[]> 
 
 
 
-export function isSubString(newDesc: string | null, origDesc: string | null): boolean {
-  if (!newDesc || !origDesc) return false;
-  const clean = (s: string) => s.trim().toLowerCase();
-  return clean(origDesc).includes(clean(newDesc));
+export function mergeDescription(
+  original: string | null | undefined,
+  incoming: string | null | undefined
+): { desc: string | null; changed: boolean } {
+  const o = (original ?? "").trim();
+  const n = (incoming ?? "").trim();
+
+  // If either is empty, do nothing - return original
+  if (!o || !n) {
+    return { desc: original || null, changed: false };
+  }
+
+  // Check if incoming is subset/equal to original (case insensitive)
+  const originalLower = o.toLowerCase();
+  const incomingLower = n.toLowerCase();
+  
+  if (originalLower.includes(incomingLower) || originalLower === incomingLower) {
+    return { desc: original, changed: false };
+  }
+
+  // Incoming is not a subset - wrap in import tags
+  return {
+    desc: `${o}<import>${n}</import>`,
+    changed: true
+  };
 }
+
+
+
 
 
 

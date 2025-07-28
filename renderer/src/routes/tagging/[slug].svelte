@@ -165,7 +165,7 @@ async function saveDescription() {
   try {
     const vec32 = (await embedText(mediaFile.description, device))[0]; //F32 array (384)
     const vec32Normed = l2NormalizeReturn(vec32);
-    console.log({vec32})
+    // console.log({vec32})
     //const [vec32] = await embedText(mediaFile.description, device);
     // console.log(vec32);
 

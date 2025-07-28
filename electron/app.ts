@@ -440,5 +440,5 @@ ipcMain.handle('dialog:select-import-tar', async () => {
   }
 });
 
-setTimeout(()=>demo('/home/resort/Downloads/tagasaurusExport.tar', db, mediaDir), 3000)
+// setTimeout(()=>demo('/home/resort/Downloads/tagasaurusExport.tar', db, mediaDir), 3000)
 //allowing the gpu

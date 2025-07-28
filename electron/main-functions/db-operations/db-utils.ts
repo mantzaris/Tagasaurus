@@ -45,7 +45,9 @@ export async function makeMediaCursor(db: Database): Promise<MediaCursor> {
   }) as MediaCursor;
 
   //expose disposer
-  next.close = async () => { await stmt.finalize(); };
+  next.close = async () => { stmt.free(); };
 
   return next;
 }
+
+

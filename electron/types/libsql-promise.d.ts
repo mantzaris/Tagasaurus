@@ -38,8 +38,9 @@ declare module 'libsql/promise' {
       run(...params: any[]): Promise<RunResult>;
       all(...params: any[]): Promise<any[]>;
       
+      free(): void;
+      
       //additional methods
-      finalize(): Promise<void>;
       bind(...params: any[]): Promise<void>;
       iterate(...params: any[]): Promise<AsyncIterableIterator<any>>;
       expand(...params: any[]): Promise<any[]>;

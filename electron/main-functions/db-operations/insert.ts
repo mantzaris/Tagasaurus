@@ -73,7 +73,6 @@ export async function getFacesForMedia(db: Database, mediaId: number): Promise<T
 
 
 
-
 // export async function insertNewMediaWithFaces(
 //   db: Database,
 //   media: Omit<MediaFile, "id">,          
