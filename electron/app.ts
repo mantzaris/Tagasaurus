@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, desktopCapturer, session, Menu, MenuItemCo
 import { once } from "node:events"; 
 import electronReload from "electron-reload";
 
-import { join } from "path";
+import { join, dirname } from "path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, promises as fsPromises } from 'fs';
 
 import Database from "libsql/promise";
 
@@ -19,6 +20,7 @@ import { FaceHit, SearchRow } from "./types/variousTypes";
 import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
 import { createTarArchive } from "./main-functions/utils/export";
 import { demo } from "./main-functions/utils/import";
+
 
 const earlyDisplay = guessDisplaySync();
 
@@ -37,6 +39,50 @@ if (earlyDisplay === 'wayland') {
 app.commandLine.appendSwitch('enable-unsafe-webgpu');
 
 
+//SETTINGS
+const SETTINGS_PATH = join(app.getPath('userData'), 'tagasaurus-settings.json');
+interface Settings { tagaFilesBaseDir?: string }
+function loadSettings(): Settings {
+  if (existsSync(SETTINGS_PATH)) {
+    try { return JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8')); } catch {}
+  }
+  return {};
+}
+function saveSettings(s: Settings) {
+  writeFileSync(SETTINGS_PATH, JSON.stringify(s, null, 2), 'utf-8');
+}
+function defaultBaseDir(): string {
+  if (app.isPackaged) {
+    return dirname(app.getPath('exe')); //root sibling
+  }
+  let dir = __dirname;
+  for (let i = 1; i < 4; i++) dir = dirname(dir); //go up 5 levels
+  return dir;
+}
+export const getTagaFilesBaseDir   = () => {
+  const pref = loadSettings().tagaFilesBaseDir?.trim();
+  return pref ? pref : defaultBaseDir();
+};
+export const setTagaFilesBaseDir = (p: string) => {
+  const currentSettings = loadSettings();
+  const newSettings = {
+    ...currentSettings, //preserve existing settings
+    tagaFilesBaseDir: p.trim() //overwrite or add the new one
+  };
+  saveSettings(newSettings); //save the whole object back
+};
+export const resetTagaFilesBaseDir = () => {
+  const currentSettings = loadSettings();
+  delete currentSettings.tagaFilesBaseDir; //only remove the specific key
+  saveSettings(currentSettings);
+};
+export function assetsBaseDir(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'assets')     // packaged
+    : join(defaultBaseDir(), 'Tagasaurus', 'assets');         // dev
+}
+
+console.log(`SETTINGS_PATH = ${SETTINGS_PATH}`);
 
 
 const sampleSize = 200;

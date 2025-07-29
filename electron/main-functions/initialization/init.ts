@@ -7,6 +7,7 @@ import fsExtra from "fs-extra";
 import Database from "libsql/promise";
 
 import { DBConfig, DBConfigFileQueue } from "../../types/dbConfig";
+import { assetsBaseDir, getTagaFilesBaseDir } from "../../app";
 
 
 export const defaultDBConfig: DBConfig = {
@@ -169,29 +170,18 @@ async function createHexSubdirectories(root: string, levels: number): Promise<vo
  *  - `tempDir`:     The Temporary data folder
  *  - `created`:     Boolean for if the directory needed to be created or not
  */
-export async function checkTagasaurusDirectories(): Promise<{
+export async function checkTagasaurusDirectories(fileBaseDir: string | undefined = undefined): Promise<{
     tagaDir: string;
     mediaDir: string;
     tempDir: string;
     dataDir: string;
     created: boolean;
   }> {
-    let baseDir: string;
-    let created = false;
-  
-    if (app.isPackaged) {      
-      const exeDir = dirname(app.getPath("exe"));
-      baseDir = dirname(exeDir);
-    } else {  
-      const upOnce = dirname(__dirname);
-      const upTwice = dirname(upOnce);
-      const upThrice = dirname(upTwice); 
-      const upFour   = dirname(upThrice);
-      const upFive   = dirname(upFour);
-      baseDir = upFive;
-    }
-  
+    const baseDir = fileBaseDir ?? getTagaFilesBaseDir();
+    console.log(`baseDir = ${baseDir}`);
     const tagaDir = join(baseDir, "TagasaurusFiles");
+    console.log(`tagaDir = ${tagaDir}`);
+    let created = false;    
 
     try {
       //check if directory exists
@@ -200,7 +190,7 @@ export async function checkTagasaurusDirectories(): Promise<{
         console.log(`Already exists: ${tagaDir}`);
       } catch {
         //directory doesn't exist, create it
-        await fsPromises.mkdir(tagaDir);
+        await fsPromises.mkdir(tagaDir, { recursive: true });
         created = true;
         console.log(`Created: ${tagaDir}`);
       }
@@ -209,19 +199,20 @@ export async function checkTagasaurusDirectories(): Promise<{
       try {
         await fsPromises.access(mediaDir);
       } catch {
-        await fsPromises.mkdir(mediaDir);
+        await fsPromises.mkdir(mediaDir, { recursive: true });
         console.log(`Created: ${mediaDir}`);
       }
 
       //create a 4-level deep hex subdirectory tree under MediaFiles
       const hexLevels = 4;
+      //const createHex = !(await dirExists(join(mediaDir, '0'))); 
       await createHexSubdirectories(mediaDir, hexLevels);
 
       const tempDir = join(tagaDir, "TempFiles");
       try {
         await fsPromises.access(tempDir);
       } catch {
-        await fsPromises.mkdir(tempDir);
+        await fsPromises.mkdir(tempDir, { recursive: true });
         console.log(`Created: ${tempDir}`);
       }
 
@@ -229,7 +220,7 @@ export async function checkTagasaurusDirectories(): Promise<{
       try {
         await fsPromises.access(dataDir);
       } catch {
-        await fsPromises.mkdir(dataDir);
+        await fsPromises.mkdir(dataDir, { recursive: true });
         console.log(`Created: ${dataDir}`);
       }
 
@@ -249,21 +240,14 @@ export async function checkTagasaurusDirectories(): Promise<{
  * @param dest - The absolute path where files will be copied (e.g. `TempFiles`).
  */
 async function copyInitMediaToTemp(dest: string): Promise<void> {
-    let initMediaPath: string;
+const initMediaPath = join(assetsBaseDir(), 'init-media');   // 1‑liner
 
-    if (app.isPackaged) {
-        initMediaPath = join(process.resourcesPath, "assets", "init-media");
-        // alternative: initMediaPath = join(app.getAppPath(), "assets", "init-media");
-    } else {
-        initMediaPath = join(__dirname, "..", "..", "..", "..", "assets", "init-media");
-    }
-
-    try {
-        await fsExtra.copy(initMediaPath, dest);
-        console.log(`Copied init-media folder from "${initMediaPath}" to "${dest}"`);
-    } catch (error) {
-        console.error("Failed to copy init-media:", error);
-    }
+  try {
+    await fsExtra.copy(initMediaPath, dest);
+    console.log(`Copied initmedia from "${initMediaPath}" to "${dest}"`);
+  } catch (err) {
+    console.error('Failed to copy init-media:', err);
+  }
 }
 
 
