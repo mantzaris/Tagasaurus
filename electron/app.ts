@@ -22,6 +22,7 @@ import { createTarArchive } from "./main-functions/utils/export";
 import { demo } from "./main-functions/utils/import";
 import { ensureTagaTalk } from "./main-functions/db-operations/update";
 
+import { pathToFileURL } from 'url';
 
 const earlyDisplay = guessDisplaySync();
 
@@ -189,7 +190,7 @@ async function main() {
     resizable: true,
     show: true,
     webPreferences: {
-      devTools: !app.isPackaged,
+      devTools: true,
       preload: join(__dirname, "preload.js"),
       webSecurity: app.isPackaged,
     }
@@ -202,10 +203,13 @@ async function main() {
 
   if(!app.isPackaged) {
     mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.webContents.openDevTools({ mode: "detach" });
   }
   
   if (app.isPackaged) {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(join(__dirname, "../renderer/client/index.html"));
+    
   } else {
     electronReload(join(__dirname), {
       forceHardReset: true,
@@ -217,6 +221,10 @@ async function main() {
   }
 
   mainWindow.once("ready-to-show", mainWindow.show);
+
+  if (app.isPackaged) {
+    mainWindow.webContents.openDevTools({ mode: "detach" }); // dev mode
+  }
 }
 
 
@@ -245,6 +253,7 @@ app.once("ready", async () => {
     await ensureTagaTalk(db);
     
     sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
+
   } catch (error) {
     console.error("error on the app startup! :", error);
   }
