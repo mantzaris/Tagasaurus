@@ -64,7 +64,7 @@
         <CardBody>
           <CardTitle >Settings</CardTitle>
           <CardText>Configure Tagasaurus preferences.</CardText>
-          <Button color="primary" outline size="lg"><Icon name="hand-index-thumb-fill" /></Button>
+          <Button color="primary" outline size="lg" href="/user-settings"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>

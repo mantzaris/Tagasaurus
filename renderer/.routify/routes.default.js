@@ -173,6 +173,37 @@ export const routes = {
       ]
     },
     {
+      "meta": {},
+      "id": "_default_user_settings",
+      "name": "user-settings",
+      "module": false,
+      "file": {
+        "path": "src/routes/user-settings",
+        "dir": "src/routes",
+        "base": "user-settings",
+        "ext": "",
+        "name": "user-settings"
+      },
+      "children": [
+        {
+          "meta": {
+            "isDefault": true
+          },
+          "id": "_default_user_settings_index_svelte",
+          "name": "index",
+          "file": {
+            "path": "src/routes/user-settings/index.svelte",
+            "dir": "src/routes/user-settings",
+            "base": "index.svelte",
+            "ext": ".svelte",
+            "name": "index"
+          },
+          "asyncModule": () => import('../src/routes/user-settings/index.svelte'),
+          "children": []
+        }
+      ]
+    },
+    {
       "meta": {
         "dynamic": true,
         "dynamicSpread": true,

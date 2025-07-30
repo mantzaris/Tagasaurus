@@ -9,6 +9,10 @@ export const CONTEXT_BRIDGE = {
       callback(data);
     });
   },
+
+  getBaseDir: () => ipcRenderer.invoke('taga:get-data-dir'),
+
+  setBaseDir: (p: string) => ipcRenderer.invoke('taga:set-data-dir', p),
   
   requestSampleEntries: async (): Promise<MediaFile[]> => {
     return await ipcRenderer.invoke("get-random-sample");

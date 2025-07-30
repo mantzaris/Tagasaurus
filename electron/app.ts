@@ -90,6 +90,27 @@ export function assetsBaseDir(): string {
     : join(originalProjectRoot(), 'Tagasaurus', 'assets');         // dev
 }
 
+ipcMain.handle('taga:get-data-dir', () => getTagaFilesBaseDir());
+ipcMain.handle('taga:set-data-dir', async (_evt, dirPath: string) => {
+  if (typeof dirPath !== 'string' || !dirPath.trim()) {
+    throw new Error('Path must be a non‑empty string.');
+  }
+
+  // make sure the directory exists and we can write to it
+  try {
+    await fsPromises.access(dirPath);
+  } catch {
+    return false;
+  }
+
+  setTagaFilesBaseDir(dirPath.trim());
+
+  // relaunch so every window picks up the new location
+  //await initialize();
+  //app.relaunch(); //spawns the new process
+  app.quit(); // app.exit(0);
+  return true;
+});
 console.log(`SETTINGS_PATH = ${SETTINGS_PATH}`);
 
 
