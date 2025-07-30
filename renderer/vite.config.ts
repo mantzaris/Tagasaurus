@@ -7,7 +7,7 @@ import * as path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [svelte(), routify({ router: 'hash' })],
+  plugins: [svelte(), routify()],
   base: "./", // Use relative paths for electron
   build: {
     outDir: "../dist/renderer/",

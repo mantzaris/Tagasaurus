@@ -208,7 +208,11 @@ async function main() {
   }
   
   if (app.isPackaged) {
-    mainWindow.loadFile(join(__dirname, "../renderer/client/index.html"));
+  
+    // mainWindow.loadFile(join(__dirname, "../renderer/client/index.html"));
+  
+    const entry = pathToFileURL(join(__dirname, '../renderer/client/index.html')).href + '#/';
+    mainWindow.loadURL(entry); 
     
   } else {
     electronReload(join(__dirname), {
