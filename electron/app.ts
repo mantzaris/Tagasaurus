@@ -20,6 +20,7 @@ import { FaceHit, SearchRow } from "./types/variousTypes";
 import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
 import { createTarArchive } from "./main-functions/utils/export";
 import { demo } from "./main-functions/utils/import";
+import { ensureTagaTalk } from "./main-functions/db-operations/update";
 
 
 const earlyDisplay = guessDisplaySync();
@@ -158,8 +159,6 @@ async function initialize() {
   }
 
 
-
-
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }
 
@@ -242,6 +241,8 @@ app.once("ready", async () => {
       // );
       enqueueIngest(db, tempDir, mediaDir, mainWindow);
     }
+
+    await ensureTagaTalk(db);
     
     sampleMediaFiles = await getRandomEntries(db, mediaDir, sampleSize);
   } catch (error) {
@@ -266,6 +267,8 @@ app.on("activate", async () => {
         // );
         enqueueIngest(db, tempDir, mediaDir, mainWindow);
       }
+
+      await ensureTagaTalk(db);
       
       registerDisplayMediaHandler();
 
@@ -519,6 +522,7 @@ ipcMain.handle('dialog:select-import-tar', async () => {
     demo(filePaths[0], db, mediaDir)
   }
 });
+
 
 // setTimeout(()=>demo('/home/resort/Downloads/tagasaurusExport.tar', db, mediaDir), 3000)
 //allowing the gpu
