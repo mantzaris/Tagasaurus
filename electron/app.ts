@@ -56,7 +56,7 @@ function defaultBaseDir(): string {
     return dirname(app.getPath('exe')); //root sibling
   }
   let dir = __dirname;
-  for (let i = 1; i < 4; i++) dir = dirname(dir); //go up 5 levels
+  for (let i = 0; i < 3; i++) dir = dirname(dir); //go up levels
   return dir;
 }
 export const getTagaFilesBaseDir   = () => {
@@ -76,10 +76,18 @@ export const resetTagaFilesBaseDir = () => {
   delete currentSettings.tagaFilesBaseDir; //only remove the specific key
   saveSettings(currentSettings);
 };
+function originalProjectRoot(): string {
+  if (app.isPackaged) {
+    return dirname(app.getPath('exe'));
+  }
+  let dir = __dirname;
+  for (let i = 0; i < 3; i++) dir = dirname(dir);
+  return dir;
+}
 export function assetsBaseDir(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'assets')     // packaged
-    : join(defaultBaseDir(), 'Tagasaurus', 'assets');         // dev
+    : join(originalProjectRoot(), 'Tagasaurus', 'assets');         // dev
 }
 
 console.log(`SETTINGS_PATH = ${SETTINGS_PATH}`);
