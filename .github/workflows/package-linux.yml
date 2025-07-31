@@ -6,41 +6,44 @@ on:
 
 jobs:
   build-linux:
-    if: contains(github.event.head_commit.message, 'PACKAGE')  # :contentReference[oaicite:0]{index=0}
+    if: contains(github.event.head_commit.message, 'PACKAGE')
     runs-on: ubuntu-latest
 
     steps:
-      # 1 Check out code
+      # 1 Checkout (pull LFS models so they aren't stubs!!!!!!!)
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
-      # 2 Set up Node (use the LTS you develop with)
+      # 2 Node setup + npm cache
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.15.0
-          cache: npm                 # speeds up subsequent runs
+          node-version: 22.15.0            # Electron 35s minimum LTS
+          cache: npm
           cache-dependency-path: |
             package-lock.json
             renderer/package-lock.json
 
-      # 3a Install root dependencies
-      - name: Install root deps
-        run: npm ci
+      # 3 Install deps
+      - run: npm ci
+      - run: npm ci --prefix renderer
 
-      # 3b Install renderer dependencies
-      - name: Install renderer deps
-        run: npm ci --prefix renderer
+      # 4 Build & package  does build/Tagasaurus-0.0.1.zip
+      - run: npm run package
 
+      # 5 Grab version string
+      - id: ver
+        run: echo "pkg=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
 
-      # 4 Build and package
-      - name: Package with electron-builder
-        run: npm run package
+      # 6 Publish (create update) release and attach ZIP
+      - name: Publish ZIP to GitHub Release
+        uses: softprops/action-gh-release@v2
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 5 Upload the ZIP produced in /build
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Tagasaurus-linux
-          path: build/*.zip
-          if-no-files-found: error
+          tag_name: v${{ steps.ver.outputs.pkg }}           # eg v0.0.1
+          name: "Tagasaurus ${{ steps.ver.outputs.pkg }}"
+          draft: false                                      # flip true for manual approval
+          prerelease: true                                  # stays in Pre-release row
+          files: build/Tagasaurus-*.zip                     # match actual filename
+          fail_on_unmatched_files: true
