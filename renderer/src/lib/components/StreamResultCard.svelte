@@ -19,13 +19,6 @@
 
   const filePath = getMediaFilePath(mediaDir, row.fileHash);
   const link = `/tagging/${row.fileHash}?fileType=${encodeURIComponent(row.fileType)}`;
-  // export let row: SearchRow = {
-  //   fileHash: '281fe476540dff58cf5fdabec0e79a5fec6018feb1e79cdbdb2849b375aeb802',
-  //   fileType: 'image/jpeg',
-  //   description: null
-  // };
-  // const mediaDir: string = getContext('mediaDir') ?? '';
-  // const filePath = getMediaFilePath(mediaDir, row.fileHash);
 
   const navigate = get(goto);
 
@@ -49,31 +42,23 @@
 
 
 <!-- svelte-ignore event_directive_deprecated -->
-<div class="result-card mb-3"
-     role="button"
-     tabindex="0"
-     on:click={open}
-     on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && open()}>
+<a href={link} class="result-card mb-3">
  
 {#if row.fileType.startsWith('image/')}
-  <div class="result-card mb-3">
     <!-- svelte-ignore a11y_img_redundant_alt -->
     <img class="media" src={filePath} alt="Gallery image" />
-  </div>
 
 {:else if row.fileType.startsWith('video/')}
-  <div class="result-card mb-3">
     <!-- svelte-ignore a11y_media_has_caption -->
     <video controls preload="metadata" class="media">
       <source src={filePath} type={row.fileType} />
     </video>
-  </div>
 
 {:else}
   Unsupported file type
 {/if}
 
-</div>
+</a>
 
 <style>
  .result-card{

@@ -1,0 +1,12 @@
+/
+/face-explore
+/face-explore/index
+/import-export
+/import-export/index
+/index
+/streaming
+/streaming/index
+/tagging
+/tagging/index
+/user-settings
+/user-settings/index

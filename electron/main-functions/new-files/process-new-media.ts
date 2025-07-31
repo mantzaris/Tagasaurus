@@ -35,9 +35,9 @@ export async function processTempFiles(
   mainWindow: BrowserWindow
 ): Promise<void> {
 
-  console.log('before face setup once')
+  // console.log('before face setup once')
   await faceSetupOnce();
-  console.log('after face setup once')
+  // console.log('after face setup once')
 
   //get the table/column references
   const { tables, columns, metadata } = defaultDBConfig;
@@ -119,18 +119,18 @@ export async function processTempFiles(
         console.log(`inferredFileType = ${inferredFileType} \n hash = ${hash}`);
         
         if (!isAllowedFileType(inferredFileType)) {
-          console.log('not allowed file type');
+          // console.log('not allowed file type');
   
           const conversion = await convertMediaFile(inferredFileType, tempFilePath, tempDir, tempFile);
-          console.log(`conversion = ${JSON.stringify(conversion)}`);
+          // console.log(`conversion = ${JSON.stringify(conversion)}`);
   
           if (!conversion) {
-            console.log('could not convert, deleting file');
+            // console.log('could not convert, deleting file');
             await fs.promises.unlink(tempFilePath).catch(() => {});
             continue;
           }
   
-          console.log('converted file');
+          // console.log('converted file');
           await fs.promises.unlink(tempFilePath).catch(() => {});
   
           try {
@@ -142,7 +142,7 @@ export async function processTempFiles(
           }
 
           if (await checkHashStmt.get(hash)) { //make sure the new converted file is unique
-            console.log('duplicate after conversion; deleting', conversion.newFilePath);
+            // console.log('duplicate after conversion; deleting', conversion.newFilePath);
             await fs.promises.unlink(conversion.newFilePath).catch(() => {});
             continue;
           }
@@ -159,7 +159,7 @@ export async function processTempFiles(
         if (inferredFileType.startsWith('image/') || inferredFileType.startsWith('video/')) { //TODO: webp issues, webp currently bypassed empty for them
           timeEmbeddings = await processFacesFromMedia(tempFilePath, inferredFileType);
           
-          timeEmbeddings.forEach((timeEmb, idx) => { console.log(`file ${hash}  face #${idx}  emb[0..10] =`, Array.from(timeEmb.emb.slice(0, 11))); });
+          // timeEmbeddings.forEach((timeEmb, idx) => { console.log(`file ${hash}  face #${idx}  emb[0..10] =`, Array.from(timeEmb.emb.slice(0, 11))); });
         }
         //--------------------
         

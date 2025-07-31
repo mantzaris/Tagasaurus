@@ -4,18 +4,14 @@
  * requests it from the main process and stores it in localStorage
  */
 export async function getMediaDir(): Promise<string> {
-  let dir = localStorage.getItem("mediaDir");
-
-  if (dir) {
-    return dir;
-  }
+  let dir: string;
 
   try {
       dir = await window.bridge.requestMediaDir(); 
       if(dir) {
           localStorage.setItem("mediaDir", dir);
           return dir;
-      }
+      } 
 
       return "";
   } catch (error) {

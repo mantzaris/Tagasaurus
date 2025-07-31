@@ -178,21 +178,21 @@ export async function checkTagasaurusDirectories(fileBaseDir: string | undefined
     created: boolean;
   }> {
     const baseDir = fileBaseDir ?? getTagaFilesBaseDir();
-    console.log(`baseDir = ${baseDir}`);
+    // console.log(`baseDir = ${baseDir}`);
     const tagaDir = join(baseDir, "TagasaurusFiles");
-    console.log(`tagaDir = ${tagaDir}`);
+    // console.log(`tagaDir = ${tagaDir}`);
     let created = false;    
 
     try {
       //check if directory exists
       try {
         await fsPromises.access(tagaDir); //TODO: fsPromises.mkdir(path, { recursive:true }) instead
-        console.log(`Already exists: ${tagaDir}`);
+        // console.log(`Already exists: ${tagaDir}`);
       } catch {
         //directory doesn't exist, create it
         await fsPromises.mkdir(tagaDir, { recursive: true });
         created = true;
-        console.log(`Created: ${tagaDir}`);
+        // console.log(`Created: ${tagaDir}`);
       }
 
       const mediaDir = join(tagaDir, "MediaFiles");
@@ -200,7 +200,7 @@ export async function checkTagasaurusDirectories(fileBaseDir: string | undefined
         await fsPromises.access(mediaDir);
       } catch {
         await fsPromises.mkdir(mediaDir, { recursive: true });
-        console.log(`Created: ${mediaDir}`);
+        // console.log(`Created: ${mediaDir}`);
       }
 
       //create a 4-level deep hex subdirectory tree under MediaFiles
@@ -213,7 +213,7 @@ export async function checkTagasaurusDirectories(fileBaseDir: string | undefined
         await fsPromises.access(tempDir);
       } catch {
         await fsPromises.mkdir(tempDir, { recursive: true });
-        console.log(`Created: ${tempDir}`);
+        // console.log(`Created: ${tempDir}`);
       }
 
       const dataDir = join(tagaDir, "Data");
@@ -221,7 +221,7 @@ export async function checkTagasaurusDirectories(fileBaseDir: string | undefined
         await fsPromises.access(dataDir);
       } catch {
         await fsPromises.mkdir(dataDir, { recursive: true });
-        console.log(`Created: ${dataDir}`);
+        // console.log(`Created: ${dataDir}`);
       }
 
       return { tagaDir, mediaDir, tempDir, dataDir, created };

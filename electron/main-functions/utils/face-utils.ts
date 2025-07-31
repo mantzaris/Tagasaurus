@@ -105,9 +105,9 @@ async function processFacesOnImageData(data: Buffer | Readable, vcodec: 'mjpeg' 
             path.join(OUT_DIR, `${fileStem}_face${i}_aligned.png`)
           );
 
-          console.log(`face ${i} tensor dims: `, tensor112.dims);  // should log [1,3,112,112]
-          console.log(`face ${i} emb[0..4]: `, Array.from(emb.slice(0,5)));
-          console.log(`face ${i} L2: `, norm.toFixed(3));
+          // console.log(`face ${i} tensor dims: `, tensor112.dims);  // should log [1,3,112,112]
+          // console.log(`face ${i} emb[0..4]: `, Array.from(emb.slice(0,5)));
+          // console.log(`face ${i} L2: `, norm.toFixed(3));
         }
 
 

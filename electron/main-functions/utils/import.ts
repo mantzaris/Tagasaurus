@@ -96,12 +96,11 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
       const newMedia = await next();  
       if (!newMedia) break;              // EOF
 
-      console.log("---------------------------------------------------");
-      console.log("--------NEW IMPORT ENTRY---------------------------");
-      console.log(`id=${newMedia.id},  hash=${newMedia.fileHash},  file=${newMedia.filename},  description=${newMedia.description}`);
+      // console.log("--------NEW IMPORT ENTRY---------------------------");
+      // console.log(`id=${newMedia.id},  hash=${newMedia.fileHash},  file=${newMedia.filename},  description=${newMedia.description}`);
 
       const origMedia = await getMediaFilesByHash(db, [newMedia.fileHash]);
-      console.log(`origMedia length = ${origMedia.length}`);
+      // console.log(`origMedia length = ${origMedia.length}`);
 
       if(origMedia.length) { //db has the same hash (NOT NEW)
         console.log(`EXISTING: import media hash found`);
@@ -114,11 +113,11 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
         const { desc, changed } = mergeDescription(origDescription, newMedia.description);
 
         if(changed) {
-          console.log(`new description not a subset, appending`)
+          // console.log(`new description not a subset, appending`)
           console.log(`merged description = ${desc}`);
 
           const [mergedDescriptionEmbedding] = await embedText(desc);
-          console.log(`got merged description embedding`);
+          // console.log(`got merged description embedding`);
           await updateDescription(db, desc, mergedDescriptionEmbedding, origMedia[0].fileHash);
           console.log(`updated Description to merged description`);
         } //else ignore no other meta data there
@@ -128,7 +127,7 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
 
         const isVisual = (newMedia.fileType.startsWith("image/") && newMedia.fileType !== "image/webp") || newMedia.fileType.startsWith("video/");
 
-        console.log(`is visual = ${isVisual}`);
+        // console.log(`is visual = ${isVisual}`);
 
         let descriptionEmbeddingTemp: Buffer | null = null;
 
@@ -160,7 +159,7 @@ export async function demo(archivePath: string, db: Database, mediaDir: string) 
 
         const { id: mediaFileId } = await lastIdStmt.get() as { id: number };
 
-        console.log(`got new id inserted= ${mediaFileId}`);
+        // console.log(`got new id inserted= ${mediaFileId}`);
         
         if (isVisual) {
           const faces = await getFacesForMedia(dbImport, newMedia.id!);

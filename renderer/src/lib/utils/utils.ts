@@ -6,6 +6,7 @@ export function getMediaFilePath(mediaDir: string, fileHash: string): string {
     if(mediaDir.startsWith(FILE_SCHEME)) {
       mediaDir = mediaDir.slice(FILE_SCHEME.length);
     }
+    console.log(`mediaDir = ${mediaDir}`)
 
     if (!mediaDir.endsWith('/')) {
       mediaDir += '/';

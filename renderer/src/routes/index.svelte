@@ -59,7 +59,7 @@
       </Card>
     </Col>
 
-    <Col md="4">
+    <!-- <Col md="4">
       <Card>
         <CardBody>
           <CardTitle >Settings</CardTitle>
@@ -67,7 +67,7 @@
           <Button color="primary" outline size="lg" href="/user-settings"><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
-    </Col>
+    </Col> -->
   </Row>
 </Container>
 

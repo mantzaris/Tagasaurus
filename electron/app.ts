@@ -55,14 +55,16 @@ function saveSettings(s: Settings) {
 }
 function defaultBaseDir(): string {
   if (app.isPackaged) {
-    return dirname(app.getPath('exe')); //root sibling
+    return dirname(dirname(app.getPath('exe'))); //root sibling
   }
   let dir = __dirname;
   for (let i = 0; i < 3; i++) dir = dirname(dir); //go up levels
+  // console.log(`default base dir = ${dir}`);
   return dir;
 }
 export const getTagaFilesBaseDir   = () => {
   const pref = loadSettings().tagaFilesBaseDir?.trim();
+  // console.log(`pref = ${pref}`);
   return pref ? pref : defaultBaseDir();
 };
 export const setTagaFilesBaseDir = (p: string) => {
@@ -80,7 +82,7 @@ export const resetTagaFilesBaseDir = () => {
 };
 function originalProjectRoot(): string {
   if (app.isPackaged) {
-    return dirname(app.getPath('exe'));
+    return dirname(dirname(app.getPath('exe')));
   }
   let dir = __dirname;
   for (let i = 0; i < 3; i++) dir = dirname(dir);
@@ -88,7 +90,7 @@ function originalProjectRoot(): string {
 }
 export function assetsBaseDir(): string {
   return app.isPackaged
-    ? join(process.resourcesPath, 'assets')     // packaged
+    ? join(process.resourcesPath, 'app', 'assets')     // packaged
     : join(originalProjectRoot(), 'Tagasaurus', 'assets');         // dev
 }
 
@@ -140,6 +142,8 @@ async function initialize() {
   tempDir = dirs.tempDir;
   dataDir = dirs.dataDir;
   created = dirs.created;
+
+  if(created) resetTagaFilesBaseDir();
   
   //init databases
   dbPath = join(dataDir, defaultDBConfig.dbName);
@@ -204,7 +208,7 @@ async function main() {
   if(!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.webContents.openDevTools({ mode: "detach" });
+    //mainWindow.webContents.openDevTools({ mode: "detach" });
   }
   
   if (app.isPackaged) {
@@ -226,9 +230,9 @@ async function main() {
 
   mainWindow.once("ready-to-show", mainWindow.show);
 
-  if (app.isPackaged) {
-    mainWindow.webContents.openDevTools({ mode: "detach" }); // dev mode
-  }
+  // if (1 || !app.isPackaged) {
+  //   mainWindow.webContents.openDevTools({ mode: "detach" }); // dev mode
+  // }
 }
 
 
@@ -263,7 +267,7 @@ app.once("ready", async () => {
   }
 });
 app.on("activate", async () => {
-  console.log('activate**')
+  // console.log('activate**')
   if (BrowserWindow.getAllWindows().length === 0) {
     try {
       if (!db) {
