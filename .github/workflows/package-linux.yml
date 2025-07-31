@@ -22,9 +22,14 @@ jobs:
             package-lock.json
             renderer/package-lock.json
 
-      # 3 Install dependencies exactly as in CI
-      - name: Install
+      # 3a Install root dependencies
+      - name: Install root deps
         run: npm ci
+
+      # 3b Install renderer dependencies
+      - name: Install renderer deps
+        run: npm ci --prefix renderer
+
 
       # 4 Build and package
       - name: Package with electron-builder
