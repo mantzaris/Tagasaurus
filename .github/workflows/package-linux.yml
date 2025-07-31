@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
 
-permissions:              # ← give the token write access to Releases
+permissions:
   contents: write
 
 jobs:
@@ -13,12 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1 Checkout + Git-LFS (for .onnx, .bin, not included otherwise!!!!!)
       - uses: actions/checkout@v4
-        with:
-          lfs: true
+        with: { lfs: true }
 
-      # 2 Node + npm cache
       - uses: actions/setup-node@v4
         with:
           node-version: 22.15.0
@@ -27,18 +24,15 @@ jobs:
             package-lock.json
             renderer/package-lock.json
 
-      # 3 Install deps
       - run: npm ci
       - run: npm ci --prefix renderer
-
-      # 4 build/Tagasaurus-*.zip
       - run: npm run package
 
-      # 5 Read version before release step
       - id: get_version
-        run: echo "VERSION=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # 6 Create / update release / attach ZIP
       - name: Publish ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
         env:
@@ -46,7 +40,7 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           name: "Tagasaurus v${{ steps.get_version.outputs.VERSION }}"
-          draft: false                 # true = hold for manual review
-          prerelease: true             # stays in Pre-release
-          files: build/*.zip           # any ZIP in build/
+          draft: false
+          prerelease: true
+          files: build/*.zip
           fail_on_unmatched_files: true
