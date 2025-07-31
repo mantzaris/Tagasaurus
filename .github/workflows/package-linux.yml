@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix renderer
 
-      # 4 Build & package  does build/Tagasaurus-0.0.1.zip
+      # 4 Build & package  does build/tagasaurus-0.0.1.zip
       - run: npm run package
 
       # 5 Grab version string
@@ -41,9 +41,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.ver.outputs.pkg }}           # eg v0.0.1
+          tag_name: v${{ steps.ver.outputs.pkg }}
           name: "Tagasaurus ${{ steps.ver.outputs.pkg }}"
-          draft: false                                      # flip true for manual approval
-          prerelease: true                                  # stays in Pre-release row
-          files: build/Tagasaurus-*.zip                     # match actual filename
+          draft: false    
+          prerelease: true
+          files: build/*.zip   
           fail_on_unmatched_files: true
