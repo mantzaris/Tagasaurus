@@ -4,18 +4,21 @@ on:
   push:
     branches: [ main ]
 
+permissions:              # ← give the token write access to Releases
+  contents: write
+
 jobs:
   build-linux:
     if: contains(github.event.head_commit.message, 'PACKAGE')
     runs-on: ubuntu-latest
 
     steps:
-      # 1 Checkout repo + pull LFS blobs (models weights!!!!!)
+      # 1 Checkout + Git-LFS (for .onnx, .bin, not included otherwise!!!!!)
       - uses: actions/checkout@v4
         with:
           lfs: true
 
-      # 2 Node setup + npm cache
+      # 2 Node + npm cache
       - uses: actions/setup-node@v4
         with:
           node-version: 22.15.0
@@ -28,23 +31,22 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix renderer
 
-      # 4 Build & package build/<something>.zip
+      # 4 build/Tagasaurus-*.zip
       - run: npm run package
 
-      # 5 Extract version once, BEFORE the release step
+      # 5 Read version before release step
       - id: get_version
         run: echo "VERSION=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
 
-      # 6 Create or update the release, attach the ZIP
+      # 6 Create / update release / attach ZIP
       - name: Publish ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}          # eg v0.0.1
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
           name: "Tagasaurus v${{ steps.get_version.outputs.VERSION }}"
-          draft: false                                                # flip true for manual review
-          prerelease: true                                            # stays in Pre-release
-          files: build/*.zip                                          # one or more zips
+          draft: false                 # true = hold for manual review
+          prerelease: true             # stays in Pre-release
+          files: build/*.zip           # any ZIP in build/
           fail_on_unmatched_files: true
-          # allow_update defaults to true → asset is replaced on re-runs
