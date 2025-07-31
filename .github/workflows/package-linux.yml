@@ -36,7 +36,7 @@ jobs:
 
       # 5 Read version before release step
       - id: get_version
-        run: echo "VERSION=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
 
       # 6 Create / update release / attach ZIP
       - name: Publish ZIP to GitHub Release
