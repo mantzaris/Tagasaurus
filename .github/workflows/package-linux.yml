@@ -10,26 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out code
+      # 1 Check out code
       - uses: actions/checkout@v4
 
-      # 2. Set up Node (use the LTS you develop with)
+      # 2 Set up Node (use the LTS you develop with)
       - uses: actions/setup-node@v4
         with:
           node-version: 22.15.0
           cache: npm                 # speeds up subsequent runs
+          cache-dependency-path: |
+            package-lock.json
+            renderer/package-lock.json
 
-      # 3. Install dependencies exactly as in CI
+      # 3 Install dependencies exactly as in CI
       - name: Install
         run: npm ci
 
-      # 4. Build & package
+      # 4 Build and package
       - name: Package with electron-builder
         run: npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. Upload the ZIP produced in /build
+      # 5 Upload the ZIP produced in /build
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
