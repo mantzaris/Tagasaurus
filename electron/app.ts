@@ -521,8 +521,6 @@ ipcMain.handle("face-search", async (
 });
 
 
-
-
 ipcMain.handle('dialog:select-import-tar', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     title: 'Select Tagasaurus .tar to import',
@@ -535,6 +533,12 @@ ipcMain.handle('dialog:select-import-tar', async () => {
     demo(filePaths[0], db, mediaDir)
   }
 });
+
+
+ipcMain.handle('get-ui-assetpath', async () => {
+  return app.isPackaged ? join(process.resourcesPath) : '';
+});
+
 
 
 // setTimeout(()=>demo('/home/resort/Downloads/tagasaurusExport.tar', db, mediaDir), 3000)

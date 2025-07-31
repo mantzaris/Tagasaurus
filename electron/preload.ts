@@ -2,7 +2,12 @@ import { contextBridge, ipcRenderer, desktopCapturer, webUtils } from "electron"
 import { FaceEmbedding, MediaFile } from "./types/dbConfig";
 import { FaceHit, SearchRow } from "./types/variousTypes";
 
+
+
+
 export const CONTEXT_BRIDGE = {
+
+  getAssetPath: async ():Promise<string> => ipcRenderer.invoke('get-ui-assetpath'),
 
   onNewMedia: (callback) => {
     ipcRenderer.on("new-media", (_event, data) => {
