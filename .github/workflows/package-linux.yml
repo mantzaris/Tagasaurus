@@ -44,3 +44,44 @@ jobs:
           prerelease: true
           files: build/*.zip
           fail_on_unmatched_files: true
+
+
+  build-windows:
+    needs: build-linux         # wait until the release exists
+    if: contains(github.event.head_commit.message, 'PACKAGE')
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.15.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            renderer/package-lock.json
+
+      - run: npm ci
+      - run: npm ci --prefix renderer
+      - run: npm run package   # -> build/Tagasaurus-*.zip (Windows)
+
+      # reuse version from package.json
+      - id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      # upload the Windows zip to the existing release
+      - name: Attach Windows ZIP
+        uses: softprops/action-gh-release@v2
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}   # same tag
+          draft: false
+          prerelease: true
+          files: build/*.zip
+          fail_on_unmatched_files: true
+          allow_update: true        # explicitly allow updating the release
