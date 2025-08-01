@@ -1,4 +1,4 @@
-name: Package (Linux)
+name: Package (Linux+Windows)
 
 on:
   push:
@@ -29,6 +29,7 @@ jobs:
       - run: npm run package
 
       - id: get_version
+        shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
@@ -69,6 +70,7 @@ jobs:
 
       # reuse version from package.json
       - id: get_version
+        shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
