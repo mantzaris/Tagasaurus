@@ -230,9 +230,9 @@ async function main() {
 
   mainWindow.once("ready-to-show", mainWindow.show);
 
-  // if (1 || !app.isPackaged) {
-  //   mainWindow.webContents.openDevTools({ mode: "detach" }); // dev mode
-  // }
+  if (1 || !app.isPackaged) {
+    mainWindow.webContents.openDevTools({ mode: "detach" }); // dev mode
+  }
 }
 
 

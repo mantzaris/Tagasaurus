@@ -14,7 +14,7 @@ import { facesSetUp, getFaceThumbnail } from '$lib/utils/faces';
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
 let mediaDir: string = $state(getContext('mediaDir')); 
-
+let assetPath: string = "";
 
 let initSamples: FaceEmbeddingSample[] = $state([]);
 let searchRows = $state<SearchRow[]>([]);
@@ -106,6 +106,7 @@ async function initNetwork() {
 
 onMount(async () => {
     try {        
+      assetPath = await window.bridge.getAssetPath();
       const setupSuccess = await facesSetUp();
 
       if (!setupSuccess) {
@@ -200,7 +201,7 @@ async function addChildrenToNetwork(
 
     const imgSrc =
       sample.fileType.startsWith('video')
-        ? VIDEO_ICON
+        ? assetPath + VIDEO_ICON
         : await getFaceThumbnail(
             getMediaFilePath(mediaDir, sample.fileHash),
             sample,
@@ -371,7 +372,7 @@ async function initSamplesToNodes(): Promise<Node[]> {
     const imgSrc = sample.fileType.startsWith('video')
       || sample.fileType.startsWith('image/gif')
       || sample.fileType.startsWith('image/webp')
-        ? VIDEO_ICON
+        ? assetPath + VIDEO_ICON
         : await getFaceThumbnail( getMediaFilePath(mediaDir, sample.fileHash), sample, 1.5 );
     // console.log(imgSrc)
 
