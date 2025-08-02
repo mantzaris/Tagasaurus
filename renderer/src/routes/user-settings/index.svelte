@@ -1,6 +1,7 @@
 <script lang="ts">
   import {Container, Row, Col, Button, Modal, ModalHeader, ModalBody, ModalFooter, Icon, Input} from '@sveltestrap/sveltestrap';
   import { onMount } from 'svelte';
+  import { url } from '@roxi/routify';
 
   let showConfirm = $state(false);
   let baseDataPath = $state('');
@@ -28,7 +29,7 @@
 
 <Container class="my-4">
 
-    <Button color="primary" size="lg" href="/" class="mt-1 mb-4">
+    <Button color="primary" size="lg" href={$url("/")} class="mt-1 mb-4">
         <Icon name="house-fill" class="fs-3"/>
     </Button>
     

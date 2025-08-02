@@ -14,7 +14,7 @@ import {facesSetUp, detectFacesInImage, embedFace, scaleFaceBox, make112Face} fr
 import SearchResultCard from '$lib/components/SearchResultCard.svelte';
 import TaggingSlugContextMenu from '$lib/components/TaggingSlugContextMenu.svelte';
   import { l2NormalizeReturn } from '$lib/utils/ml-utils';
-
+import { url } from '@roxi/routify';
 
 const device = getContext<DeviceGPU>('gpuDevice') ?? 'wasm';
 
@@ -59,14 +59,14 @@ onMount(async () => {
     }
 
     if(!mediaFile) {
-      window.location.href = "/tagging"
+      window.location.href = $url("/tagging")
     } else {
       seenMediaFiles.push(mediaFile);
       await removeMediaFileSequential(mediaFile.fileHash);
     }
   } catch (error) {
     console.error("Error during media retrieval:", error);
-    window.location.href = "/tagging"; //$goto('/tagging');
+    window.location.href = $url("/tagging"); //$goto('/tagging');
   }
   
   await facesSetUp(); //~0.6seconds
@@ -94,11 +94,11 @@ async function nextMediaFile() {
 
       await removeMediaFileSequential(mediaFile.fileHash);
     } else {
-      window.location.href = "/tagging"; //$goto('/tagging');
+      window.location.href = $url("/tagging"); //$goto('/tagging');
     }
   } catch (error) {
     console.error("Error in nextMediaFile:", error);
-    window.location.href = "/tagging" //$goto('/tagging');
+    window.location.href = $url("/tagging") //$goto('/tagging');
   }
 }
 
@@ -110,7 +110,7 @@ async function prevMediaFile() {
   try {
     if (!mediaFile) {
       console.warn("No current media file is set.");
-      window.location.href = "/tagging"; //$goto('/tagging');
+      window.location.href = $url("/tagging"); //$goto('/tagging');
       return;
     }
 
@@ -125,7 +125,7 @@ async function prevMediaFile() {
     }
   } catch (error) {
     console.error("Error in prevMediaFile:", error);
-    window.location.href = "/tagging"; //$goto('/tagging');
+    window.location.href = $url("/tagging"); //$goto('/tagging');
   }
 }
 
@@ -149,7 +149,7 @@ async function confirmDelete() {
 
   const freshCount = await getTotalMediaFileCount();
   if( freshCount <= 0 ) {
-    window.location.href = "/tagging";
+    window.location.href = $url("/tagging");
   }
 
   isProcessing = false;
@@ -383,7 +383,7 @@ async function saveFile() {
     <!-- Top row: Back and Delete -->
     <Row class="mb-1 align-items-center">
       <Col xs="6" class="d-flex justify-content-start">
-        <Button color="primary" size="sm" href="/"><Icon name="house-fill" class="fs-6"/></Button>
+        <Button color="primary" size="sm" href={$url("/")}><Icon name="house-fill" class="fs-6"/></Button>
 
         <Input disabled={isProcessing} type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
@@ -410,7 +410,7 @@ async function saveFile() {
   <div class="d-none d-sm-block">
     <Row class="mb-2 align-items-center">
       <Col xs="4" class="d-flex justify-content-start">
-        <Button color="primary" size="md" href="/"><Icon name="house-fill" class="fs-3"/></Button>
+        <Button color="primary" size="md" href={$url("/")}><Icon name="house-fill" class="fs-3"/></Button>
         
         <Input disabled={isProcessing} type="select" class="w-auto ms-2 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}

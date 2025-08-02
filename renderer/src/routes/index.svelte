@@ -4,11 +4,12 @@
   import { Container, Row, Col, Button, Card, CardBody, CardTitle, CardText, Navbar, NavbarBrand, Icon } from '@sveltestrap/sveltestrap';
   import { onMount } from 'svelte';
     
+  import { url } from '@roxi/routify';
 
   onMount(() => {
     console.log('main index')
   })
-  </script>
+</script>
   
 
 
@@ -24,7 +25,7 @@
         <CardBody>
           <CardTitle>Gallery</CardTitle>
           <CardText>See your files, tag them, describe, and search as well.</CardText>
-          <Button color="primary" outline size="lg" href="/tagging"><Icon name="hand-index-thumb-fill" /></Button>
+          <Button color="primary" outline size="lg" href={$url('/tagging')}><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -33,7 +34,7 @@
         <CardBody>
           <CardTitle>Stream</CardTitle>
           <CardText>Use your webcam, or screen to search for people you know in real time.</CardText>
-          <Button color="primary" outline size="lg" href="/streaming"><Icon name="hand-index-thumb-fill" /></Button>
+          <Button color="primary" outline size="lg" href={$url("/streaming")}><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -45,7 +46,7 @@
         <CardBody>
           <CardTitle >Face Explore</CardTitle>
           <CardText>Explore and search through faces in the media stored.</CardText>
-          <Button color="primary" outline size="lg" href="/face-explore"><Icon name="hand-index-thumb-fill" /></Button>
+          <Button color="primary" outline size="lg" href={$url("/face-explore")}><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>
@@ -54,7 +55,7 @@
         <CardBody>
           <CardTitle >Upload / Export / Import</CardTitle>
           <CardText>Upload your files / Export your data to be used elsewhere / Import.</CardText>
-          <Button color="primary" outline size="lg" href="/import-export"><Icon name="hand-index-thumb-fill" /></Button>
+          <Button color="primary" outline size="lg" href={$url("/import-export")}><Icon name="hand-index-thumb-fill" /></Button>
         </CardBody>
       </Card>
     </Col>

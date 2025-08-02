@@ -4,6 +4,8 @@ import SpinnerSimple from "$lib/components/SpinnerSimple.svelte";
 import { clearSessionMediaCache } from "$lib/utils/temp-mediafiles";
 import { Button, Col, Container, Icon, Input, Row,  TabContent, TabPane, Toast } from "@sveltestrap/sveltestrap";
 
+import { url } from '@roxi/routify';
+
 let status: string|number = 'alpha';
 let isOpen = $state(false);
 let toastMessage = "";
@@ -59,7 +61,7 @@ async function importTaga() {
 <SpinnerSimple busy={processingSpinner} message="Processing..." color="rgba(0,255,128,.9)" block={true}/>
 
 
-<Button color="primary" size="lg" href="/" class="ms-3 mt-3 mb-4">
+<Button color="primary" size="lg" href={$url("/")} class="ms-3 mt-3 mb-4">
     <Icon name="house-fill" class="fs-3"/>
 </Button>
 
