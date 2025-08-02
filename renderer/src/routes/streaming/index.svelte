@@ -6,7 +6,7 @@ import StreamResultCard from '$lib/components/StreamResultCard.svelte';
 import { facesSetUp, detectFacesInImage, embedFace } from '$lib/utils/faces';
 import { boxDistance } from '$lib/utils/ml-utils';
 import type { DisplayServer} from '$lib/utils/localStorageManager';
-import { url } from '@roxi/routify';
+import { goto, url } from '@roxi/routify';
 
 const optionLabels = ["none", "camera", "screen"];
 
@@ -499,6 +499,11 @@ async function maybeEmbed(faceId: number) {
 }
 
 
+const go = $goto;      // top-level access is allowed
+
+function home() {
+	go('/');           // navigate when the button is clicked
+}
 </script>
 
 
@@ -527,7 +532,7 @@ async function maybeEmbed(faceId: number) {
         <div class="d-block d-lg-none h-100">
             <Row class="h-100 align-items-center ">
                 <Col xs="auto" class="d-flex justify-content-start">
-                    <Button color="primary" size="sm" href={$url("/")}>
+                    <Button color="primary" size="sm" on:click={home}>
                         <Icon name="house-fill" class="fs-6"/>
                     </Button>
                 </Col>
@@ -556,7 +561,7 @@ async function maybeEmbed(faceId: number) {
         <div class="d-none d-lg-block h-100">
             <Row class="h-100 align-items-center gx-3">
                 <Col xs="auto" class="d-flex justify-content-start">
-                    <Button color="primary" size="md" href={$url("/")}>
+                    <Button color="primary" size="md" on:click={home}>
                         <Icon name="house-fill" class="fs-3"/>
                     </Button>
                 </Col>

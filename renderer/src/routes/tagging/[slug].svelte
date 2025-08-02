@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Container, Row, Col, Button, Input, Icon, Image, Modal, ModalBody, ModalHeader, ModalFooter, Accordion, AccordionItem, Figure, Tooltip, Toast } from '@sveltestrap/sveltestrap';
-import { params } from '@roxi/routify';
+import { goto, params } from '@roxi/routify';
 
 import MediaView from '$lib/MediaView.svelte';
 import { getContext, onMount } from 'svelte';
@@ -344,6 +344,11 @@ async function saveFile() {
     saveToastOpen = true;
 }
 
+const go = $goto;      // top-level access is allowed
+
+function home() {
+	go('/');           // navigate when the button is clicked
+}
 </script>
 
 <TaggingSlugContextMenu {saveFile}/>
@@ -383,7 +388,7 @@ async function saveFile() {
     <!-- Top row: Back and Delete -->
     <Row class="mb-1 align-items-center">
       <Col xs="6" class="d-flex justify-content-start">
-        <Button color="primary" size="sm" href={$url("/")}><Icon name="house-fill" class="fs-6"/></Button>
+        <Button color="primary" size="sm" on:click={home}><Icon name="house-fill" class="fs-6"/></Button>
 
         <Input disabled={isProcessing} type="select" class="w-auto ms-1 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}
@@ -410,7 +415,7 @@ async function saveFile() {
   <div class="d-none d-sm-block">
     <Row class="mb-2 align-items-center">
       <Col xs="4" class="d-flex justify-content-start">
-        <Button color="primary" size="md" href={$url("/")}><Icon name="house-fill" class="fs-3"/></Button>
+        <Button color="primary" size="md" on:click={home}><Icon name="house-fill" class="fs-3"/></Button>
         
         <Input disabled={isProcessing} type="select" class="w-auto ms-2 me-2" bind:value={mode}>
           {#each ["edit", "gallery"] as option}

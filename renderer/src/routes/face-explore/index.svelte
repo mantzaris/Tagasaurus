@@ -10,7 +10,7 @@ import { midpointEmbedding, sampleClusterMedoids } from './explore-utils';
 
 import { facesSetUp, getFaceThumbnail } from '$lib/utils/faces';
   import StreamResultCard from '$lib/components/StreamResultCard.svelte';
-import { url } from '@roxi/routify';
+import { goto, url } from '@roxi/routify';
 
 const VIDEO_ICON = '/assets/icons/videoplay512.png';
 let mediaDir: string = $state(getContext('mediaDir')); 
@@ -430,7 +430,11 @@ function buildOptions(): Options {
 }
 
 
+const go = $goto;      // top-level access is allowed
 
+function home() {
+	go('/');           // navigate when the button is clicked
+}
 </script>
 
 
@@ -444,7 +448,7 @@ function buildOptions(): Options {
         <div class="d-block d-lg-none h-100">
             <Row class="h-100 align-items-center ">
                 <Col xs="auto" class="d-flex justify-content-start">
-                    <Button color="primary" size="sm" href={$url("/")}>
+                    <Button color="primary" size="sm" on:click={home}>
                         <Icon name="house-fill" class="fs-6"/>
                     </Button>
                 </Col>
@@ -467,7 +471,7 @@ function buildOptions(): Options {
         <div class="d-none d-lg-block h-100">
             <Row class="h-100 align-items-center gx-3">
                 <Col xs="auto" class="d-flex justify-content-start">
-                    <Button color="primary" size="md" href={$url("/")}>
+                    <Button color="primary" size="md" on:click={home}>
                         <Icon name="house-fill" class="fs-3"/>
                     </Button>
                 </Col>

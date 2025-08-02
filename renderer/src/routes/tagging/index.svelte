@@ -9,7 +9,7 @@ import { getContext, onMount } from 'svelte';
 import { type MediaFile } from '$lib/types/general-types';
 import { fillSampleMediaFiles, getNewMediaFiles } from '$lib/utils/temp-mediafiles';
   import { assignFreshImport, freshImport } from '$lib/state/states.svelte';
-  import { url } from '@roxi/routify';
+  import { goto, url } from '@roxi/routify';
 
 
 let mediaDir: string = $state(getContext('mediaDir')); 
@@ -58,6 +58,11 @@ function truncateDescription(description: string): string {
   return description.slice(0, 40);
 }
 
+const go = $goto;      // top-level access is allowed
+
+function home() {
+	go('/');           // navigate when the button is clicked
+}
 </script>
 
 <Container>
@@ -65,7 +70,7 @@ function truncateDescription(description: string): string {
   <div class="pt-3">
     <div class="d-block d-md-none mb-4">
       <div class="d-flex flex-row justify-content-evenly">
-        <Button color="primary" class="w-25" href={$url("/")}><Icon name="house-fill" class="fs-4"/></Button>
+        <Button color="primary" class="w-25" on:click={home}><Icon name="house-fill" class="fs-4"/></Button>
         <Button disabled={isProcessing} id="btn-dice-sm" color="primary" class="w-25" on:click={setCards}><Icon name="dice-5-fill"/></Button>
         <Tooltip target="btn-dice-sm" placement="bottom">See New</Tooltip>
       </div>
@@ -75,7 +80,7 @@ function truncateDescription(description: string): string {
     <div class="d-none d-md-block mb-4">
       <Row class="align-items-center">
         <Col md="2" class="text-start">
-          <Button color="primary" size="lg" href={$url("/")}><Icon name="house-fill" class="fs-4"/></Button>
+          <Button color="primary" size="lg" on:click={home}><Icon name="house-fill" class="fs-4"/></Button>
         </Col>
         <Col md="2" class="text-center">
           <Button disabled={isProcessing} id="btn-dice-md" color="primary" size="lg" style="white-space: nowrap;" on:click={setCards}><Icon name="dice-5-fill" /></Button>
