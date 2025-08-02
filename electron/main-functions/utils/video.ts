@@ -4,8 +4,9 @@ import * as fs    from 'fs/promises';
 
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
-
+import ffprobe from 'ffprobe-static'; //newly added
 ffmpeg.setFfmpegPath(ffmpegPath || "");
+ffmpeg.setFfprobePath(ffprobe.path);
 
 
 export async function videoDurationSec(file: string): Promise<number> {

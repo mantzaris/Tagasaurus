@@ -2,12 +2,15 @@ import * as path from "path";
 import { randomBytes } from "crypto";
 import { stat, unlink } from 'node:fs/promises';
 
-import ffmpeg, { FfprobeData } from 'fluent-ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import ffprobe from 'ffprobe-static'; //newly added
+ffmpeg.setFfmpegPath(ffmpegPath || "");
+ffmpeg.setFfprobePath(ffprobe.path);
 
 import { convertAnimatedToGif, convertStillToPng, detectAnimation } from "./image";
 
-ffmpeg.setFfmpegPath(ffmpegPath || "");
+
 
 const VIDEO_TIMEOUT_MS = 4*6_000_000;//4*100min
 const AUDIO_TIMEOUT_MS = 6_000_000; //100min

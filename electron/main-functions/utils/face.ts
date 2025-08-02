@@ -1,11 +1,15 @@
 
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import ffprobe from 'ffprobe-static'; //newly added
+ffmpeg.setFfmpegPath(ffmpegPath || "");
+ffmpeg.setFfprobePath(ffprobe.path);
+
 
 import { FaceDet } from "../../types/face";
 
 
-ffmpeg.setFfmpegPath(ffmpegPath || "");
+
 
 export const SIGM = (x:number) => 1/(1+Math.exp(-x));
 

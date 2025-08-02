@@ -11,10 +11,14 @@ import { loadEsm } from 'load-esm';
 
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import ffprobe from 'ffprobe-static'; //newly added
+ffmpeg.setFfmpegPath(ffmpegPath || "");
+ffmpeg.setFfprobePath(ffprobe.path);
+
+
 import { getMediaFilesByHash } from "../db-operations/search";
 
 
-ffmpeg.setFfmpegPath(ffmpegPath || "");
 
 
 export async function computeFileHash(filePath: string, hashAlgorithm: string = "sha256"): Promise<string> {

@@ -5,8 +5,12 @@ import { Readable } from 'stream';
 import * as ort   from 'onnxruntime-node';
 
 import nudged     from 'nudged';
+
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import ffprobe from 'ffprobe-static'; //newly added
+ffmpeg.setFfmpegPath(ffmpegPath || "");
+ffmpeg.setFfprobePath(ffprobe.path);
 
 import { FaceDet } from '../../types/face';
 import { l2Normalize, mathInverse, nonMaxSup, scaleFaceBox, SIGM } from './face';
@@ -14,7 +18,7 @@ import { analyseAnimated, detectAnimation, extractFrameViaFFmpeg, extractGifFram
 import { asReadable, cosineF32, ensureBuffer } from './utils';
 import { chooseTimes, extractVideoFrame, videoDurationSec } from './video';
 
-ffmpeg.setFfmpegPath(ffmpegPath || "");
+
 //TODO: not thread safe, make the onnx file uses singletons or put on worker threads to be safe
 
 export interface TimedEmbedding {

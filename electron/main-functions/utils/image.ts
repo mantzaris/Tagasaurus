@@ -1,7 +1,15 @@
 import { readFile, stat } from 'node:fs/promises';
 import isAnimated from '@frsource/is-animated';
+
+//TODO: centralize
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';
+import ffprobe from 'ffprobe-static'; //newly added
+ffmpeg.setFfmpegPath(ffmpegPath || "");
+ffmpeg.setFfprobePath(ffprobe.path); //newly added
+// import ffmpegBinary from 'ffmpeg-static';     //newly added
+// import ffprobeBinary from 'ffprobe-static';   //newly added
+// import { ffmpegPath, ffprobePath } from 'ffmpeg-ffprobe-static'; //newly added
 
 import sharp from "sharp";
 import { promises as fs } from "fs";
@@ -14,16 +22,15 @@ import WebP from 'node-webpmux';
 import { PNG } from 'pngjs';
 
 
-ffmpeg.setFfmpegPath(ffmpegPath || "");
 
 /**
- * Convert a **still** image (JPEG, WebP, AVIF, …) to PNG using Sharp.
+ * Convert a **still** image (JPEG, WebP, AVIF) to PNG using Sharp.
  *
  * @param inputPath  full path of the source file
  * @param outputPath full path of the PNG to write
  * @param timeoutMs  failsafe timeout (default 15 s)
- * @returns          true  → PNG written and > 0 bytes  
- *                   false → any error or timeout
+ * @returns          true  -> PNG written and > 0 bytes  
+ *                   false -> any error or timeout
  */
 export async function convertStillToPng(
   inputPath : string,
