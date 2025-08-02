@@ -8,6 +8,8 @@ export type DisplayServer = 'wayland' | 'x11' | 'unknown' | null;
 
 
 export const getIsLinux = (): boolean => process.platform === 'linux';
+export const getIsWindows = (): boolean => process.platform === "win32";
+
 
 //run a command with a short timeout; true on exit-code 0
 async function canRun(cmd: string, args: string[] = [], timeout = 500): Promise<boolean> {

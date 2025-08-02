@@ -17,7 +17,7 @@ import { deleteMediaFileByHash } from "./main-functions/db-operations/delete";
 import { getFaceEmbeddingsByMediaIds, getMediaFilesByHash, searchFaceVectors, searchTagging } from "./main-functions/db-operations/search";
 import { FaceHit, SearchRow } from "./types/variousTypes";
 
-import {getDisplayServer, getIsLinux, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
+import {getDisplayServer, getIsLinux, getIsWindows, guessDisplaySync, type DisplayServer} from './main-functions/initialization/system-info'
 import { createTarArchive } from "./main-functions/utils/export";
 import { demo } from "./main-functions/utils/import";
 import { ensureTagaTalk } from "./main-functions/db-operations/update";
@@ -132,7 +132,8 @@ let dbPath_fileQueue: string;
 let sampleMediaFiles: MediaFile[];
 
 let isLinux: boolean = false;
-let displayServer: DisplayServer = null; 
+let displayServer: DisplayServer = null;
+let isWindows: boolean = false;
 
 //single initialization point
 async function initialize() {
@@ -163,6 +164,7 @@ async function initialize() {
     if(displayServer == 'unknown') displayServer = 'wayland';
   }
 
+  isWindows = getIsWindows();
 
   return { tagaDir, mediaDir, tempDir, dataDir, db, db_fileQueue };
 }
@@ -444,9 +446,14 @@ ipcMain.handle('dialog:select-files', async () => {
   return canceled ? [] : filePaths;
 });
 
-
+//TODO: windows fix !!!! xxx 'C:\\Users\\Alex\\Pictures\\jd1.jpg'
 ipcMain.on("user-dropped-paths", async (event, filePaths: string[]) => {
   console.log("renderer dropped file/folder path:", filePaths);
+
+  const raw = filePaths[0];
+  console.log('inspect  :', filePaths);          // 'C:\\Users\\Alex\\Pictures\\jd1.jpg'
+  console.log('template :', `${raw}`);       //  C:\Users\Alex\Pictures\jd1.jpg
+  console.log('length   :', raw.length);
 
   try {
     await addNewPaths(db_fileQueue, filePaths, tempDir);

@@ -17,6 +17,7 @@ ffmpeg.setFfprobePath(ffprobe.path);
 
 
 import { getMediaFilesByHash } from "../db-operations/search";
+import { getIsWindows } from "../initialization/system-info";
 
 
 
@@ -90,7 +91,8 @@ export function getMediaFrontEndDirBase(mediaDir: string) {
 
 /** Regex for characters that are invalid or dangerous in file names            */
 /** (Ctrl chars \x00–\x1F, Windows < > : " | ? *, and ASCII DEL \x7F).          */
-export const BAD_CHARS = /[<>:"|?*\x00-\x1F\x7F]/;
+export const BAD_CHARS = /[<>:"|?*\x00-\x1F\x7F]/; //const BAD_CHARS = /[<>:"|?*\x00-\x1F\x7F]/;
+const isWindows = getIsWindows();
 
 /** Fast, platform‑agnostic path hygiene                                        */
 export async function validatePath(p: string): Promise<string | undefined> {
@@ -98,9 +100,11 @@ export async function validatePath(p: string): Promise<string | undefined> {
   const normal = path.normalize(p).replace(/[\\\/]+$/, "");
 
   // 2) Cheap string checks ----------------------------------------------------
+  const sliceForTest = isWindows ? normal.slice(2) : normal; 
+
   if (
     normal.includes("..") ||          // directory traversal fragments
-    BAD_CHARS.test(normal) ||         // control / reserved chars
+    BAD_CHARS.test(sliceForTest) ||         // control / reserved chars
     normal.length === 0               // empty after normalise
   ) {
     console.warn("Rejecting bad path string:", p);
