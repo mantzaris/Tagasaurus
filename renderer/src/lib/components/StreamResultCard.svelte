@@ -2,8 +2,8 @@
   import { getMediaFilePath } from '$lib/utils/utils';
   import type { SearchRow } from '$lib/types/general-types';
   import { getContext } from 'svelte';
-  import { goto } from '@roxi/routify';
-  import { get }  from 'svelte/store';
+  import { url, goto } from '@roxi/routify';
+  // import { get }  from 'svelte/store';
 
   interface Props {
     row: SearchRow;
@@ -18,18 +18,17 @@
   }
 
   const filePath = getMediaFilePath(mediaDir, row.fileHash);
-  const link = `/tagging/${row.fileHash}?fileType=${encodeURIComponent(row.fileType)}`;
+  const link = $url(
+    '/tagging/[slug]',
+    { slug: row.fileHash, fileType: row.fileType }          // query part added automatically
+  );
 
-  const navigate = get(goto);
+  const go = $goto;
 
 	function open() {
-		navigate(
-			'/tagging/[slug]',
-			{
-				slug:     row.fileHash,
-				fileType: row.fileType
-			}
-		);
+		
+    go('/tagging/[slug]', { slug: row.fileHash, fileType: row.fileType });
+    
 	}
 
 </script>
@@ -42,7 +41,7 @@
 
 
 <!-- svelte-ignore event_directive_deprecated -->
-<a href={link} class="result-card mb-3">
+<a href={link}  class="result-card mb-3">
  
 {#if row.fileType.startsWith('image/')}
     <!-- svelte-ignore a11y_img_redundant_alt -->
