@@ -4,8 +4,8 @@
   export const router = createRouter({ 
     routes,
     urlRewrite: {
-      toExternal: url => `#${url}`,         // internal "/route" → "#/route"
-      toInternal: url => url.replace(/^.+#/, '') // "#/route" → "/route"
+      toExternal: url =>  url === '/' ? '#/' : `#${url}`,         // internal "/route" → "#/route"
+      toInternal: url => url.replace(/^.+#/, '')  ||  '/'  // "#/route" → "/route"
     }
   })
 
