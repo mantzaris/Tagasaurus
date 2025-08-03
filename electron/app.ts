@@ -196,7 +196,7 @@ async function main() {
     resizable: true,
     show: true,
     webPreferences: {
-      devTools: true,
+      devTools: !app.isPackaged,
       preload: join(__dirname, "preload.js"),
       webSecurity: app.isPackaged,
     }
@@ -232,7 +232,7 @@ async function main() {
 
   mainWindow.once("ready-to-show", mainWindow.show);
 
-  if (1 || !app.isPackaged) {
+  if ( !app.isPackaged) {
     mainWindow.webContents.openDevTools({ mode: "detach" }); // dev mode
   }
 }

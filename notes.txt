@@ -19,3 +19,6 @@ Because the CSS file already lives in the same folder as the two font files, jus
 
 resort@resort:~/Documents/repos/Tagasaurus/renderer$ npm run  fetch-ort
 
+<!-- ## Development -->
+<!-- in dev also import 'env' and do, 'env.useBrowserCache = false;' -->
+<!-- sudo apt install git-lfs; git lfs install; git lfs pull; -->
