@@ -16,9 +16,9 @@ Tagasaurus is an **offline-first desktop app** that keeps your photos, PDFs, vid
 
 ## Download  
 
-- [Linux download](https://github.com/mantzaris/Tagasaurus/releases/download/v0.0.1/tagasaurus-0.0.1.zip), *sha256:21d57ab334976b80d8eac1b92b512db7a24a63b9e09ccd62492c26e63df25777*, a zip holding the executable which needs to be given executable permissions via chmod +x ./tagasaurus before running at the command line. 
+- [Linux download](https://github.com/mantzaris/Tagasaurus/releases/download/v0.0.1/tagasaurus-0.0.1.zip), *sha256:a3f864e75fe51508cb9e44c1fb962e22ef768ae29cb1dd71fc73bc404dcf51ec*, a zip holding the executable which needs to be given executable permissions via chmod +x ./tagasaurus before running at the command line. 
 
-- [Windows download](https://github.com/mantzaris/Tagasaurus/releases/download/v0.0.1/Tagasaurus-0.0.1-win.zip),  *sha256:6c2ab8ea6935c30ca3fefedd81fa01c796f8a192345e83f1b727ae2728548a7a*, a zip holding the executable, open it and run as administrator, or simply from git bash via ./Tagasaurus.exe
+- [Windows download](https://github.com/mantzaris/Tagasaurus/releases/download/v0.0.1/Tagasaurus-0.0.1-win.zip),  *sha256:b2a110094cc5bf41652d1b3c5d8d1d954c41a776f0e7c573bd65732999abbe38*, a zip holding the executable, open it and run as administrator, or simply from git bash via ./Tagasaurus.exe
 
 
 ## Screenshots  
@@ -30,6 +30,11 @@ Tagasaurus is an **offline-first desktop app** that keeps your photos, PDFs, vid
   <img src="assets/screen-shots/screenShot5.png" width="45%"/>
   <img src="assets/screen-shots/screenShot6.png" width="45%"/>
 </p>
+
+
+## note for Linux users
+
+Windows users will be able to directly run the executable from external media like USBs but if the format of the USB (or ext HD) is not compatible you need to do an extra step. There is a directory 'LinuxRunOnExternalMeida' which has a script which you can run which remounts the drive in a compatible format to run the application.
 
 
 # alternative
